@@ -8,10 +8,14 @@ from common import append_historico
 
 TICKERS = {
     # ^IPSA (el índice puro) no tiene historia en Yahoo Finance entre 2019 y hoy,
-    # solo la cotización del momento. Usamos el ETF que lo replica, que sí tiene
-    # serie diaria continua desde 2013. El nivel no coincide con el índice oficial,
-    # pero la trayectoria/variación porcentual sí es representativa.
-    "ipsa": "CFMITNIPSA.SN",
+    # solo la cotización del momento. Se guarda igual como "ipsa_indice_real":
+    # va a tener datos reales 2010-2019, un hueco 2019-2026, y de ahí en
+    # adelante se completa solo con valores reales día a día.
+    "ipsa_indice_real": "^IPSA",
+    # El ETF que replica el IPSA sí tiene serie diaria continua desde 2013,
+    # sin huecos. El nivel no coincide con el índice oficial, pero sirve
+    # para ver la trayectoria/tendencia completa sin cortes.
+    "ipsa_etf": "CFMITNIPSA.SN",
     "tipo_cambio": "USDCLP=X",
 }
 

@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.io as pio
 
 from config import HISTORICO_PATH, NOMBRES_SERIES
+from series_utils import insertar_huecos
 
 SALIDA_PATH = Path(__file__).resolve().parent.parent / "docs" / "index.html"
 
@@ -55,6 +56,7 @@ def construir_graficos(historico: pd.DataFrame) -> str:
         datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
         if datos_serie.empty:
             continue
+        datos_serie = insertar_huecos(datos_serie)
         fig = px.line(datos_serie, x="fecha", y="valor", markers=True, template="plotly_dark")
         fig.update_layout(
             margin=dict(l=10, r=10, t=10, b=10),

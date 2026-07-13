@@ -4,9 +4,10 @@ import streamlit as st
 import yfinance as yf
 
 from config import HISTORICO_PATH, NOMBRES_SERIES
+from series_utils import insertar_huecos
 
 TICKERS_EN_VIVO = {
-    "IPSA (vía ETF)": "CFMITNIPSA.SN",
+    "IPSA (índice real)": "^IPSA",
     "Dólar (USD/CLP)": "USDCLP=X",
 }
 
@@ -15,12 +16,12 @@ st.title("Datos Económicos Chile")
 
 
 @st.cache_data(ttl=240)
-def obtener_cotizacion(ticker: str) -> tuple[float, float] | None:
+def obtener_cotizacion(ticker: str) -> tuple[float, float | None] | None:
     historial = yf.Ticker(ticker).history(period="5d")
-    if historial.empty or len(historial) < 2:
+    if historial.empty:
         return None
     actual = float(historial["Close"].iloc[-1])
-    anterior = float(historial["Close"].iloc[-2])
+    anterior = float(historial["Close"].iloc[-2]) if len(historial) >= 2 else None
     return actual, anterior
 
 
@@ -35,8 +36,11 @@ def seccion_en_vivo() -> None:
                 st.metric(etiqueta, "sin datos")
                 continue
             actual, anterior = datos
-            variacion_pct = (actual / anterior - 1) * 100 if anterior else 0
-            st.metric(etiqueta, f"{actual:,.2f}", f"{variacion_pct:+.2f}%")
+            if anterior:
+                variacion_pct = (actual / anterior - 1) * 100
+                st.metric(etiqueta, f"{actual:,.2f}", f"{variacion_pct:+.2f}%")
+            else:
+                st.metric(etiqueta, f"{actual:,.2f}")
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
 
@@ -56,6 +60,7 @@ def seccion_historica() -> None:
 
     for serie in series_disponibles:
         datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+        datos_serie = insertar_huecos(datos_serie)
         fig = px.line(
             datos_serie,
             x="fecha",
