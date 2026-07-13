@@ -9,6 +9,7 @@ from series_utils import (
     calcular_inflacion_acumulada_anual,
     calcular_inflacion_interanual,
     calcular_tpm_real,
+    describir_fecha_kpi,
     insertar_huecos,
 )
 
@@ -92,8 +93,8 @@ def seccion_historica() -> None:
         return
 
     for serie in series_disponibles:
-        datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
-        datos_serie = insertar_huecos(datos_serie)
+        datos_completos = historico[historico["serie"] == serie].sort_values("fecha")
+        datos_serie = insertar_huecos(datos_completos)
         fig = px.line(
             datos_serie,
             x="fecha",
@@ -103,6 +104,8 @@ def seccion_historica() -> None:
         )
         fig.update_layout(xaxis_title="", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
+        ultimo = datos_completos.iloc[-1]
+        st.caption(f"Último dato: {describir_fecha_kpi(serie, ultimo['fecha'])}.")
 
 
 seccion_en_vivo()

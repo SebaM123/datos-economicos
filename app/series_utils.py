@@ -1,5 +1,26 @@
 import pandas as pd
 
+# Series de expectativas (EOF): el valor de una fecha es el pronóstico que hizo
+# el mercado ESE día para un momento futuro, no un dato vigente de esa fecha.
+# Acá se define, para cada una, cómo describir el horizonte del pronóstico.
+DESCRIPCION_HORIZONTE_EOF = {
+    "eof_tpm_proxima_reunion": "para la próxima reunión de política monetaria",
+    "eof_inflacion_12m": "para los 12 meses siguientes",
+    "eof_tipo_cambio_7d": "para 7 días después",
+}
+
+
+def describir_fecha_kpi(serie: str, fecha: pd.Timestamp) -> str:
+    """Texto para mostrar bajo el valor de una tarjeta KPI. Para series de
+    expectativas (EOF), aclara que es un pronóstico hecho en esa fecha para
+    un momento posterior (que puede ya haber pasado), en vez de dar a entender
+    que el dato es vigente a hoy.
+    """
+    horizonte = DESCRIPCION_HORIZONTE_EOF.get(serie)
+    if horizonte:
+        return f"pronóstico del {fecha.strftime('%d-%m-%Y')}, {horizonte}"
+    return f"al {fecha.strftime('%d-%m-%Y')}"
+
 
 def calcular_inflacion_acumulada_anual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
     """Inflación acumulada del año calendario en curso: acumula las variaciones

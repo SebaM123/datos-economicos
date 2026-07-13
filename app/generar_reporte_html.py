@@ -18,6 +18,7 @@ from series_utils import (
     calcular_inflacion_acumulada_anual,
     calcular_inflacion_interanual,
     calcular_tpm_real,
+    describir_fecha_kpi,
     insertar_huecos,
 )
 
@@ -50,7 +51,7 @@ def construir_kpis(historico: pd.DataFrame) -> str:
             f"""<div class="kpi">
                 <div class="etiqueta">{etiqueta}</div>
                 <div class="valor">{ultimo['valor']:,.2f}</div>
-                <div class="fecha">al {ultimo['fecha'].strftime('%d-%m-%Y')}</div>
+                <div class="fecha">{describir_fecha_kpi(serie, ultimo['fecha'])}</div>
             </div>"""
         )
 
