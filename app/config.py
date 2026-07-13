@@ -7,6 +7,6 @@ NOMBRES_SERIES = {
     "ipc_variacion_mensual": "IPC - variación mensual (%)",
     "desempleo": "Tasa de desempleo (%)",
     "imacec": "IMACEC",
-    "ipsa": "IPSA",
+    "ipsa": "IPSA (vía ETF, no el índice puro)",
     "tipo_cambio": "Tipo de cambio (USD/CLP)",
 }

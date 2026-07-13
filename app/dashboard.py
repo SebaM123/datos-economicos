@@ -6,7 +6,7 @@ import yfinance as yf
 from config import HISTORICO_PATH, NOMBRES_SERIES
 
 TICKERS_EN_VIVO = {
-    "IPSA": "^IPSA",
+    "IPSA (vía ETF)": "CFMITNIPSA.SN",
     "Dólar (USD/CLP)": "USDCLP=X",
 }
 
