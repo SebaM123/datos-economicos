@@ -1,0 +1,39 @@
+name: Actualizar mercado (intradía)
+
+on:
+  schedule:
+    - cron: "*/15 13-21 * * 1-5" # cada 15 min, 10:00-18:00 America/Santiago, lun-vie
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Traer datos de mercado
+        run: python fetch_market.py
+        working-directory: data_pipeline
+
+      - name: Generar reporte HTML
+        run: python generar_reporte_html.py
+        working-directory: app
+
+      - name: Comitear cambios si hay datos nuevos
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add data/historico.csv docs/index.html
+          git diff --cached --quiet && echo "Sin cambios" || git commit -m "Actualizar mercado (intradía)"
+          git push

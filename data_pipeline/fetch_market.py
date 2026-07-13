@@ -24,6 +24,15 @@ def obtener_snapshot() -> list[dict]:
     return filas
 
 
+def obtener_historico(desde: str) -> list[dict]:
+    filas = []
+    for serie, ticker in TICKERS.items():
+        historial = yf.Ticker(ticker).history(start=desde)
+        for fecha, fila in historial.iterrows():
+            filas.append({"fecha": fecha.date().isoformat(), "serie": serie, "valor": float(fila["Close"])})
+    return filas
+
+
 def main() -> None:
     filas = obtener_snapshot()
     if not filas:

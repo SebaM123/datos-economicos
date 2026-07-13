@@ -21,10 +21,9 @@ SERIES = {
 }
 
 
-def obtener_datos_recientes(dias_atras: int = 45) -> list[dict]:
+def obtener_datos(desde: str, hasta: str | None = None) -> list[dict]:
     cliente = obtener_cliente()
-    desde = (date.today() - timedelta(days=dias_atras)).isoformat()
-    hasta = date.today().isoformat()
+    hasta = hasta or date.today().isoformat()
 
     faltantes = [nombre for nombre, codigo in SERIES.items() if not codigo]
     if faltantes:
@@ -51,7 +50,8 @@ def obtener_datos_recientes(dias_atras: int = 45) -> list[dict]:
 
 
 def main() -> None:
-    filas = obtener_datos_recientes()
+    desde = (date.today() - timedelta(days=45)).isoformat()
+    filas = obtener_datos(desde=desde)
     if not filas:
         print("No se obtuvieron datos del BCCh.")
         return
