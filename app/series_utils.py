@@ -23,6 +23,52 @@ def calcular_inflacion_acumulada_anual(historico: pd.DataFrame) -> tuple[float, 
     return acumulada, ipc_anio["fecha"].iloc[-1]
 
 
+def calcular_inflacion_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Inflación interanual (12 meses): compone las últimas 12 variaciones
+    mensuales del IPC disponibles. Es el dato "titular" que se suele citar
+    en medios (distinto de la inflación acumulada del año calendario).
+    """
+    ipc = historico[historico["serie"] == "ipc_variacion_mensual"].sort_values("fecha")
+    if len(ipc) < 12:
+        return None
+
+    ultimos_12 = ipc.tail(12)
+    factor = 1.0
+    for valor in ultimos_12["valor"]:
+        factor *= 1 + valor / 100
+    interanual = (factor - 1) * 100
+    return interanual, ultimos_12["fecha"].iloc[-1]
+
+
+def calcular_imacec_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Variación del IMACEC respecto al mismo mes del año anterior (%),
+    que es como habitualmente se reporta este indicador (no como índice puro).
+    """
+    imacec = historico[historico["serie"] == "imacec"].sort_values("fecha")
+    if len(imacec) < 13:
+        return None
+
+    actual = imacec.iloc[-1]
+    hace_un_anio = imacec.iloc[-13]
+    variacion = (actual["valor"] / hace_un_anio["valor"] - 1) * 100
+    return variacion, actual["fecha"]
+
+
+def calcular_tpm_real(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """TPM real ex-post: la tasa de política monetaria menos la inflación
+    interanual. Indicador clásico de qué tan restrictiva/expansiva está
+    la política monetaria (positivo = restrictiva, negativo = expansiva).
+    """
+    tpm = historico[historico["serie"] == "tpm"].sort_values("fecha")
+    inflacion = calcular_inflacion_interanual(historico)
+    if tpm.empty or inflacion is None:
+        return None
+
+    tpm_actual = tpm.iloc[-1]
+    inflacion_valor, _ = inflacion
+    return tpm_actual["valor"] - inflacion_valor, tpm_actual["fecha"]
+
+
 def insertar_huecos(datos_serie: pd.DataFrame, umbral_dias: int = 45) -> pd.DataFrame:
     """Inserta filas con valor nulo entre puntos separados por más de
     `umbral_dias`, para que los gráficos de línea corten en vez de unir

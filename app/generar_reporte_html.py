@@ -13,7 +13,13 @@ import plotly.express as px
 import plotly.io as pio
 
 from config import HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import calcular_inflacion_acumulada_anual, insertar_huecos
+from series_utils import (
+    calcular_imacec_interanual,
+    calcular_inflacion_acumulada_anual,
+    calcular_inflacion_interanual,
+    calcular_tpm_real,
+    insertar_huecos,
+)
 
 SALIDA_PATH = Path(__file__).resolve().parent.parent / "docs" / "index.html"
 
@@ -56,6 +62,22 @@ def construir_kpis(historico: pd.DataFrame) -> str:
                 <div class="etiqueta">Inflación acumulada {fecha.year}</div>
                 <div class="valor">{valor:,.2f}%</div>
                 <div class="fecha">enero-{fecha.strftime('%b')} {fecha.year}</div>
+            </div>"""
+        )
+
+    for etiqueta, resultado in [
+        ("Inflación interanual (12 meses)", calcular_inflacion_interanual(historico)),
+        ("IMACEC - variación interanual", calcular_imacec_interanual(historico)),
+        ("TPM real ex-post", calcular_tpm_real(historico)),
+    ]:
+        if not resultado:
+            continue
+        valor, fecha = resultado
+        tarjetas.append(
+            f"""<div class="kpi">
+                <div class="etiqueta">{etiqueta}</div>
+                <div class="valor">{valor:,.2f}%</div>
+                <div class="fecha">al {fecha.strftime('%d-%m-%Y')}</div>
             </div>"""
         )
     return f'<div class="kpis">{"".join(tarjetas)}</div>'

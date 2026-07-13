@@ -4,7 +4,13 @@ import streamlit as st
 import yfinance as yf
 
 from config import HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import calcular_inflacion_acumulada_anual, insertar_huecos
+from series_utils import (
+    calcular_imacec_interanual,
+    calcular_inflacion_acumulada_anual,
+    calcular_inflacion_interanual,
+    calcular_tpm_real,
+    insertar_huecos,
+)
 
 TICKERS_EN_VIVO = {
     "IPSA (índice real)": "^IPSA",
@@ -45,12 +51,29 @@ def seccion_en_vivo() -> None:
 
 
 def seccion_resumen(historico: pd.DataFrame) -> None:
+    metricas = []
+
     inflacion = calcular_inflacion_acumulada_anual(historico)
-    if not inflacion:
+    if inflacion:
+        valor, fecha = inflacion
+        metricas.append((f"Inflación acumulada {fecha.year}", valor))
+
+    for etiqueta, resultado in [
+        ("Inflación interanual (12 meses)", calcular_inflacion_interanual(historico)),
+        ("IMACEC - variación interanual", calcular_imacec_interanual(historico)),
+        ("TPM real ex-post", calcular_tpm_real(historico)),
+    ]:
+        if resultado:
+            valor, _ = resultado
+            metricas.append((etiqueta, valor))
+
+    if not metricas:
         return
-    valor, fecha = inflacion
-    st.metric(f"Inflación acumulada {fecha.year}", f"{valor:,.2f}%")
-    st.caption(f"Suma compuesta de las variaciones mensuales del IPC, enero-{fecha.strftime('%b')} {fecha.year}.")
+
+    columnas = st.columns(len(metricas))
+    for columna, (etiqueta, valor) in zip(columnas, metricas):
+        with columna:
+            st.metric(etiqueta, f"{valor:,.2f}%")
 
 
 def seccion_historica() -> None:
