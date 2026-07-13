@@ -13,7 +13,7 @@ import plotly.express as px
 import plotly.io as pio
 
 from config import HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import insertar_huecos
+from series_utils import calcular_inflacion_acumulada_anual, insertar_huecos
 
 SALIDA_PATH = Path(__file__).resolve().parent.parent / "docs" / "index.html"
 
@@ -45,6 +45,17 @@ def construir_kpis(historico: pd.DataFrame) -> str:
                 <div class="etiqueta">{etiqueta}</div>
                 <div class="valor">{ultimo['valor']:,.2f}</div>
                 <div class="fecha">al {ultimo['fecha'].strftime('%d-%m-%Y')}</div>
+            </div>"""
+        )
+
+    inflacion = calcular_inflacion_acumulada_anual(historico)
+    if inflacion:
+        valor, fecha = inflacion
+        tarjetas.append(
+            f"""<div class="kpi">
+                <div class="etiqueta">Inflación acumulada {fecha.year}</div>
+                <div class="valor">{valor:,.2f}%</div>
+                <div class="fecha">enero-{fecha.strftime('%b')} {fecha.year}</div>
             </div>"""
         )
     return f'<div class="kpis">{"".join(tarjetas)}</div>'

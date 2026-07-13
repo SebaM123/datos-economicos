@@ -4,7 +4,7 @@ import streamlit as st
 import yfinance as yf
 
 from config import HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import insertar_huecos
+from series_utils import calcular_inflacion_acumulada_anual, insertar_huecos
 
 TICKERS_EN_VIVO = {
     "IPSA (índice real)": "^IPSA",
@@ -44,6 +44,15 @@ def seccion_en_vivo() -> None:
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
 
+def seccion_resumen(historico: pd.DataFrame) -> None:
+    inflacion = calcular_inflacion_acumulada_anual(historico)
+    if not inflacion:
+        return
+    valor, fecha = inflacion
+    st.metric(f"Inflación acumulada {fecha.year}", f"{valor:,.2f}%")
+    st.caption(f"Suma compuesta de las variaciones mensuales del IPC, enero-{fecha.strftime('%b')} {fecha.year}.")
+
+
 def seccion_historica() -> None:
     st.subheader("Series históricas")
 
@@ -52,6 +61,7 @@ def seccion_historica() -> None:
         return
 
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
+    seccion_resumen(historico)
     series_disponibles = [s for s in NOMBRES_SERIES if s in historico["serie"].unique()]
 
     if not series_disponibles:
