@@ -1,20 +1,9 @@
-from pathlib import Path
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
-HISTORICO_PATH = Path(__file__).resolve().parent.parent / "data" / "historico.csv"
-
-NOMBRES_SERIES = {
-    "tpm": "TPM (%)",
-    "ipc_variacion_mensual": "IPC - variación mensual (%)",
-    "desempleo": "Tasa de desempleo (%)",
-    "imacec": "IMACEC",
-    "ipsa": "IPSA",
-    "tipo_cambio": "Tipo de cambio (USD/CLP)",
-}
+from config import HISTORICO_PATH, NOMBRES_SERIES
 
 TICKERS_EN_VIVO = {
     "IPSA": "^IPSA",
