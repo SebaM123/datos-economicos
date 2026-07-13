@@ -18,6 +18,14 @@ SERIES = {
     "ipc_variacion_mensual": "F074.IPC.VAR.Z.Z.C.M",
     "desempleo": "F049.DES.TAS.HIST.10.M",
     "imacec": "F032.IMC.IND.Z.Z.EP18.Z.Z.0.M",
+    # Expectativas de mercado: Encuesta de Operadores Financieros (EOF).
+    "eof_tpm_proxima_reunion": "F089.EOF.TPM.1REU.D",
+    "eof_inflacion_12m": "F089.EOF.VII.12MS.D",
+    "eof_tipo_cambio_7d": "F089.EOF.TC.7DA.D",
+    # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
+    # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
+    # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se
+    # agregan hasta verificar qué representan realmente.
 }
 
 
