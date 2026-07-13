@@ -1,0 +1,6 @@
+bcchapi
+yfinance
+pandas
+streamlit
+plotly
+python-dotenv
