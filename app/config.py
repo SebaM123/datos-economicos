@@ -44,31 +44,27 @@ DEFINICIONES = {
 
 # Agrupación temática, para no mostrar todo como una lista plana: cada categoría
 # junta las tarjetas y los gráficos de sus series, más los indicadores calculados
-# que le corresponden (definidos en series_utils.COMPUTADOS).
+# que le corresponden (definidos en series_utils.COMPUTADOS), y se muestra como
+# un bloque desplegable (colapsado por defecto salvo la primera).
 CATEGORIAS = [
     {
-        "nombre": "Chile — Actividad y precios",
-        "series": ["imacec", "pib_chile", "ipc_variacion_mensual", "pib_deflactor"],
-        "computados": ["inflacion_acumulada", "inflacion_interanual", "inflacion_deflactor", "imacec_interanual"],
+        "nombre": "Inflación y Política Monetaria",
+        "series": ["ipc_variacion_mensual", "pib_deflactor", "tpm", "eof_tpm_proxima_reunion", "eof_inflacion_12m"],
+        "computados": ["inflacion_acumulada", "inflacion_interanual", "inflacion_deflactor", "tpm_real"],
     },
     {
-        "nombre": "Chile — Mercado laboral",
+        "nombre": "Empleo",
         "series": ["desempleo", "fuerza_trabajo", "ocupados", "desocupados"],
         "computados": [],
     },
     {
-        "nombre": "Chile — Política monetaria",
-        "series": ["tpm"],
-        "computados": ["tpm_real"],
+        "nombre": "Actividad Económica",
+        "series": ["imacec", "pib_chile"],
+        "computados": ["imacec_interanual"],
     },
     {
-        "nombre": "Chile — Mercado financiero",
-        "series": ["ipsa_indice_real", "ipsa_etf", "tipo_cambio"],
-        "computados": [],
-    },
-    {
-        "nombre": "Expectativas de mercado (EOF)",
-        "series": ["eof_tpm_proxima_reunion", "eof_inflacion_12m", "eof_tipo_cambio_7d"],
+        "nombre": "Mercado Financiero",
+        "series": ["ipsa_indice_real", "ipsa_etf", "tipo_cambio", "eof_tipo_cambio_7d"],
         "computados": [],
     },
     {

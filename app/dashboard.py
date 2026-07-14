@@ -44,7 +44,7 @@ def seccion_en_vivo() -> None:
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
 
-def seccion_categoria(categoria: dict, historico: pd.DataFrame) -> None:
+def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -> None:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
         (clave, *COMPUTADOS[clave]) for clave in categoria["computados"] if COMPUTADOS[clave][1](historico)
@@ -53,8 +53,11 @@ def seccion_categoria(categoria: dict, historico: pd.DataFrame) -> None:
     if not series_disponibles and not computados_disponibles:
         return
 
-    st.header(categoria["nombre"])
+    with st.expander(f"**{categoria['nombre']}**", expanded=abierta):
+        _contenido_categoria(series_disponibles, computados_disponibles, historico)
 
+
+def _contenido_categoria(series_disponibles: list[str], computados_disponibles: list, historico: pd.DataFrame) -> None:
     tarjetas = []
     for serie in series_disponibles:
         datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
@@ -102,8 +105,8 @@ def seccion_historica() -> None:
         return
 
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
-    for categoria in CATEGORIAS:
-        seccion_categoria(categoria, historico)
+    for i, categoria in enumerate(CATEGORIAS):
+        seccion_categoria(categoria, historico, abierta=(i == 0))
 
 
 seccion_en_vivo()

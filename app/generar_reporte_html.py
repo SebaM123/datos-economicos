@@ -22,9 +22,16 @@ ESTILO = """
   body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: #0e1117; color: #fafafa; margin: 0; padding: 2rem 3rem 4rem; }
   h1 { font-size: 1.8rem; margin-bottom: 0; }
   .generado { color: #9a9a9a; font-size: 0.9rem; margin-top: 0.25rem; margin-bottom: 2rem; }
-  .categoria { margin-top: 3rem; }
-  .categoria:first-of-type { margin-top: 0.5rem; }
-  .categoria h2 { font-size: 1.3rem; border-bottom: 2px solid #363b4a; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  details.categoria { margin-top: 1rem; border: 1px solid #262a35; border-radius: 12px; background: #12141b; }
+  details.categoria summary {
+    font-size: 1.25rem; font-weight: 600; padding: 1.1rem 1.5rem; cursor: pointer;
+    list-style: none; display: flex; align-items: center; gap: 0.6rem; user-select: none;
+  }
+  details.categoria summary::-webkit-details-marker { display: none; }
+  details.categoria summary::before { content: "▸"; color: #7c8ff0; transition: transform 0.15s; }
+  details.categoria[open] summary::before { transform: rotate(90deg); }
+  details.categoria summary:hover { background: #171a24; border-radius: 12px; }
+  .categoria-contenido { padding: 0 1.5rem 1.5rem; }
   .kpis { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   .kpi { background: #171923; border: 1px solid #262a35; border-radius: 10px; padding: 1rem 1.5rem; min-width: 180px; }
   .kpi .etiqueta { color: #9a9a9a; font-size: 0.85rem; }
@@ -37,6 +44,23 @@ ESTILO = """
 </style>
 """
 
+# Cada gráfico Plotly se dibuja con las dimensiones que tenga su contenedor en
+# ese momento. Si está dentro de un <details> cerrado, arranca con ancho 0 y
+# queda roto al abrirlo. Este script lo redibuja bien cada vez que se abre una sección.
+SCRIPT_TOGGLE = """
+<script>
+document.querySelectorAll('details.categoria').forEach(function (det) {
+  det.addEventListener('toggle', function () {
+    if (det.open) {
+      det.querySelectorAll('.js-plotly-plot').forEach(function (el) {
+        if (window.Plotly) { window.Plotly.Plots.resize(el); }
+      });
+    }
+  });
+});
+</script>
+"""
+
 
 def valor_kpi(etiqueta: str, valor: float, fecha_texto: str, sufijo: str = "") -> str:
     return f"""<div class="kpi">
@@ -46,7 +70,7 @@ def valor_kpi(etiqueta: str, valor: float, fecha_texto: str, sufijo: str = "") -
     </div>"""
 
 
-def construir_seccion(categoria: dict, historico: pd.DataFrame) -> str:
+def construir_seccion(categoria: dict, historico: pd.DataFrame, abierta: bool) -> str:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
         (clave, *COMPUTADOS[clave]) for clave in categoria["computados"] if COMPUTADOS[clave][1](historico)
@@ -91,11 +115,14 @@ def construir_seccion(categoria: dict, historico: pd.DataFrame) -> str:
             </div>"""
         )
 
-    return f"""<section class="categoria">
-        <h2>{categoria['nombre']}</h2>
-        <div class="kpis">{"".join(tarjetas)}</div>
-        <div class="graficos">{"".join(graficos)}</div>
-    </section>"""
+    atributo_open = " open" if abierta else ""
+    return f"""<details class="categoria"{atributo_open}>
+        <summary>{categoria['nombre']}</summary>
+        <div class="categoria-contenido">
+            <div class="kpis">{"".join(tarjetas)}</div>
+            <div class="graficos">{"".join(graficos)}</div>
+        </div>
+    </details>"""
 
 
 def generar() -> None:
@@ -105,7 +132,9 @@ def generar() -> None:
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
     ahora = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M UTC")
 
-    secciones = "".join(construir_seccion(categoria, historico) for categoria in CATEGORIAS)
+    secciones = "".join(
+        construir_seccion(categoria, historico, abierta=(i == 0)) for i, categoria in enumerate(CATEGORIAS)
+    )
 
     html = f"""<!doctype html>
 <html lang="es">
@@ -119,6 +148,7 @@ def generar() -> None:
 <h1>Datos Económicos Chile</h1>
 <div class="generado">Generado el {ahora} · se actualiza una vez al día vía GitHub Actions</div>
 {secciones}
+{SCRIPT_TOGGLE}
 </body>
 </html>"""
 
