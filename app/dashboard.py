@@ -3,7 +3,7 @@ import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
-from config import HISTORICO_PATH, NOMBRES_SERIES
+from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
 from series_utils import (
     calcular_imacec_interanual,
     calcular_inflacion_acumulada_anual,
@@ -104,6 +104,9 @@ def seccion_historica() -> None:
         )
         fig.update_layout(xaxis_title="", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
+        definicion = DEFINICIONES.get(serie)
+        if definicion:
+            st.caption(definicion)
         ultimo = datos_completos.iloc[-1]
         st.caption(f"Último dato: {describir_fecha_kpi(serie, ultimo['fecha'])}.")
 

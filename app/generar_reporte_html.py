@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
-from config import HISTORICO_PATH, NOMBRES_SERIES
+from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
 from series_utils import (
     calcular_imacec_interanual,
     calcular_inflacion_acumulada_anual,
@@ -34,7 +34,8 @@ ESTILO = """
   .kpi .etiqueta { color: #9a9a9a; font-size: 0.85rem; }
   .kpi .valor { font-size: 1.6rem; font-weight: 600; margin-top: 0.25rem; }
   .kpi .fecha { color: #6b6b6b; font-size: 0.75rem; margin-top: 0.25rem; }
-  h2 { font-size: 1.2rem; border-bottom: 1px solid #262a35; padding-bottom: 0.5rem; margin-top: 2.5rem; }
+  h2 { font-size: 1.2rem; border-bottom: 1px solid #262a35; padding-bottom: 0.5rem; margin-top: 2.5rem; margin-bottom: 0; }
+  .definicion { color: #9a9a9a; font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0; max-width: 60ch; }
   .grafico { margin-top: 1rem; }
 </style>
 """
@@ -100,7 +101,9 @@ def construir_graficos(historico: pd.DataFrame) -> str:
             plot_bgcolor="#0e1117",
         )
         grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
-        bloques.append(f"<h2>{etiqueta}</h2><div class='grafico'>{grafico_html}</div>")
+        definicion = DEFINICIONES.get(serie)
+        definicion_html = f"<p class='definicion'>{definicion}</p>" if definicion else ""
+        bloques.append(f"<h2>{etiqueta}</h2>{definicion_html}<div class='grafico'>{grafico_html}</div>")
     return "".join(bloques)
 
 

@@ -22,6 +22,15 @@ SERIES = {
     "eof_tpm_proxima_reunion": "F089.EOF.TPM.1REU.D",
     "eof_inflacion_12m": "F089.EOF.VII.12MS.D",
     "eof_tipo_cambio_7d": "F089.EOF.TC.7DA.D",
+    # Desglose del mercado laboral chileno (Fuerza de trabajo = Ocupados + Desocupados).
+    "fuerza_trabajo": "F049.FTR.PMT.INE.10.M",
+    "ocupados": "F049.OCU.PMT.INE.10.M",
+    "desocupados": "F049.DES.PMT.INE.10.M",
+    # Datos de EEUU (ya disponibles en el BCCh, sin fuente nueva). No hay tasa de la Fed
+    # en esta API — para eso haría falta otra fuente (ej. FRED).
+    "eeuu_desempleo": "F019.DES.TAS.10.M",
+    "eeuu_inflacion": "F019.IPC.V12.10.M",
+    "eeuu_pib_per_capita": "F019.PIBPC.FLU.US.A",
     # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
     # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
     # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se
