@@ -106,6 +106,18 @@ def calcular_tpm_real(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | N
     return tpm_actual["valor"] - inflacion_valor, tpm_actual["fecha"]
 
 
+# Registro de indicadores calculados (no son una serie cruda de historico.csv,
+# se derivan de una o más series). "{year}" en la etiqueta se reemplaza por el
+# año de la fecha del dato al momento de mostrarlo.
+COMPUTADOS = {
+    "inflacion_acumulada": ("Inflación acumulada {year}", calcular_inflacion_acumulada_anual),
+    "inflacion_interanual": ("Inflación interanual (12 meses, IPC)", calcular_inflacion_interanual),
+    "inflacion_deflactor": ("Inflación interanual (deflactor del PIB)", calcular_inflacion_deflactor_pib),
+    "imacec_interanual": ("IMACEC - variación interanual", calcular_imacec_interanual),
+    "tpm_real": ("TPM real ex-post", calcular_tpm_real),
+}
+
+
 def insertar_huecos(datos_serie: pd.DataFrame, umbral_dias: int = 45) -> pd.DataFrame:
     """Inserta filas con valor nulo entre puntos separados por más de
     `umbral_dias`, para que los gráficos de línea corten en vez de unir

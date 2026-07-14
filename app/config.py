@@ -41,3 +41,39 @@ DEFINICIONES = {
     "pib_chile": "Valor de todos los bienes y servicios producidos en Chile en el trimestre, a precios de mercado.",
     "pib_deflactor": "Mide cuánto suben los precios de TODO lo que se produce en el país (no solo lo que consumen las personas, como el IPC). Su variación interanual es una medida de inflación alternativa al IPC.",
 }
+
+# Agrupación temática, para no mostrar todo como una lista plana: cada categoría
+# junta las tarjetas y los gráficos de sus series, más los indicadores calculados
+# que le corresponden (definidos en series_utils.COMPUTADOS).
+CATEGORIAS = [
+    {
+        "nombre": "Chile — Actividad y precios",
+        "series": ["imacec", "pib_chile", "ipc_variacion_mensual", "pib_deflactor"],
+        "computados": ["inflacion_acumulada", "inflacion_interanual", "inflacion_deflactor", "imacec_interanual"],
+    },
+    {
+        "nombre": "Chile — Mercado laboral",
+        "series": ["desempleo", "fuerza_trabajo", "ocupados", "desocupados"],
+        "computados": [],
+    },
+    {
+        "nombre": "Chile — Política monetaria",
+        "series": ["tpm"],
+        "computados": ["tpm_real"],
+    },
+    {
+        "nombre": "Chile — Mercado financiero",
+        "series": ["ipsa_indice_real", "ipsa_etf", "tipo_cambio"],
+        "computados": [],
+    },
+    {
+        "nombre": "Expectativas de mercado (EOF)",
+        "series": ["eof_tpm_proxima_reunion", "eof_inflacion_12m", "eof_tipo_cambio_7d"],
+        "computados": [],
+    },
+    {
+        "nombre": "Estados Unidos",
+        "series": ["eeuu_desempleo", "eeuu_inflacion", "eeuu_pib_per_capita"],
+        "computados": [],
+    },
+]

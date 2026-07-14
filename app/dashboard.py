@@ -3,16 +3,8 @@ import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
-from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import (
-    calcular_imacec_interanual,
-    calcular_inflacion_acumulada_anual,
-    calcular_inflacion_deflactor_pib,
-    calcular_inflacion_interanual,
-    calcular_tpm_real,
-    describir_fecha_kpi,
-    insertar_huecos,
-)
+from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
+from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
 
 TICKERS_EN_VIVO = {
     "IPSA (índice real)": "^IPSA",
@@ -52,65 +44,66 @@ def seccion_en_vivo() -> None:
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
 
-def seccion_resumen(historico: pd.DataFrame) -> None:
-    metricas = []
+def seccion_categoria(categoria: dict, historico: pd.DataFrame) -> None:
+    series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
+    computados_disponibles = [
+        (clave, *COMPUTADOS[clave]) for clave in categoria["computados"] if COMPUTADOS[clave][1](historico)
+    ]
 
-    inflacion = calcular_inflacion_acumulada_anual(historico)
-    if inflacion:
-        valor, fecha = inflacion
-        metricas.append((f"Inflación acumulada {fecha.year}", valor))
-
-    for etiqueta, resultado in [
-        ("Inflación interanual (12 meses, IPC)", calcular_inflacion_interanual(historico)),
-        ("Inflación interanual (deflactor del PIB)", calcular_inflacion_deflactor_pib(historico)),
-        ("IMACEC - variación interanual", calcular_imacec_interanual(historico)),
-        ("TPM real ex-post", calcular_tpm_real(historico)),
-    ]:
-        if resultado:
-            valor, _ = resultado
-            metricas.append((etiqueta, valor))
-
-    if not metricas:
+    if not series_disponibles and not computados_disponibles:
         return
 
-    columnas = st.columns(len(metricas))
-    for columna, (etiqueta, valor) in zip(columnas, metricas):
-        with columna:
-            st.metric(etiqueta, f"{valor:,.2f}%")
+    st.header(categoria["nombre"])
+
+    tarjetas = []
+    for serie in series_disponibles:
+        datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+        ultimo = datos_serie.iloc[-1]
+        tarjetas.append((NOMBRES_SERIES[serie], ultimo["valor"], "", describir_fecha_kpi(serie, ultimo["fecha"])))
+    for _, etiqueta_template, funcion in computados_disponibles:
+        valor, fecha = funcion(historico)
+        etiqueta = etiqueta_template.format(year=fecha.year)
+        tarjetas.append((etiqueta, valor, "%", f"al {fecha.strftime('%d-%m-%Y')}"))
+
+    KPIS_POR_FILA = 4
+    for inicio in range(0, len(tarjetas), KPIS_POR_FILA):
+        columnas = st.columns(KPIS_POR_FILA)
+        for columna, (etiqueta, valor, sufijo, fecha_texto) in zip(columnas, tarjetas[inicio : inicio + KPIS_POR_FILA]):
+            with columna:
+                st.metric(etiqueta, f"{valor:,.2f}{sufijo}")
+                st.caption(fecha_texto)
+
+    GRAFICOS_POR_FILA = 2
+    for inicio in range(0, len(series_disponibles), GRAFICOS_POR_FILA):
+        columnas = st.columns(GRAFICOS_POR_FILA)
+        for columna, serie in zip(columnas, series_disponibles[inicio : inicio + GRAFICOS_POR_FILA]):
+            with columna:
+                datos_completos = historico[historico["serie"] == serie].sort_values("fecha")
+                datos_serie = insertar_huecos(datos_completos)
+                fig = px.line(
+                    datos_serie,
+                    x="fecha",
+                    y="valor",
+                    title=NOMBRES_SERIES[serie],
+                    markers=True,
+                )
+                fig.update_layout(xaxis_title="", yaxis_title="")
+                st.plotly_chart(fig, use_container_width=True)
+                definicion = DEFINICIONES.get(serie)
+                if definicion:
+                    st.caption(definicion)
+                ultimo = datos_completos.iloc[-1]
+                st.caption(f"Último dato: {describir_fecha_kpi(serie, ultimo['fecha'])}.")
 
 
 def seccion_historica() -> None:
-    st.subheader("Series históricas")
-
     if not HISTORICO_PATH.exists():
         st.info("Todavía no hay datos históricos acumulados. Corré el pipeline de datos primero.")
         return
 
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
-    seccion_resumen(historico)
-    series_disponibles = [s for s in NOMBRES_SERIES if s in historico["serie"].unique()]
-
-    if not series_disponibles:
-        st.info("No hay series reconocidas en historico.csv todavía.")
-        return
-
-    for serie in series_disponibles:
-        datos_completos = historico[historico["serie"] == serie].sort_values("fecha")
-        datos_serie = insertar_huecos(datos_completos)
-        fig = px.line(
-            datos_serie,
-            x="fecha",
-            y="valor",
-            title=NOMBRES_SERIES[serie],
-            markers=True,
-        )
-        fig.update_layout(xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig, use_container_width=True)
-        definicion = DEFINICIONES.get(serie)
-        if definicion:
-            st.caption(definicion)
-        ultimo = datos_completos.iloc[-1]
-        st.caption(f"Último dato: {describir_fecha_kpi(serie, ultimo['fecha'])}.")
+    for categoria in CATEGORIAS:
+        seccion_categoria(categoria, historico)
 
 
 seccion_en_vivo()

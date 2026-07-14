@@ -12,16 +12,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
-from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import (
-    calcular_imacec_interanual,
-    calcular_inflacion_acumulada_anual,
-    calcular_inflacion_deflactor_pib,
-    calcular_inflacion_interanual,
-    calcular_tpm_real,
-    describir_fecha_kpi,
-    insertar_huecos,
-)
+from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
+from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
 
 SALIDA_PATH = Path(__file__).resolve().parent.parent / "docs" / "index.html"
 
@@ -30,71 +22,57 @@ ESTILO = """
   body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: #0e1117; color: #fafafa; margin: 0; padding: 2rem 3rem 4rem; }
   h1 { font-size: 1.8rem; margin-bottom: 0; }
   .generado { color: #9a9a9a; font-size: 0.9rem; margin-top: 0.25rem; margin-bottom: 2rem; }
-  .kpis { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2.5rem; }
+  .categoria { margin-top: 3rem; }
+  .categoria:first-of-type { margin-top: 0.5rem; }
+  .categoria h2 { font-size: 1.3rem; border-bottom: 2px solid #363b4a; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  .kpis { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   .kpi { background: #171923; border: 1px solid #262a35; border-radius: 10px; padding: 1rem 1.5rem; min-width: 180px; }
   .kpi .etiqueta { color: #9a9a9a; font-size: 0.85rem; }
   .kpi .valor { font-size: 1.6rem; font-weight: 600; margin-top: 0.25rem; }
   .kpi .fecha { color: #6b6b6b; font-size: 0.75rem; margin-top: 0.25rem; }
-  h2 { font-size: 1.2rem; border-bottom: 1px solid #262a35; padding-bottom: 0.5rem; margin-top: 2.5rem; margin-bottom: 0; }
-  .definicion { color: #9a9a9a; font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0; max-width: 60ch; }
-  .grafico { margin-top: 1rem; }
+  .graficos { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; }
+  .grafico-bloque h3 { font-size: 1rem; margin-bottom: 0; }
+  .definicion { color: #9a9a9a; font-size: 0.85rem; margin-top: 0.35rem; margin-bottom: 0; }
+  .grafico { margin-top: 0.5rem; }
 </style>
 """
 
 
-def construir_kpis(historico: pd.DataFrame) -> str:
+def valor_kpi(etiqueta: str, valor: float, fecha_texto: str, sufijo: str = "") -> str:
+    return f"""<div class="kpi">
+        <div class="etiqueta">{etiqueta}</div>
+        <div class="valor">{valor:,.2f}{sufijo}</div>
+        <div class="fecha">{fecha_texto}</div>
+    </div>"""
+
+
+def construir_seccion(categoria: dict, historico: pd.DataFrame) -> str:
+    series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
+    computados_disponibles = [
+        (clave, *COMPUTADOS[clave]) for clave in categoria["computados"] if COMPUTADOS[clave][1](historico)
+    ]
+
+    if not series_disponibles and not computados_disponibles:
+        return ""
+
     tarjetas = []
-    for serie, etiqueta in NOMBRES_SERIES.items():
+    for serie in series_disponibles:
         datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
-        if datos_serie.empty:
-            continue
         ultimo = datos_serie.iloc[-1]
         tarjetas.append(
-            f"""<div class="kpi">
-                <div class="etiqueta">{etiqueta}</div>
-                <div class="valor">{ultimo['valor']:,.2f}</div>
-                <div class="fecha">{describir_fecha_kpi(serie, ultimo['fecha'])}</div>
-            </div>"""
+            valor_kpi(NOMBRES_SERIES[serie], ultimo["valor"], describir_fecha_kpi(serie, ultimo["fecha"]))
         )
 
-    inflacion = calcular_inflacion_acumulada_anual(historico)
-    if inflacion:
-        valor, fecha = inflacion
-        tarjetas.append(
-            f"""<div class="kpi">
-                <div class="etiqueta">Inflación acumulada {fecha.year}</div>
-                <div class="valor">{valor:,.2f}%</div>
-                <div class="fecha">enero-{fecha.strftime('%b')} {fecha.year}</div>
-            </div>"""
-        )
+    for _, etiqueta_template, funcion in computados_disponibles:
+        valor, fecha = funcion(historico)
+        etiqueta = etiqueta_template.format(year=fecha.year)
+        tarjetas.append(valor_kpi(etiqueta, valor, f"al {fecha.strftime('%d-%m-%Y')}", sufijo="%"))
 
-    for etiqueta, resultado in [
-        ("Inflación interanual (12 meses, IPC)", calcular_inflacion_interanual(historico)),
-        ("Inflación interanual (deflactor del PIB)", calcular_inflacion_deflactor_pib(historico)),
-        ("IMACEC - variación interanual", calcular_imacec_interanual(historico)),
-        ("TPM real ex-post", calcular_tpm_real(historico)),
-    ]:
-        if not resultado:
-            continue
-        valor, fecha = resultado
-        tarjetas.append(
-            f"""<div class="kpi">
-                <div class="etiqueta">{etiqueta}</div>
-                <div class="valor">{valor:,.2f}%</div>
-                <div class="fecha">al {fecha.strftime('%d-%m-%Y')}</div>
-            </div>"""
-        )
-    return f'<div class="kpis">{"".join(tarjetas)}</div>'
-
-
-def construir_graficos(historico: pd.DataFrame) -> str:
-    bloques = []
-    for serie, etiqueta in NOMBRES_SERIES.items():
+    graficos = []
+    for serie in series_disponibles:
         datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
-        if datos_serie.empty:
-            continue
-        datos_serie = insertar_huecos(datos_serie)
-        fig = px.line(datos_serie, x="fecha", y="valor", markers=True, template="plotly_dark")
+        datos_grafico = insertar_huecos(datos_serie)
+        fig = px.line(datos_grafico, x="fecha", y="valor", markers=True, template="plotly_dark")
         fig.update_layout(
             margin=dict(l=10, r=10, t=10, b=10),
             xaxis_title="",
@@ -105,8 +83,19 @@ def construir_graficos(historico: pd.DataFrame) -> str:
         grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
         definicion = DEFINICIONES.get(serie)
         definicion_html = f"<p class='definicion'>{definicion}</p>" if definicion else ""
-        bloques.append(f"<h2>{etiqueta}</h2>{definicion_html}<div class='grafico'>{grafico_html}</div>")
-    return "".join(bloques)
+        graficos.append(
+            f"""<div class="grafico-bloque">
+                <h3>{NOMBRES_SERIES[serie]}</h3>
+                {definicion_html}
+                <div class="grafico">{grafico_html}</div>
+            </div>"""
+        )
+
+    return f"""<section class="categoria">
+        <h2>{categoria['nombre']}</h2>
+        <div class="kpis">{"".join(tarjetas)}</div>
+        <div class="graficos">{"".join(graficos)}</div>
+    </section>"""
 
 
 def generar() -> None:
@@ -115,6 +104,8 @@ def generar() -> None:
 
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
     ahora = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M UTC")
+
+    secciones = "".join(construir_seccion(categoria, historico) for categoria in CATEGORIAS)
 
     html = f"""<!doctype html>
 <html lang="es">
@@ -127,8 +118,7 @@ def generar() -> None:
 <body>
 <h1>Datos Económicos Chile</h1>
 <div class="generado">Generado el {ahora} · se actualiza una vez al día vía GitHub Actions</div>
-{construir_kpis(historico)}
-{construir_graficos(historico)}
+{secciones}
 </body>
 </html>"""
 
