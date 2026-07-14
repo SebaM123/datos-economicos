@@ -19,6 +19,22 @@ TICKERS = {
     "tipo_cambio": "USDCLP=X",
 }
 
+# Yahoo Finance a veces entrega ticks puntuales claramente erróneos (ej. el
+# dólar en $5 CLP un solo día, rodeado de valores normales de ~$550). Estos
+# rangos son solo para descartar esos glitches, no para validar precisión.
+RANGOS_VALIDOS = {
+    "tipo_cambio": (200, 2000),
+    "ipsa_indice_real": (1000, 30000),
+    "ipsa_etf": (500, 20000),
+}
+
+
+def _es_valido(serie: str, valor: float) -> bool:
+    rango = RANGOS_VALIDOS.get(serie)
+    if not rango:
+        return True
+    return rango[0] <= valor <= rango[1]
+
 
 def obtener_snapshot() -> list[dict]:
     hoy = date.today().isoformat()
@@ -28,6 +44,9 @@ def obtener_snapshot() -> list[dict]:
         if historial.empty:
             continue
         ultimo_valor = float(historial["Close"].iloc[-1])
+        if not _es_valido(serie, ultimo_valor):
+            print(f"Valor descartado por fuera de rango: {serie}={ultimo_valor}")
+            continue
         filas.append({"fecha": hoy, "serie": serie, "valor": ultimo_valor})
     return filas
 
@@ -37,7 +56,11 @@ def obtener_historico(desde: str) -> list[dict]:
     for serie, ticker in TICKERS.items():
         historial = yf.Ticker(ticker).history(start=desde)
         for fecha, fila in historial.iterrows():
-            filas.append({"fecha": fecha.date().isoformat(), "serie": serie, "valor": float(fila["Close"])})
+            valor = float(fila["Close"])
+            if not _es_valido(serie, valor):
+                print(f"Valor descartado por fuera de rango: {serie}={valor} ({fecha.date()})")
+                continue
+            filas.append({"fecha": fecha.date().isoformat(), "serie": serie, "valor": valor})
     return filas
 
 
