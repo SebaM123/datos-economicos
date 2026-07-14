@@ -31,6 +31,10 @@ SERIES = {
     "eeuu_desempleo": "F019.DES.TAS.10.M",
     "eeuu_inflacion": "F019.IPC.V12.10.M",
     "eeuu_pib_per_capita": "F019.PIBPC.FLU.US.A",
+    # PIB de Chile (nivel trimestral, desestacionalizado) y el índice del deflactor del PIB
+    # (para poder calcular una medida de inflación alternativa al IPC).
+    "pib_chile": "F032.PIB.FLU.N.CLP.EP18.Z.Z.1.T",
+    "pib_deflactor": "F032.PIB.DEF.N.CLP.EP18.Z.Z.0.T",
     # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
     # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
     # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se

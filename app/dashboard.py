@@ -7,6 +7,7 @@ from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
 from series_utils import (
     calcular_imacec_interanual,
     calcular_inflacion_acumulada_anual,
+    calcular_inflacion_deflactor_pib,
     calcular_inflacion_interanual,
     calcular_tpm_real,
     describir_fecha_kpi,
@@ -60,7 +61,8 @@ def seccion_resumen(historico: pd.DataFrame) -> None:
         metricas.append((f"Inflación acumulada {fecha.year}", valor))
 
     for etiqueta, resultado in [
-        ("Inflación interanual (12 meses)", calcular_inflacion_interanual(historico)),
+        ("Inflación interanual (12 meses, IPC)", calcular_inflacion_interanual(historico)),
+        ("Inflación interanual (deflactor del PIB)", calcular_inflacion_deflactor_pib(historico)),
         ("IMACEC - variación interanual", calcular_imacec_interanual(historico)),
         ("TPM real ex-post", calcular_tpm_real(historico)),
     ]:

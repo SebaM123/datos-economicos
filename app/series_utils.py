@@ -75,6 +75,22 @@ def calcular_imacec_interanual(historico: pd.DataFrame) -> tuple[float, pd.Times
     return variacion, actual["fecha"]
 
 
+def calcular_inflacion_deflactor_pib(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Variación interanual del deflactor del PIB (4 trimestres): una medida
+    de inflación alternativa al IPC, que cubre TODO lo que produce el país
+    (incluye, por ejemplo, bienes de inversión y exportaciones, no solo lo
+    que compran los hogares).
+    """
+    deflactor = historico[historico["serie"] == "pib_deflactor"].sort_values("fecha")
+    if len(deflactor) < 5:
+        return None
+
+    actual = deflactor.iloc[-1]
+    hace_un_anio = deflactor.iloc[-5]
+    variacion = (actual["valor"] / hace_un_anio["valor"] - 1) * 100
+    return variacion, actual["fecha"]
+
+
 def calcular_tpm_real(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
     """TPM real ex-post: la tasa de política monetaria menos la inflación
     interanual. Indicador clásico de qué tan restrictiva/expansiva está

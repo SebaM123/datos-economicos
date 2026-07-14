@@ -19,6 +19,8 @@ NOMBRES_SERIES = {
     "eeuu_desempleo": "EEUU - Tasa de desempleo (%)",
     "eeuu_inflacion": "EEUU - Inflación interanual (%)",
     "eeuu_pib_per_capita": "EEUU - PIB per cápita (miles de USD, PPA)",
+    "pib_chile": "PIB Chile (miles de millones de $, trimestral, desestacionalizado)",
+    "pib_deflactor": "Deflactor del PIB (índice, 2018=100)",
 }
 
 # Definiciones breves para el glosario. Solo para conceptos que no son obvios
@@ -36,4 +38,6 @@ DEFINICIONES = {
     "eof_inflacion_12m": "Lo que los operadores financieros esperan que sea la inflación acumulada en los próximos 12 meses.",
     "eof_tipo_cambio_7d": "Lo que los operadores financieros esperan que sea el tipo de cambio 7 días después de la fecha de la encuesta.",
     "eeuu_pib_per_capita": "Producto Interno Bruto dividido por la población, en miles de dólares ajustados por paridad de poder de compra (PPA). Dato anual.",
+    "pib_chile": "Valor de todos los bienes y servicios producidos en Chile en el trimestre, a precios de mercado.",
+    "pib_deflactor": "Mide cuánto suben los precios de TODO lo que se produce en el país (no solo lo que consumen las personas, como el IPC). Su variación interanual es una medida de inflación alternativa al IPC.",
 }
