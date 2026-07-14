@@ -5,10 +5,12 @@ import yfinance as yf
 
 from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
 from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
+from ticker import TICKER_ESTILO, construir_ticker_html
 
 TICKERS_EN_VIVO = {
     "IPSA (índice real)": "^IPSA",
     "Dólar (USD/CLP)": "USDCLP=X",
+    "S&P 500": "^GSPC",
 }
 
 st.set_page_config(page_title="Datos Económicos Chile", layout="wide")
@@ -28,6 +30,8 @@ def obtener_cotizacion(ticker: str) -> tuple[float, float | None] | None:
 @st.fragment(run_every="5m")
 def seccion_en_vivo() -> None:
     st.subheader("En vivo")
+
+    items_ticker = []
     columnas = st.columns(len(TICKERS_EN_VIVO))
     for columna, (etiqueta, ticker) in zip(columnas, TICKERS_EN_VIVO.items()):
         datos = obtener_cotizacion(ticker)
@@ -36,11 +40,16 @@ def seccion_en_vivo() -> None:
                 st.metric(etiqueta, "sin datos")
                 continue
             actual, anterior = datos
-            if anterior:
-                variacion_pct = (actual / anterior - 1) * 100
+            variacion_pct = (actual / anterior - 1) * 100 if anterior else None
+            if variacion_pct is not None:
                 st.metric(etiqueta, f"{actual:,.2f}", f"{variacion_pct:+.2f}%")
             else:
                 st.metric(etiqueta, f"{actual:,.2f}")
+            items_ticker.append((etiqueta, actual, variacion_pct))
+
+    if items_ticker:
+        st.markdown(TICKER_ESTILO + construir_ticker_html(items_ticker), unsafe_allow_html=True)
+
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
 

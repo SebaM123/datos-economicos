@@ -14,6 +14,9 @@ import plotly.io as pio
 
 from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
 from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
+from ticker import TICKER_ESTILO, construir_ticker_html
+
+SERIES_TICKER = ["ipsa_indice_real", "tipo_cambio", "sp500", "tpm"]
 
 SALIDA_PATH = Path(__file__).resolve().parent.parent / "docs" / "index.html"
 
@@ -60,6 +63,24 @@ document.querySelectorAll('details.categoria').forEach(function (det) {
 });
 </script>
 """
+
+
+def construir_ticker(historico: pd.DataFrame) -> str:
+    items = []
+    for serie in SERIES_TICKER:
+        datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+        if datos_serie.empty:
+            continue
+        actual = datos_serie["valor"].iloc[-1]
+        variacion = None
+        if len(datos_serie) >= 2:
+            anterior = datos_serie["valor"].iloc[-2]
+            if anterior:
+                variacion = (actual / anterior - 1) * 100
+        items.append((NOMBRES_SERIES[serie], actual, variacion))
+    if not items:
+        return ""
+    return construir_ticker_html(items)
 
 
 def valor_kpi(etiqueta: str, valor: float, fecha_texto: str, sufijo: str = "") -> str:
@@ -132,6 +153,7 @@ def generar() -> None:
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
     ahora = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M UTC")
 
+    ticker = construir_ticker(historico)
     secciones = "".join(
         construir_seccion(categoria, historico, abierta=(i == 0)) for i, categoria in enumerate(CATEGORIAS)
     )
@@ -142,11 +164,13 @@ def generar() -> None:
 <meta charset="utf-8">
 <title>Datos Económicos Chile</title>
 {ESTILO}
+{TICKER_ESTILO}
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 <body>
 <h1>Datos Económicos Chile</h1>
 <div class="generado">Generado el {ahora} · se actualiza una vez al día vía GitHub Actions</div>
+{ticker}
 {secciones}
 {SCRIPT_TOGGLE}
 </body>

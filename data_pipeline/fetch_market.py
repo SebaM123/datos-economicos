@@ -17,6 +17,7 @@ TICKERS = {
     # para ver la trayectoria/tendencia completa sin cortes.
     "ipsa_etf": "CFMITNIPSA.SN",
     "tipo_cambio": "USDCLP=X",
+    "sp500": "^GSPC",
 }
 
 # Yahoo Finance a veces entrega ticks puntuales claramente erróneos (ej. el
@@ -26,6 +27,7 @@ RANGOS_VALIDOS = {
     "tipo_cambio": (200, 2000),
     "ipsa_indice_real": (1000, 30000),
     "ipsa_etf": (500, 20000),
+    "sp500": (500, 20000),
 }
 
 
