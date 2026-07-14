@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
-from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
+from config import CATEGORIAS, DEFINICIONES, ETIQUETAS_TICKER, HISTORICO_PATH, NOMBRES_SERIES
 from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
 from ticker import TICKER_ESTILO, construir_ticker_html
 
@@ -77,7 +77,7 @@ def construir_ticker(historico: pd.DataFrame) -> str:
             anterior = datos_serie["valor"].iloc[-2]
             if anterior:
                 variacion = (actual / anterior - 1) * 100
-        items.append((NOMBRES_SERIES[serie], actual, variacion))
+        items.append((ETIQUETAS_TICKER.get(serie, NOMBRES_SERIES[serie]), actual, variacion))
     if not items:
         return ""
     return construir_ticker_html(items)

@@ -22,6 +22,16 @@ NOMBRES_SERIES = {
     "pib_chile": "PIB Chile (miles de millones de $, trimestral, desestacionalizado)",
     "pib_deflactor": "Deflactor del PIB (índice, 2018=100)",
     "sp500": "S&P 500 (EEUU)",
+    "chile_pib_per_capita_ppa": "Chile - PIB per cápita (miles de USD, PPA)",
+}
+
+# Etiquetas cortas solo para la cinta animada (ticker): ahí no hay espacio para
+# aclaraciones largas como "(sin datos 2019-2026)", que sí van en las tarjetas.
+ETIQUETAS_TICKER = {
+    "ipsa_indice_real": "IPSA",
+    "tipo_cambio": "Dólar",
+    "sp500": "S&P 500",
+    "tpm": "TPM",
 }
 
 # Definiciones breves para el glosario. Solo para conceptos que no son obvios
@@ -38,10 +48,11 @@ DEFINICIONES = {
     "eof_tpm_proxima_reunion": "Lo que los operadores financieros encuestados por el Banco Central esperan que sea la TPM en la próxima reunión de política monetaria.",
     "eof_inflacion_12m": "Lo que los operadores financieros esperan que sea la inflación acumulada en los próximos 12 meses.",
     "eof_tipo_cambio_7d": "Lo que los operadores financieros esperan que sea el tipo de cambio 7 días después de la fecha de la encuesta.",
-    "eeuu_pib_per_capita": "Producto Interno Bruto dividido por la población, en miles de dólares ajustados por paridad de poder de compra (PPA). Dato anual.",
-    "pib_chile": "Valor de todos los bienes y servicios producidos en Chile en el trimestre, a precios de mercado.",
+    "eeuu_pib_per_capita": "Producto Interno Bruto dividido por la población, en miles de dólares ajustados por paridad de poder de compra (PPA), fuente FMI-WEO. Comparable directamente con 'Chile - PIB per cápita', mismo origen y unidad. El año en curso es una estimación del FMI, no una cifra final.",
+    "pib_chile": "Valor de todos los bienes y servicios producidos en Chile en el trimestre, a precios de mercado, en pesos chilenos. No es comparable en magnitud con las cifras 'per cápita' en dólares de más abajo — son unidades distintas.",
     "pib_deflactor": "Mide cuánto suben los precios de TODO lo que se produce en el país (no solo lo que consumen las personas, como el IPC). Su variación interanual es una medida de inflación alternativa al IPC.",
     "sp500": "Índice de las 500 mayores empresas que cotizan en bolsa en Estados Unidos. El principal termómetro del mercado accionario estadounidense.",
+    "chile_pib_per_capita_ppa": "Producto Interno Bruto de Chile dividido por la población, en miles de dólares ajustados por paridad de poder de compra (PPA), fuente FMI-WEO. Mismo origen y unidad que 'EEUU - PIB per cápita', para comparar directamente entre países. El año en curso es una estimación del FMI, no una cifra final.",
 }
 
 # Agrupación temática, para no mostrar todo como una lista plana: cada categoría
@@ -61,7 +72,7 @@ CATEGORIAS = [
     },
     {
         "nombre": "Actividad Económica",
-        "series": ["imacec", "pib_chile"],
+        "series": ["imacec", "pib_chile", "chile_pib_per_capita_ppa"],
         "computados": ["imacec_interanual"],
     },
     {

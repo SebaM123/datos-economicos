@@ -35,6 +35,11 @@ SERIES = {
     # (para poder calcular una medida de inflación alternativa al IPC).
     "pib_chile": "F032.PIB.FLU.N.CLP.EP18.Z.Z.1.T",
     "pib_deflactor": "F032.PIB.DEF.N.CLP.EP18.Z.Z.0.T",
+    # PIB per cápita de Chile, mismo origen (FMI-WEO) y unidad (USD, PPA) que
+    # eeuu_pib_per_capita, para que ambos sean directamente comparables. Esta
+    # serie incluye proyecciones del FMI hasta 2030; al pedir con hasta=hoy
+    # solo se trae el año en curso (que igual es una estimación) hacia atrás.
+    "chile_pib_per_capita_ppa": "F012.PPCP.FLU.N.7.AME.CL.USD.FMI.Z.0.A",
     # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
     # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
     # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se
