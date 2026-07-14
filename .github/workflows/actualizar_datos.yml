@@ -32,6 +32,12 @@ jobs:
         run: python fetch_market.py
         working-directory: data_pipeline
 
+      - name: Traer datos de la Reserva Federal (FRED)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python fetch_fred.py
+        working-directory: data_pipeline
+
       - name: Generar reporte HTML
         run: python generar_reporte_html.py
         working-directory: app
@@ -40,6 +46,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/historico.csv docs/index.html
+          git add data/historico.csv data/pib_por_estado_eeuu.json docs/index.html
           git diff --cached --quiet && echo "Sin cambios" || git commit -m "Actualizar datos económicos"
           git push

@@ -1,0 +1,257 @@
+{
+  "AL": {
+    "nombre": "Alabama",
+    "pib_per_capita_usd": 50191.33,
+    "anio": "2025"
+  },
+  "AK": {
+    "nombre": "Alaska",
+    "pib_per_capita_usd": 77974.15,
+    "anio": "2025"
+  },
+  "AZ": {
+    "nombre": "Arizona",
+    "pib_per_capita_usd": 59779.13,
+    "anio": "2025"
+  },
+  "AR": {
+    "nombre": "Arkansas",
+    "pib_per_capita_usd": 48362.89,
+    "anio": "2025"
+  },
+  "CA": {
+    "nombre": "California",
+    "pib_per_capita_usd": 86110.49,
+    "anio": "2025"
+  },
+  "CO": {
+    "nombre": "Colorado",
+    "pib_per_capita_usd": 76198.33,
+    "anio": "2025"
+  },
+  "CT": {
+    "nombre": "Connecticut",
+    "pib_per_capita_usd": 79436.93,
+    "anio": "2025"
+  },
+  "DE": {
+    "nombre": "Delaware",
+    "pib_per_capita_usd": 82344.39,
+    "anio": "2025"
+  },
+  "FL": {
+    "nombre": "Florida",
+    "pib_per_capita_usd": 59406.97,
+    "anio": "2025"
+  },
+  "GA": {
+    "nombre": "Georgia",
+    "pib_per_capita_usd": 62853.06,
+    "anio": "2025"
+  },
+  "HI": {
+    "nombre": "Hawái",
+    "pib_per_capita_usd": 65705.53,
+    "anio": "2025"
+  },
+  "ID": {
+    "nombre": "Idaho",
+    "pib_per_capita_usd": 50039.88,
+    "anio": "2025"
+  },
+  "IL": {
+    "nombre": "Illinois",
+    "pib_per_capita_usd": 71835.15,
+    "anio": "2025"
+  },
+  "IN": {
+    "nombre": "Indiana",
+    "pib_per_capita_usd": 60579.17,
+    "anio": "2025"
+  },
+  "IA": {
+    "nombre": "Iowa",
+    "pib_per_capita_usd": 64489.61,
+    "anio": "2025"
+  },
+  "KS": {
+    "nombre": "Kansas",
+    "pib_per_capita_usd": 62186.87,
+    "anio": "2025"
+  },
+  "KY": {
+    "nombre": "Kentucky",
+    "pib_per_capita_usd": 50629.47,
+    "anio": "2025"
+  },
+  "LA": {
+    "nombre": "Luisiana",
+    "pib_per_capita_usd": 56283.34,
+    "anio": "2025"
+  },
+  "ME": {
+    "nombre": "Maine",
+    "pib_per_capita_usd": 55270.5,
+    "anio": "2025"
+  },
+  "MD": {
+    "nombre": "Maryland",
+    "pib_per_capita_usd": 69616.58,
+    "anio": "2025"
+  },
+  "MA": {
+    "nombre": "Massachusetts",
+    "pib_per_capita_usd": 90043.51,
+    "anio": "2025"
+  },
+  "MI": {
+    "nombre": "Míchigan",
+    "pib_per_capita_usd": 56168.27,
+    "anio": "2025"
+  },
+  "MN": {
+    "nombre": "Minnesota",
+    "pib_per_capita_usd": 69606.85,
+    "anio": "2025"
+  },
+  "MS": {
+    "nombre": "Misisipi",
+    "pib_per_capita_usd": 42434.03,
+    "anio": "2025"
+  },
+  "MO": {
+    "nombre": "Misuri",
+    "pib_per_capita_usd": 57086.91,
+    "anio": "2025"
+  },
+  "MT": {
+    "nombre": "Montana",
+    "pib_per_capita_usd": 54110.27,
+    "anio": "2025"
+  },
+  "NE": {
+    "nombre": "Nebraska",
+    "pib_per_capita_usd": 74436.05,
+    "anio": "2025"
+  },
+  "NV": {
+    "nombre": "Nevada",
+    "pib_per_capita_usd": 64260.27,
+    "anio": "2025"
+  },
+  "NH": {
+    "nombre": "New Hampshire",
+    "pib_per_capita_usd": 68446.21,
+    "anio": "2025"
+  },
+  "NJ": {
+    "nombre": "Nueva Jersey",
+    "pib_per_capita_usd": 72068.34,
+    "anio": "2025"
+  },
+  "NM": {
+    "nombre": "Nuevo México",
+    "pib_per_capita_usd": 56858.16,
+    "anio": "2025"
+  },
+  "NY": {
+    "nombre": "Nueva York",
+    "pib_per_capita_usd": 94701.99,
+    "anio": "2025"
+  },
+  "NC": {
+    "nombre": "Carolina del Norte",
+    "pib_per_capita_usd": 60939.02,
+    "anio": "2025"
+  },
+  "ND": {
+    "nombre": "Dakota del Norte",
+    "pib_per_capita_usd": 79501.42,
+    "anio": "2025"
+  },
+  "OH": {
+    "nombre": "Ohio",
+    "pib_per_capita_usd": 61708.71,
+    "anio": "2025"
+  },
+  "OK": {
+    "nombre": "Oklahoma",
+    "pib_per_capita_usd": 51776.59,
+    "anio": "2025"
+  },
+  "OR": {
+    "nombre": "Oregón",
+    "pib_per_capita_usd": 62241.22,
+    "anio": "2025"
+  },
+  "PA": {
+    "nombre": "Pensilvania",
+    "pib_per_capita_usd": 62697.02,
+    "anio": "2025"
+  },
+  "RI": {
+    "nombre": "Rhode Island",
+    "pib_per_capita_usd": 57585.37,
+    "anio": "2025"
+  },
+  "SC": {
+    "nombre": "Carolina del Sur",
+    "pib_per_capita_usd": 51482.98,
+    "anio": "2025"
+  },
+  "SD": {
+    "nombre": "Dakota del Sur",
+    "pib_per_capita_usd": 62576.81,
+    "anio": "2025"
+  },
+  "TN": {
+    "nombre": "Tennessee",
+    "pib_per_capita_usd": 61428.84,
+    "anio": "2025"
+  },
+  "TX": {
+    "nombre": "Texas",
+    "pib_per_capita_usd": 71813.82,
+    "anio": "2025"
+  },
+  "UT": {
+    "nombre": "Utah",
+    "pib_per_capita_usd": 68039.96,
+    "anio": "2025"
+  },
+  "VT": {
+    "nombre": "Vermont",
+    "pib_per_capita_usd": 57251.93,
+    "anio": "2025"
+  },
+  "VA": {
+    "nombre": "Virginia",
+    "pib_per_capita_usd": 70263.67,
+    "anio": "2025"
+  },
+  "WA": {
+    "nombre": "Washington",
+    "pib_per_capita_usd": 89678.68,
+    "anio": "2025"
+  },
+  "WV": {
+    "nombre": "Virginia Occidental",
+    "pib_per_capita_usd": 47091.61,
+    "anio": "2025"
+  },
+  "WI": {
+    "nombre": "Wisconsin",
+    "pib_per_capita_usd": 60206.92,
+    "anio": "2025"
+  },
+  "WY": {
+    "nombre": "Wyoming",
+    "pib_per_capita_usd": 67924.07,
+    "anio": "2025"
+  },
+  "DC": {
+    "nombre": "Distrito de Columbia",
+    "pib_per_capita_usd": 210044.76,
+    "anio": "2025"
+  }
+}

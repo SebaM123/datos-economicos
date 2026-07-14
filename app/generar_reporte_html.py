@@ -5,6 +5,7 @@ actualiza solo mientras está abierto, refleja los datos de la última vez
 que se generó (cada corrida del pipeline en GitHub Actions lo regenera).
 """
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,8 +13,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
-from config import CATEGORIAS, DEFINICIONES, ETIQUETAS_TICKER, HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
+from config import CATEGORIAS, DEFINICIONES, ETIQUETAS_TICKER, HISTORICO_PATH, NOMBRES_SERIES, PIB_ESTADOS_PATH
+from series_utils import COMPUTADOS, describir_fecha_kpi, estado_mas_parecido_a_chile, insertar_huecos
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 SERIES_TICKER = ["ipsa_indice_real", "tipo_cambio", "sp500", "tpm"]
@@ -44,6 +45,10 @@ ESTILO = """
   .grafico-bloque h3 { font-size: 1rem; margin-bottom: 0; }
   .definicion { color: #9a9a9a; font-size: 0.85rem; margin-top: 0.35rem; margin-bottom: 0; }
   .grafico { margin-top: 0.5rem; }
+  .por-estado { margin-top: 1.5rem; border-top: 1px solid #262a35; padding-top: 1.25rem; }
+  .por-estado h3 { font-size: 1rem; margin-bottom: 0; }
+  .estado-callout { background: #171923; border: 1px solid #262a35; border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.9rem; margin: 0.75rem 0; }
+  .por-estado select { background: #171923; color: #fafafa; border: 1px solid #262a35; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; margin-top: 0.5rem; }
 </style>
 """
 
@@ -91,7 +96,64 @@ def valor_kpi(etiqueta: str, valor: float, fecha_texto: str, sufijo: str = "") -
     </div>"""
 
 
-def construir_seccion(categoria: dict, historico: pd.DataFrame, abierta: bool) -> str:
+def construir_bloque_estados_eeuu(historico: pd.DataFrame) -> str:
+    """Bloque de referencia (no es una serie de historico.csv): selector con el
+    PIB per cápita de cada estado de EEUU y un callout con el estado más
+    parecido a Chile, para dar contexto de magnitud a pedido del usuario.
+    """
+    if not PIB_ESTADOS_PATH.exists():
+        return ""
+    estados = json.loads(PIB_ESTADOS_PATH.read_text(encoding="utf-8"))
+    if not estados:
+        return ""
+
+    chile = historico[historico["serie"] == "chile_pib_per_capita_ppa"].sort_values("fecha")
+    callout_html = ""
+    if not chile.empty:
+        valor_chile = chile["valor"].iloc[-1]
+        anio_chile = chile["fecha"].iloc[-1].year
+        cercano = estado_mas_parecido_a_chile(estados, valor_chile)
+        if cercano:
+            _, datos_cercanos = cercano
+            callout_html = f"""<div class="estado-callout">
+                El estado de EEUU con PIB per cápita más parecido al de Chile es
+                <b>{datos_cercanos['nombre']}</b> (US$ {datos_cercanos['pib_per_capita_usd']:,.0f}, {datos_cercanos['anio']})
+                — Chile: US$ {valor_chile:,.0f} (PPA, {anio_chile}).
+            </div>"""
+
+    opciones_html = "".join(
+        f'<option value="{codigo}">{datos["nombre"]}</option>'
+        for codigo, datos in sorted(estados.items(), key=lambda kv: kv[1]["nombre"])
+    )
+    datos_json = json.dumps(estados, ensure_ascii=False)
+
+    return f"""<div class="por-estado">
+        <h3>PIB per cápita por estado de EEUU</h3>
+        <p class="definicion">Referencia aproximada: PIB real por estado en dólares encadenados (fuente FRED), no ajustado por paridad de poder de compra como el dato de Chile de más arriba — las magnitudes no son directamente comparables, pero sirven para ubicar el orden de tamaño.</p>
+        {callout_html}
+        <select id="selector-estado-eeuu" onchange="mostrarEstadoEEUU(this.value)">
+            <option value="">Elegí un estado...</option>
+            {opciones_html}
+        </select>
+        <div id="detalle-estado-eeuu" class="kpi" style="display:none; margin-top: 0.75rem; max-width: 260px;"></div>
+    </div>
+    <script>
+    (function () {{
+        const datosEstadosEEUU = {datos_json};
+        window.mostrarEstadoEEUU = function (codigo) {{
+            const detalle = document.getElementById('detalle-estado-eeuu');
+            const d = datosEstadosEEUU[codigo];
+            if (!d) {{ detalle.style.display = 'none'; return; }}
+            detalle.style.display = 'block';
+            detalle.innerHTML = '<div class="etiqueta">' + d.nombre + '</div>'
+                + '<div class="valor">US$ ' + d.pib_per_capita_usd.toLocaleString('en-US') + '</div>'
+                + '<div class="fecha">PIB real per cápita, ' + d.anio + '</div>';
+        }};
+    }})();
+    </script>"""
+
+
+def construir_seccion(categoria: dict, historico: pd.DataFrame, abierta: bool, bloque_extra: str = "") -> str:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
         (clave, *COMPUTADOS[clave]) for clave in categoria["computados"] if COMPUTADOS[clave][1](historico)
@@ -142,6 +204,7 @@ def construir_seccion(categoria: dict, historico: pd.DataFrame, abierta: bool) -
         <div class="categoria-contenido">
             <div class="kpis">{"".join(tarjetas)}</div>
             <div class="graficos">{"".join(graficos)}</div>
+            {bloque_extra}
         </div>
     </details>"""
 
@@ -155,7 +218,13 @@ def generar() -> None:
 
     ticker = construir_ticker(historico)
     secciones = "".join(
-        construir_seccion(categoria, historico, abierta=(i == 0)) for i, categoria in enumerate(CATEGORIAS)
+        construir_seccion(
+            categoria,
+            historico,
+            abierta=(i == 0),
+            bloque_extra=construir_bloque_estados_eeuu(historico) if categoria["nombre"] == "Estados Unidos" else "",
+        )
+        for i, categoria in enumerate(CATEGORIAS)
     )
 
     html = f"""<!doctype html>

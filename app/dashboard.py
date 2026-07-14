@@ -1,10 +1,12 @@
+import json
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
-from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES
-from series_utils import COMPUTADOS, describir_fecha_kpi, insertar_huecos
+from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES, PIB_ESTADOS_PATH
+from series_utils import COMPUTADOS, describir_fecha_kpi, estado_mas_parecido_a_chile, insertar_huecos
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 TICKERS_EN_VIVO = {
@@ -53,6 +55,52 @@ def seccion_en_vivo() -> None:
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
 
+def bloque_estados_eeuu(historico: pd.DataFrame) -> None:
+    """Bloque de referencia (no es una serie de historico.csv): selector con el
+    PIB per cápita de cada estado de EEUU y un callout con el estado más
+    parecido a Chile, para dar contexto de magnitud a pedido del usuario.
+    """
+    if not PIB_ESTADOS_PATH.exists():
+        return
+    estados = json.loads(PIB_ESTADOS_PATH.read_text(encoding="utf-8"))
+    if not estados:
+        return
+
+    st.markdown("**PIB per cápita por estado de EEUU**")
+    st.caption(
+        "Referencia aproximada: PIB real por estado en dólares encadenados (fuente FRED), no ajustado "
+        "por paridad de poder de compra como el dato de Chile de más arriba — las magnitudes no son "
+        "directamente comparables, pero sirven para ubicar el orden de tamaño."
+    )
+
+    chile = historico[historico["serie"] == "chile_pib_per_capita_ppa"].sort_values("fecha")
+    if not chile.empty:
+        valor_chile = chile["valor"].iloc[-1]
+        anio_chile = chile["fecha"].iloc[-1].year
+        cercano = estado_mas_parecido_a_chile(estados, valor_chile)
+        if cercano:
+            _, datos_cercanos = cercano
+            st.info(
+                f"El estado de EEUU con PIB per cápita más parecido al de Chile es "
+                f"**{datos_cercanos['nombre']}** (US$ {datos_cercanos['pib_per_capita_usd']:,.0f}, {datos_cercanos['anio']}) "
+                f"— Chile: US$ {valor_chile:,.0f} (PPA, {anio_chile})."
+            )
+
+    opciones = sorted(estados.items(), key=lambda kv: kv[1]["nombre"])
+    seleccion = st.selectbox(
+        "Elegí un estado",
+        options=[codigo for codigo, _ in opciones],
+        format_func=lambda codigo: estados[codigo]["nombre"],
+        index=None,
+        placeholder="Elegí un estado...",
+        key="selector_estado_eeuu",
+    )
+    if seleccion:
+        datos = estados[seleccion]
+        st.metric(datos["nombre"], f"US$ {datos['pib_per_capita_usd']:,.0f}")
+        st.caption(f"PIB real per cápita, {datos['anio']}")
+
+
 def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -> None:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -64,6 +112,8 @@ def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -
 
     with st.expander(f"**{categoria['nombre']}**", expanded=abierta):
         _contenido_categoria(series_disponibles, computados_disponibles, historico)
+        if categoria["nombre"] == "Estados Unidos":
+            bloque_estados_eeuu(historico)
 
 
 def _contenido_categoria(series_disponibles: list[str], computados_disponibles: list, historico: pd.DataFrame) -> None:

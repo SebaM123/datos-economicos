@@ -118,6 +118,17 @@ COMPUTADOS = {
 }
 
 
+def estado_mas_parecido_a_chile(estados: dict, valor_chile: float) -> tuple[str, dict] | None:
+    """De los estados de EEUU con PIB per cápita (ver fetch_fred.py), devuelve
+    el código y los datos del que tiene el valor más cercano al PIB per cápita
+    PPA de Chile. Comparación aproximada, no exacta: el dato de Chile está
+    ajustado por paridad de poder de compra y el de los estados no.
+    """
+    if not estados:
+        return None
+    return min(estados.items(), key=lambda item: abs(item[1]["pib_per_capita_usd"] - valor_chile))
+
+
 def insertar_huecos(datos_serie: pd.DataFrame, umbral_dias: int = 45) -> pd.DataFrame:
     """Inserta filas con valor nulo entre puntos separados por más de
     `umbral_dias`, para que los gráficos de línea corten en vez de unir

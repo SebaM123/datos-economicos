@@ -1,6 +1,7 @@
 from pathlib import Path
 
 HISTORICO_PATH = Path(__file__).resolve().parent.parent / "data" / "historico.csv"
+PIB_ESTADOS_PATH = Path(__file__).resolve().parent.parent / "data" / "pib_por_estado_eeuu.json"
 
 NOMBRES_SERIES = {
     "tpm": "TPM (%)",
@@ -19,6 +20,7 @@ NOMBRES_SERIES = {
     "eeuu_desempleo": "EEUU - Tasa de desempleo (%)",
     "eeuu_inflacion": "EEUU - Inflación interanual (%)",
     "eeuu_pib_per_capita": "EEUU - PIB per cápita (miles de USD, PPA)",
+    "eeuu_pib_total": "EEUU - PIB total (miles de millones de USD)",
     "pib_chile": "PIB Chile (miles de millones de $, trimestral, desestacionalizado)",
     "pib_deflactor": "Deflactor del PIB (índice, 2018=100)",
     "sp500": "S&P 500 (EEUU)",
@@ -53,6 +55,7 @@ DEFINICIONES = {
     "pib_deflactor": "Mide cuánto suben los precios de TODO lo que se produce en el país (no solo lo que consumen las personas, como el IPC). Su variación interanual es una medida de inflación alternativa al IPC.",
     "sp500": "Índice de las 500 mayores empresas que cotizan en bolsa en Estados Unidos. El principal termómetro del mercado accionario estadounidense.",
     "chile_pib_per_capita_ppa": "Producto Interno Bruto de Chile dividido por la población, en miles de dólares ajustados por paridad de poder de compra (PPA), fuente FMI-WEO. Mismo origen y unidad que 'EEUU - PIB per cápita', para comparar directamente entre países. El año en curso es una estimación del FMI, no una cifra final.",
+    "eeuu_pib_total": "Producto Interno Bruto total de Estados Unidos, en miles de millones de dólares corrientes, fuente Reserva Federal (FRED). No es comparable en magnitud con las cifras 'per cápita' de más arriba — son unidades distintas.",
 }
 
 # Agrupación temática, para no mostrar todo como una lista plana: cada categoría
@@ -82,7 +85,7 @@ CATEGORIAS = [
     },
     {
         "nombre": "Estados Unidos",
-        "series": ["eeuu_desempleo", "eeuu_inflacion", "eeuu_pib_per_capita", "sp500"],
+        "series": ["eeuu_desempleo", "eeuu_inflacion", "eeuu_pib_total", "eeuu_pib_per_capita", "sp500"],
         "computados": [],
     },
 ]
