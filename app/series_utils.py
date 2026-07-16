@@ -91,6 +91,51 @@ def calcular_inflacion_deflactor_pib(historico: pd.DataFrame) -> tuple[float, pd
     return variacion, actual["fecha"]
 
 
+def calcular_inflacion_subyacente_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Inflación interanual del IPC SAE (sin alimentos y energía, "inflación subyacente"):
+    compone las últimas 12 variaciones mensuales, igual que la inflación interanual normal
+    pero excluyendo los componentes más volátiles. Sirve para ver la tendencia de fondo,
+    sin el ruido de precios de combustibles o alimentos frescos.
+    """
+    ipc_sae = historico[historico["serie"] == "ipc_sae_variacion_mensual"].sort_values("fecha")
+    if len(ipc_sae) < 12:
+        return None
+
+    ultimos_12 = ipc_sae.tail(12)
+    factor = 1.0
+    for valor in ultimos_12["valor"]:
+        factor *= 1 + valor / 100
+    interanual = (factor - 1) * 100
+    return interanual, ultimos_12["fecha"].iloc[-1]
+
+
+def calcular_pib_mineria_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Variación interanual del PIB de minería (mensual, real, desestacionalizado)."""
+    pib_mineria = historico[historico["serie"] == "pib_mineria"].sort_values("fecha")
+    if len(pib_mineria) < 13:
+        return None
+
+    actual = pib_mineria.iloc[-1]
+    hace_un_anio = pib_mineria.iloc[-13]
+    variacion = (actual["valor"] / hace_un_anio["valor"] - 1) * 100
+    return variacion, actual["fecha"]
+
+
+def calcular_pib_no_minero_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Variación interanual del PIB no minero (trimestral, real, desestacionalizado):
+    muestra cómo le va al resto de la economía (servicios, comercio, construcción, etc.)
+    sin el efecto del cobre, que puede mover mucho el PIB total por sí solo.
+    """
+    pib_no_minero = historico[historico["serie"] == "pib_no_minero"].sort_values("fecha")
+    if len(pib_no_minero) < 5:
+        return None
+
+    actual = pib_no_minero.iloc[-1]
+    hace_un_anio = pib_no_minero.iloc[-5]
+    variacion = (actual["valor"] / hace_un_anio["valor"] - 1) * 100
+    return variacion, actual["fecha"]
+
+
 def calcular_tpm_real(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
     """TPM real ex-post: la tasa de política monetaria menos la inflación
     interanual. Indicador clásico de qué tan restrictiva/expansiva está
@@ -113,8 +158,14 @@ COMPUTADOS = {
     "inflacion_acumulada": ("Inflación acumulada {year}", calcular_inflacion_acumulada_anual),
     "inflacion_interanual": ("Inflación interanual (12 meses, IPC)", calcular_inflacion_interanual),
     "inflacion_deflactor": ("Inflación interanual (deflactor del PIB)", calcular_inflacion_deflactor_pib),
+    "inflacion_subyacente_interanual": (
+        "Inflación subyacente interanual (IPC SAE, 12 meses)",
+        calcular_inflacion_subyacente_interanual,
+    ),
     "imacec_interanual": ("IMACEC - variación interanual", calcular_imacec_interanual),
     "tpm_real": ("TPM real ex-post", calcular_tpm_real),
+    "pib_mineria_interanual": ("PIB Minería - variación interanual", calcular_pib_mineria_interanual),
+    "pib_no_minero_interanual": ("PIB No minero - variación interanual", calcular_pib_no_minero_interanual),
 }
 
 

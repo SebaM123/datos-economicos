@@ -40,11 +40,51 @@ SERIES = {
     # serie incluye proyecciones del FMI hasta 2030; al pedir con hasta=hoy
     # solo se trae el año en curso (que igual es una estimación) hacia atrás.
     "chile_pib_per_capita_ppa": "F012.PPCP.FLU.N.7.AME.CL.USD.FMI.Z.0.A",
+    # Índice de precios al productor: Chile (índice, base 2019=100) y EEUU (variación
+    # interanual, "todos los commodities" — mismo origen que eeuu_desempleo/eeuu_inflacion).
+    "ipp_general": "F075.IPP.IND.P0551.2019.Z.M",
+    "eeuu_ipp": "F019.IPP.V12.10.M",
+    # PIB por sector: minería (mensual) y no minero (trimestral, series empalmadas), ambos
+    # en volumen (términos reales) y desestacionalizados, para ver si la actividad depende
+    # del cobre o si el resto de la economía (servicios, etc.) va por otro lado.
+    "pib_mineria": "F032.PIB.FLU.R.CLP.2018.03.Z.1.M",
+    "pib_no_minero": "F032.PIB.FLU.R.CLP.EP18.N03.Z.1.T",
     # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
     # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
     # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se
     # agregan hasta verificar qué representan realmente.
 }
+
+# IPC SAE (inflación subyacente, sin alimentos y energía): el BCCh recalcula la serie con
+# cada cambio de base (2018=100, 2023=100, etc.) y no mantiene actualizado un empalme
+# histórico único como sí hace con el IPC general. Se arma acá el empalme a mano: se usa
+# el histórico oficial hasta que corta, y de ahí en adelante la serie de la base vigente
+# (que gana en las fechas donde ambas se superponen, por venir después en la lista).
+SERIES_IPC_SAE_EMPALME = [
+    "F074.IPCSAE.VAR.Z.Z.C.M",  # histórico oficial, hasta 2023-12
+    "F074.IPCSAE.VAR.Z.2023.C.M",  # base 2023=100, vigente
+]
+
+
+def obtener_ipc_sae_empalmado(cliente, desde: str, hasta: str) -> list[dict]:
+    """Arma la serie de IPC SAE (inflación subyacente) empalmando el histórico oficial
+    con la base vigente. Donde ambas series tienen dato para la misma fecha, gana la
+    de la base vigente (se agrega después, y append_historico ya se queda con la
+    última fila por fecha+serie).
+    """
+    nombres_temp = [f"_ipc_sae_{i}" for i in range(len(SERIES_IPC_SAE_EMPALME))]
+    tabla = cliente.cuadro(series=SERIES_IPC_SAE_EMPALME, nombres=nombres_temp, desde=desde, hasta=hasta)
+
+    filas = []
+    for fecha, fila in tabla.iterrows():
+        for nombre_temp in nombres_temp:
+            valor = fila.get(nombre_temp)
+            if valor is None or valor != valor:  # descarta NaN
+                continue
+            filas.append(
+                {"fecha": fecha.date().isoformat(), "serie": "ipc_sae_variacion_mensual", "valor": float(valor)}
+            )
+    return filas
 
 
 def obtener_datos(desde: str, hasta: str | None = None) -> list[dict]:
@@ -72,6 +112,8 @@ def obtener_datos(desde: str, hasta: str | None = None) -> list[dict]:
             if valor is None or valor != valor:  # descarta NaN
                 continue
             filas.append({"fecha": fecha.date().isoformat(), "serie": serie, "valor": float(valor)})
+
+    filas.extend(obtener_ipc_sae_empalmado(cliente, desde=desde, hasta=hasta))
     return filas
 
 

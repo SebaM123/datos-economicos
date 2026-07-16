@@ -7,6 +7,7 @@ La actualización del día a día la hacen fetch_bcch.py y fetch_market.py.
 
 import fetch_bcch
 import fetch_market
+import fetch_worldbank
 from common import append_historico
 
 DESDE_DEFAULT = "2010-01-01"
@@ -21,7 +22,13 @@ def main() -> None:
     filas_mercado = fetch_market.obtener_historico(desde=DESDE_DEFAULT)
     print(f"  {len(filas_mercado)} observaciones de mercado")
 
-    agregadas = append_historico(filas_bcch + filas_mercado)
+    print("Trayendo historial de Gini (Banco Mundial)...")
+    filas_gini = []
+    for pais, serie in fetch_worldbank.PAISES.items():
+        filas_gini.extend(fetch_worldbank.obtener_gini(pais, serie))
+    print(f"  {len(filas_gini)} observaciones de Gini")
+
+    agregadas = append_historico(filas_bcch + filas_mercado + filas_gini)
     print(f"Filas nuevas agregadas a historico.csv: {agregadas}")
 
 
