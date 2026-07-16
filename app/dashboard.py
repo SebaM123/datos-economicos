@@ -8,6 +8,7 @@ import yfinance as yf
 from config import (
     CATEGORIAS,
     DEFINICIONES,
+    GINI_ESTADOS_PATH,
     HISTORICO_PATH,
     NOMBRES_SERIES,
     OCDE_INDICADORES,
@@ -115,6 +116,52 @@ def bloque_estados_eeuu(historico: pd.DataFrame) -> None:
         st.caption(f"PIB real per cápita, {datos['anio']}")
 
 
+def bloque_gini_estados(historico: pd.DataFrame) -> None:
+    """Bloque de referencia (no es una serie de historico.csv): selector con el
+    índice de Gini de cada estado de EEUU (Census Bureau, ACS 5 años) y un
+    callout con el estado más parecido a Chile en desigualdad.
+    """
+    if not GINI_ESTADOS_PATH.exists():
+        return
+    estados = json.loads(GINI_ESTADOS_PATH.read_text(encoding="utf-8"))
+    if not estados:
+        return
+
+    st.markdown("**Índice de Gini por estado de EEUU**")
+    st.caption(
+        "Fuente: Census Bureau, estimaciones ACS de 5 años. Mismo concepto que el Gini de Chile/EEUU "
+        "de más arriba, pero de una fuente distinta (Census, no Banco Mundial) — sirve para ubicar el "
+        "orden de magnitud entre estados, no para una comparación exacta."
+    )
+
+    chile = historico[historico["serie"] == "chile_gini"].sort_values("fecha")
+    if not chile.empty:
+        valor_chile = chile["valor"].iloc[-1]
+        anio_chile = chile["fecha"].iloc[-1].year
+        cercano = estado_mas_parecido_a_chile(estados, valor_chile, clave_valor="gini")
+        if cercano:
+            _, datos_cercanos = cercano
+            st.info(
+                f"El estado de EEUU con Gini más parecido al de Chile es "
+                f"**{datos_cercanos['nombre']}** ({datos_cercanos['gini']:.1f}, {datos_cercanos['anio']}) "
+                f"— Chile: {valor_chile:.1f} ({anio_chile})."
+            )
+
+    opciones = sorted(estados.items(), key=lambda kv: kv[1]["nombre"])
+    seleccion = st.selectbox(
+        "Elegí un estado",
+        options=[codigo for codigo, _ in opciones],
+        format_func=lambda codigo: estados[codigo]["nombre"],
+        index=None,
+        placeholder="Elegí un estado...",
+        key="selector_gini_estado",
+    )
+    if seleccion:
+        datos = estados[seleccion]
+        st.metric(datos["nombre"], f"{datos['gini']:.1f}")
+        st.caption(f"Índice de Gini, {datos['anio']}")
+
+
 def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -> None:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -128,6 +175,8 @@ def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -
         _contenido_categoria(series_disponibles, computados_disponibles, historico)
         if categoria["nombre"] == "Estados Unidos":
             bloque_estados_eeuu(historico)
+        if categoria["nombre"] == "Desigualdad":
+            bloque_gini_estados(historico)
 
 
 def _contenido_categoria(series_disponibles: list[str], computados_disponibles: list, historico: pd.DataFrame) -> None:

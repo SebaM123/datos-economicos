@@ -2,6 +2,7 @@ from pathlib import Path
 
 HISTORICO_PATH = Path(__file__).resolve().parent.parent / "data" / "historico.csv"
 PIB_ESTADOS_PATH = Path(__file__).resolve().parent.parent / "data" / "pib_por_estado_eeuu.json"
+GINI_ESTADOS_PATH = Path(__file__).resolve().parent.parent / "data" / "gini_por_estado_eeuu.json"
 OCDE_PAISES_PATH = Path(__file__).resolve().parent.parent / "data" / "ocde_paises.json"
 
 # Título y definición de cada comparación de la sección "Países OCDE" (ver

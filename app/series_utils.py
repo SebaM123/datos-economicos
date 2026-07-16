@@ -170,15 +170,17 @@ COMPUTADOS = {
 }
 
 
-def estado_mas_parecido_a_chile(estados: dict, valor_chile: float) -> tuple[str, dict] | None:
-    """De los estados de EEUU con PIB per cápita (ver fetch_fred.py), devuelve
-    el código y los datos del que tiene el valor más cercano al PIB per cápita
-    PPA de Chile. Comparación aproximada, no exacta: el dato de Chile está
-    ajustado por paridad de poder de compra y el de los estados no.
+def estado_mas_parecido_a_chile(
+    estados: dict, valor_chile: float, clave_valor: str = "pib_per_capita_usd"
+) -> tuple[str, dict] | None:
+    """De los estados de EEUU (ver fetch_fred.py y fetch_census.py), devuelve el
+    código y los datos del que tiene el valor más cercano al de Chile en el
+    indicador dado (`clave_valor`). Comparación aproximada, no exacta: cada
+    indicador tiene su propia nota de metodología en la UI.
     """
     if not estados:
         return None
-    return min(estados.items(), key=lambda item: abs(item[1]["pib_per_capita_usd"] - valor_chile))
+    return min(estados.items(), key=lambda item: abs(item[1][clave_valor] - valor_chile))
 
 
 def construir_figura_ranking_ocde(datos_por_pais: dict, pais_destacado: str = "CHL") -> go.Figure:

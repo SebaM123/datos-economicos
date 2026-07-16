@@ -17,6 +17,7 @@ from config import (
     CATEGORIAS,
     DEFINICIONES,
     ETIQUETAS_TICKER,
+    GINI_ESTADOS_PATH,
     HISTORICO_PATH,
     NOMBRES_SERIES,
     OCDE_INDICADORES,
@@ -169,6 +170,63 @@ def construir_bloque_estados_eeuu(historico: pd.DataFrame) -> str:
     </script>"""
 
 
+def construir_bloque_gini_estados(historico: pd.DataFrame) -> str:
+    """Bloque de referencia (no es una serie de historico.csv): selector con el
+    índice de Gini de cada estado de EEUU (Census Bureau, ACS 5 años) y un
+    callout con el estado más parecido a Chile en desigualdad.
+    """
+    if not GINI_ESTADOS_PATH.exists():
+        return ""
+    estados = json.loads(GINI_ESTADOS_PATH.read_text(encoding="utf-8"))
+    if not estados:
+        return ""
+
+    chile = historico[historico["serie"] == "chile_gini"].sort_values("fecha")
+    callout_html = ""
+    if not chile.empty:
+        valor_chile = chile["valor"].iloc[-1]
+        anio_chile = chile["fecha"].iloc[-1].year
+        cercano = estado_mas_parecido_a_chile(estados, valor_chile, clave_valor="gini")
+        if cercano:
+            _, datos_cercanos = cercano
+            callout_html = f"""<div class="estado-callout">
+                El estado de EEUU con Gini más parecido al de Chile es
+                <b>{datos_cercanos['nombre']}</b> ({datos_cercanos['gini']:.1f}, {datos_cercanos['anio']})
+                — Chile: {valor_chile:.1f} ({anio_chile}).
+            </div>"""
+
+    opciones_html = "".join(
+        f'<option value="{codigo}">{datos["nombre"]}</option>'
+        for codigo, datos in sorted(estados.items(), key=lambda kv: kv[1]["nombre"])
+    )
+    datos_json = json.dumps(estados, ensure_ascii=False)
+
+    return f"""<div class="por-estado">
+        <h3>Índice de Gini por estado de EEUU</h3>
+        <p class="definicion">Fuente: Census Bureau, estimaciones ACS de 5 años. Mismo concepto que el Gini de Chile/EEUU de más arriba, pero de una fuente distinta (Census, no Banco Mundial) — sirve para ubicar el orden de magnitud entre estados, no para una comparación exacta.</p>
+        {callout_html}
+        <select id="selector-gini-estado" onchange="mostrarGiniEstado(this.value)">
+            <option value="">Elegí un estado...</option>
+            {opciones_html}
+        </select>
+        <div id="detalle-gini-estado" class="kpi" style="display:none; margin-top: 0.75rem; max-width: 260px;"></div>
+    </div>
+    <script>
+    (function () {{
+        const datosGiniEstados = {datos_json};
+        window.mostrarGiniEstado = function (codigo) {{
+            const detalle = document.getElementById('detalle-gini-estado');
+            const d = datosGiniEstados[codigo];
+            if (!d) {{ detalle.style.display = 'none'; return; }}
+            detalle.style.display = 'block';
+            detalle.innerHTML = '<div class="etiqueta">' + d.nombre + '</div>'
+                + '<div class="valor">' + d.gini.toFixed(1) + '</div>'
+                + '<div class="fecha">Índice de Gini, ' + d.anio + '</div>';
+        }};
+    }})();
+    </script>"""
+
+
 def construir_seccion_ocde() -> str:
     """Sección de referencia (no viene de historico.csv): compara a Chile contra
     el resto de los países de la OCDE en algunos de los indicadores que ya se
@@ -271,12 +329,16 @@ def generar() -> None:
     ahora = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M UTC")
 
     ticker = construir_ticker(historico)
+    BLOQUES_EXTRA = {
+        "Estados Unidos": construir_bloque_estados_eeuu,
+        "Desigualdad": construir_bloque_gini_estados,
+    }
     secciones = "".join(
         construir_seccion(
             categoria,
             historico,
             abierta=(i == 0),
-            bloque_extra=construir_bloque_estados_eeuu(historico) if categoria["nombre"] == "Estados Unidos" else "",
+            bloque_extra=BLOQUES_EXTRA[categoria["nombre"]](historico) if categoria["nombre"] in BLOQUES_EXTRA else "",
         )
         for i, categoria in enumerate(CATEGORIAS)
     )

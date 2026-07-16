@@ -1,0 +1,257 @@
+{
+  "AL": {
+    "nombre": "Alabama",
+    "gini": 47.91,
+    "anio": 2024
+  },
+  "AK": {
+    "nombre": "Alaska",
+    "gini": 43.26,
+    "anio": 2024
+  },
+  "AZ": {
+    "nombre": "Arizona",
+    "gini": 46.37,
+    "anio": 2024
+  },
+  "AR": {
+    "nombre": "Arkansas",
+    "gini": 47.94,
+    "anio": 2024
+  },
+  "CA": {
+    "nombre": "California",
+    "gini": 48.89,
+    "anio": 2024
+  },
+  "CO": {
+    "nombre": "Colorado",
+    "gini": 45.85,
+    "anio": 2024
+  },
+  "CT": {
+    "nombre": "Connecticut",
+    "gini": 49.9,
+    "anio": 2024
+  },
+  "DE": {
+    "nombre": "Delaware",
+    "gini": 44.94,
+    "anio": 2024
+  },
+  "DC": {
+    "nombre": "Distrito de Columbia",
+    "gini": 51.69,
+    "anio": 2024
+  },
+  "FL": {
+    "nombre": "Florida",
+    "gini": 48.51,
+    "anio": 2024
+  },
+  "GA": {
+    "nombre": "Georgia",
+    "gini": 47.71,
+    "anio": 2024
+  },
+  "HI": {
+    "nombre": "Hawái",
+    "gini": 45.07,
+    "anio": 2024
+  },
+  "ID": {
+    "nombre": "Idaho",
+    "gini": 44.43,
+    "anio": 2024
+  },
+  "IL": {
+    "nombre": "Illinois",
+    "gini": 48.14,
+    "anio": 2024
+  },
+  "IN": {
+    "nombre": "Indiana",
+    "gini": 45.23,
+    "anio": 2024
+  },
+  "IA": {
+    "nombre": "Iowa",
+    "gini": 44.39,
+    "anio": 2024
+  },
+  "KS": {
+    "nombre": "Kansas",
+    "gini": 45.71,
+    "anio": 2024
+  },
+  "KY": {
+    "nombre": "Kentucky",
+    "gini": 47.7,
+    "anio": 2024
+  },
+  "LA": {
+    "nombre": "Luisiana",
+    "gini": 49.52,
+    "anio": 2024
+  },
+  "ME": {
+    "nombre": "Maine",
+    "gini": 45.6,
+    "anio": 2024
+  },
+  "MD": {
+    "nombre": "Maryland",
+    "gini": 45.63,
+    "anio": 2024
+  },
+  "MA": {
+    "nombre": "Massachusetts",
+    "gini": 48.86,
+    "anio": 2024
+  },
+  "MI": {
+    "nombre": "Míchigan",
+    "gini": 46.53,
+    "anio": 2024
+  },
+  "MN": {
+    "nombre": "Minnesota",
+    "gini": 45.25,
+    "anio": 2024
+  },
+  "MS": {
+    "nombre": "Misisipi",
+    "gini": 48.25,
+    "anio": 2024
+  },
+  "MO": {
+    "nombre": "Misuri",
+    "gini": 46.53,
+    "anio": 2024
+  },
+  "MT": {
+    "nombre": "Montana",
+    "gini": 46.48,
+    "anio": 2024
+  },
+  "NE": {
+    "nombre": "Nebraska",
+    "gini": 45.61,
+    "anio": 2024
+  },
+  "NV": {
+    "nombre": "Nevada",
+    "gini": 46.72,
+    "anio": 2024
+  },
+  "NH": {
+    "nombre": "New Hampshire",
+    "gini": 44.4,
+    "anio": 2024
+  },
+  "NJ": {
+    "nombre": "Nueva Jersey",
+    "gini": 47.84,
+    "anio": 2024
+  },
+  "NM": {
+    "nombre": "Nuevo México",
+    "gini": 47.72,
+    "anio": 2024
+  },
+  "NY": {
+    "nombre": "Nueva York",
+    "gini": 51.67,
+    "anio": 2024
+  },
+  "NC": {
+    "nombre": "Carolina del Norte",
+    "gini": 47.74,
+    "anio": 2024
+  },
+  "ND": {
+    "nombre": "Dakota del Norte",
+    "gini": 45.68,
+    "anio": 2024
+  },
+  "OH": {
+    "nombre": "Ohio",
+    "gini": 46.72,
+    "anio": 2024
+  },
+  "OK": {
+    "nombre": "Oklahoma",
+    "gini": 46.71,
+    "anio": 2024
+  },
+  "OR": {
+    "nombre": "Oregón",
+    "gini": 46.3,
+    "anio": 2024
+  },
+  "PA": {
+    "nombre": "Pensilvania",
+    "gini": 47.42,
+    "anio": 2024
+  },
+  "RI": {
+    "nombre": "Rhode Island",
+    "gini": 46.1,
+    "anio": 2024
+  },
+  "SC": {
+    "nombre": "Carolina del Sur",
+    "gini": 47.55,
+    "anio": 2024
+  },
+  "SD": {
+    "nombre": "Dakota del Sur",
+    "gini": 44.93,
+    "anio": 2024
+  },
+  "TN": {
+    "nombre": "Tennessee",
+    "gini": 47.61,
+    "anio": 2024
+  },
+  "TX": {
+    "nombre": "Texas",
+    "gini": 47.82,
+    "anio": 2024
+  },
+  "UT": {
+    "nombre": "Utah",
+    "gini": 42.66,
+    "anio": 2024
+  },
+  "VT": {
+    "nombre": "Vermont",
+    "gini": 45.31,
+    "anio": 2024
+  },
+  "VA": {
+    "nombre": "Virginia",
+    "gini": 47.15,
+    "anio": 2024
+  },
+  "WA": {
+    "nombre": "Washington",
+    "gini": 46.91,
+    "anio": 2024
+  },
+  "WV": {
+    "nombre": "Virginia Occidental",
+    "gini": 47.09,
+    "anio": 2024
+  },
+  "WI": {
+    "nombre": "Wisconsin",
+    "gini": 44.4,
+    "anio": 2024
+  },
+  "WY": {
+    "nombre": "Wyoming",
+    "gini": 45.39,
+    "anio": 2024
+  }
+}
