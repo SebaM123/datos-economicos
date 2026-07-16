@@ -2,6 +2,36 @@ from pathlib import Path
 
 HISTORICO_PATH = Path(__file__).resolve().parent.parent / "data" / "historico.csv"
 PIB_ESTADOS_PATH = Path(__file__).resolve().parent.parent / "data" / "pib_por_estado_eeuu.json"
+OCDE_PAISES_PATH = Path(__file__).resolve().parent.parent / "data" / "ocde_paises.json"
+
+# Título y definición de cada comparación de la sección "Países OCDE" (ver
+# data_pipeline/fetch_worldbank.py). Todas vienen del Banco Mundial, con la misma
+# metodología entre países, así que pueden diferir un poco de los datos "oficiales"
+# de Chile/EEUU (BCCh/INE/BLS) que se muestran en el resto del dashboard.
+OCDE_INDICADORES = {
+    "pib_per_capita_ppa": (
+        "PIB per cápita, PPA (USD internacionales)",
+        "Fuente: Banco Mundial. Metodología distinta a la serie 'PIB per cápita (PPA)' de más arriba "
+        "(que usa datos del FMI-WEO vía BCCh) — los niveles pueden no calzar exacto, pero sirven para "
+        "ubicar a Chile entre sus pares de la OCDE.",
+    ),
+    "desempleo": (
+        "Tasa de desempleo (%)",
+        "Fuente: Banco Mundial, estimación armonizada de la OIT (Organización Internacional del Trabajo). "
+        "No es la tasa que publica el INE (que sí se usa en la sección Empleo) — está armonizada para "
+        "que los países sean comparables entre sí.",
+    ),
+    "inflacion": (
+        "Inflación anual (IPC, %)",
+        "Fuente: Banco Mundial, variación del IPC promedio anual (no interanual a un mes específico como "
+        "el resto del dashboard). Sirve como referencia de magnitud, no para comparar mes a mes.",
+    ),
+    "gini": (
+        "Índice de Gini",
+        "Mismo indicador y fuente (Banco Mundial) que el de la sección Desigualdad. Serie anual con huecos, "
+        "no todos los países tienen encuesta de hogares todos los años.",
+    ),
+}
 
 NOMBRES_SERIES = {
     "tpm": "TPM (%)",

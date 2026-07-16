@@ -13,8 +13,23 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
-from config import CATEGORIAS, DEFINICIONES, ETIQUETAS_TICKER, HISTORICO_PATH, NOMBRES_SERIES, PIB_ESTADOS_PATH
-from series_utils import COMPUTADOS, describir_fecha_kpi, estado_mas_parecido_a_chile, insertar_huecos
+from config import (
+    CATEGORIAS,
+    DEFINICIONES,
+    ETIQUETAS_TICKER,
+    HISTORICO_PATH,
+    NOMBRES_SERIES,
+    OCDE_INDICADORES,
+    OCDE_PAISES_PATH,
+    PIB_ESTADOS_PATH,
+)
+from series_utils import (
+    COMPUTADOS,
+    construir_figura_ranking_ocde,
+    describir_fecha_kpi,
+    estado_mas_parecido_a_chile,
+    insertar_huecos,
+)
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 SERIES_TICKER = ["ipsa_indice_real", "tipo_cambio", "sp500", "tpm"]
@@ -49,6 +64,7 @@ ESTILO = """
   .por-estado h3 { font-size: 1rem; margin-bottom: 0; }
   .estado-callout { background: #171923; border: 1px solid #262a35; border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.9rem; margin: 0.75rem 0; }
   .por-estado select { background: #171923; color: #fafafa; border: 1px solid #262a35; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; margin-top: 0.5rem; }
+  .graficos-ocde .grafico-bloque { margin-bottom: 2rem; }
 </style>
 """
 
@@ -153,6 +169,44 @@ def construir_bloque_estados_eeuu(historico: pd.DataFrame) -> str:
     </script>"""
 
 
+def construir_seccion_ocde() -> str:
+    """Sección de referencia (no viene de historico.csv): compara a Chile contra
+    el resto de los países de la OCDE en algunos de los indicadores que ya se
+    siguen en el resto del dashboard. Ver data_pipeline/fetch_worldbank.py.
+    """
+    if not OCDE_PAISES_PATH.exists():
+        return ""
+    comparacion = json.loads(OCDE_PAISES_PATH.read_text(encoding="utf-8"))
+    if not comparacion:
+        return ""
+
+    graficos = []
+    for clave, (titulo, definicion) in OCDE_INDICADORES.items():
+        datos_indicador = comparacion.get(clave)
+        if not datos_indicador:
+            continue
+        fig = construir_figura_ranking_ocde(datos_indicador)
+        fig.update_layout(template="plotly_dark", paper_bgcolor="#0e1117", plot_bgcolor="#0e1117")
+        grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
+        graficos.append(
+            f"""<div class="grafico-bloque">
+                <h3>{titulo}</h3>
+                <p class="definicion">{definicion}</p>
+                <div class="grafico">{grafico_html}</div>
+            </div>"""
+        )
+
+    if not graficos:
+        return ""
+
+    return f"""<details class="categoria">
+        <summary>Países OCDE</summary>
+        <div class="categoria-contenido">
+            <div class="graficos-ocde">{"".join(graficos)}</div>
+        </div>
+    </details>"""
+
+
 def construir_seccion(categoria: dict, historico: pd.DataFrame, abierta: bool, bloque_extra: str = "") -> str:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -226,6 +280,7 @@ def generar() -> None:
         )
         for i, categoria in enumerate(CATEGORIAS)
     )
+    secciones += construir_seccion_ocde()
 
     html = f"""<!doctype html>
 <html lang="es">

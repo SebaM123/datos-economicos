@@ -1,0 +1,760 @@
+{
+  "pib_per_capita_ppa": {
+    "AUS": {
+      "nombre": "Australia",
+      "valor": 71934.4,
+      "anio": 2025
+    },
+    "AUT": {
+      "nombre": "Austria",
+      "valor": 76777.54,
+      "anio": 2025
+    },
+    "BEL": {
+      "nombre": "Bélgica",
+      "valor": 74675.61,
+      "anio": 2025
+    },
+    "CAN": {
+      "nombre": "Canadá",
+      "valor": 66745.82,
+      "anio": 2025
+    },
+    "CHE": {
+      "nombre": "Suiza",
+      "valor": 102513.35,
+      "anio": 2025
+    },
+    "CHL": {
+      "nombre": "Chile",
+      "valor": 37774.09,
+      "anio": 2025
+    },
+    "COL": {
+      "nombre": "Colombia",
+      "valor": 22640.42,
+      "anio": 2025
+    },
+    "CRI": {
+      "nombre": "Costa Rica",
+      "valor": 33814.77,
+      "anio": 2025
+    },
+    "CZE": {
+      "nombre": "Chequia",
+      "valor": 60487.29,
+      "anio": 2025
+    },
+    "DEU": {
+      "nombre": "Alemania",
+      "valor": 75406.69,
+      "anio": 2025
+    },
+    "DNK": {
+      "nombre": "Dinamarca",
+      "valor": 83218.07,
+      "anio": 2025
+    },
+    "ESP": {
+      "nombre": "España",
+      "valor": 59867.69,
+      "anio": 2025
+    },
+    "EST": {
+      "nombre": "Estonia",
+      "valor": 52105.51,
+      "anio": 2025
+    },
+    "FIN": {
+      "nombre": "Finlandia",
+      "valor": 65884.49,
+      "anio": 2025
+    },
+    "FRA": {
+      "nombre": "Francia",
+      "valor": 63975.35,
+      "anio": 2025
+    },
+    "GBR": {
+      "nombre": "Reino Unido",
+      "valor": 64606.5,
+      "anio": 2025
+    },
+    "GRC": {
+      "nombre": "Grecia",
+      "valor": 45263.65,
+      "anio": 2025
+    },
+    "HUN": {
+      "nombre": "Hungría",
+      "valor": 49837.6,
+      "anio": 2025
+    },
+    "IRL": {
+      "nombre": "Irlanda",
+      "valor": 155089.41,
+      "anio": 2025
+    },
+    "ISL": {
+      "nombre": "Islandia",
+      "valor": 83431.21,
+      "anio": 2025
+    },
+    "ISR": {
+      "nombre": "Israel",
+      "valor": 59716.97,
+      "anio": 2025
+    },
+    "ITA": {
+      "nombre": "Italia",
+      "valor": 62802.51,
+      "anio": 2025
+    },
+    "JPN": {
+      "nombre": "Japón",
+      "valor": 55421.88,
+      "anio": 2025
+    },
+    "KOR": {
+      "nombre": "Corea del Sur",
+      "valor": 63124.92,
+      "anio": 2025
+    },
+    "LTU": {
+      "nombre": "Lituania",
+      "valor": 56837.81,
+      "anio": 2025
+    },
+    "LUX": {
+      "nombre": "Luxemburgo",
+      "valor": 156542.08,
+      "anio": 2025
+    },
+    "LVA": {
+      "nombre": "Letonia",
+      "valor": 46136.69,
+      "anio": 2025
+    },
+    "MEX": {
+      "nombre": "México",
+      "valor": 25868.48,
+      "anio": 2025
+    },
+    "NLD": {
+      "nombre": "Países Bajos",
+      "valor": 87320.15,
+      "anio": 2025
+    },
+    "NOR": {
+      "nombre": "Noruega",
+      "valor": 104043.67,
+      "anio": 2025
+    },
+    "NZL": {
+      "nombre": "Nueva Zelanda",
+      "valor": 57350.36,
+      "anio": 2025
+    },
+    "POL": {
+      "nombre": "Polonia",
+      "valor": 54262.4,
+      "anio": 2025
+    },
+    "PRT": {
+      "nombre": "Portugal",
+      "valor": 53145.73,
+      "anio": 2025
+    },
+    "SVK": {
+      "nombre": "Eslovaquia",
+      "valor": 49308.7,
+      "anio": 2025
+    },
+    "SVN": {
+      "nombre": "Eslovenia",
+      "valor": 59244.71,
+      "anio": 2025
+    },
+    "SWE": {
+      "nombre": "Suecia",
+      "valor": 72528.89,
+      "anio": 2025
+    },
+    "TUR": {
+      "nombre": "Turquía",
+      "valor": 45288.48,
+      "anio": 2025
+    },
+    "USA": {
+      "nombre": "Estados Unidos",
+      "valor": 90026.52,
+      "anio": 2025
+    }
+  },
+  "desempleo": {
+    "AUS": {
+      "nombre": "Australia",
+      "valor": 4.09,
+      "anio": 2025
+    },
+    "AUT": {
+      "nombre": "Austria",
+      "valor": 5.58,
+      "anio": 2025
+    },
+    "BEL": {
+      "nombre": "Bélgica",
+      "valor": 5.91,
+      "anio": 2025
+    },
+    "CAN": {
+      "nombre": "Canadá",
+      "valor": 6.91,
+      "anio": 2025
+    },
+    "CHE": {
+      "nombre": "Suiza",
+      "valor": 4.87,
+      "anio": 2025
+    },
+    "CHL": {
+      "nombre": "Chile",
+      "valor": 8.97,
+      "anio": 2025
+    },
+    "COL": {
+      "nombre": "Colombia",
+      "valor": 8.29,
+      "anio": 2025
+    },
+    "CRI": {
+      "nombre": "Costa Rica",
+      "valor": 6.84,
+      "anio": 2025
+    },
+    "CZE": {
+      "nombre": "Chequia",
+      "valor": 2.83,
+      "anio": 2025
+    },
+    "DEU": {
+      "nombre": "Alemania",
+      "valor": 3.71,
+      "anio": 2025
+    },
+    "DNK": {
+      "nombre": "Dinamarca",
+      "valor": 5.53,
+      "anio": 2025
+    },
+    "ESP": {
+      "nombre": "España",
+      "valor": 10.38,
+      "anio": 2025
+    },
+    "EST": {
+      "nombre": "Estonia",
+      "valor": 8.31,
+      "anio": 2025
+    },
+    "FIN": {
+      "nombre": "Finlandia",
+      "valor": 9.46,
+      "anio": 2025
+    },
+    "FRA": {
+      "nombre": "Francia",
+      "valor": 7.54,
+      "anio": 2025
+    },
+    "GBR": {
+      "nombre": "Reino Unido",
+      "valor": 4.75,
+      "anio": 2025
+    },
+    "GRC": {
+      "nombre": "Grecia",
+      "valor": 8.54,
+      "anio": 2025
+    },
+    "HUN": {
+      "nombre": "Hungría",
+      "valor": 4.52,
+      "anio": 2025
+    },
+    "IRL": {
+      "nombre": "Irlanda",
+      "valor": 4.63,
+      "anio": 2025
+    },
+    "ISL": {
+      "nombre": "Islandia",
+      "valor": 3.62,
+      "anio": 2025
+    },
+    "ISR": {
+      "nombre": "Israel",
+      "valor": 3.49,
+      "anio": 2025
+    },
+    "ITA": {
+      "nombre": "Italia",
+      "valor": 6.39,
+      "anio": 2025
+    },
+    "JPN": {
+      "nombre": "Japón",
+      "valor": 2.45,
+      "anio": 2025
+    },
+    "KOR": {
+      "nombre": "Corea del Sur",
+      "valor": 2.68,
+      "anio": 2025
+    },
+    "LTU": {
+      "nombre": "Lituania",
+      "valor": 6.73,
+      "anio": 2025
+    },
+    "LUX": {
+      "nombre": "Luxemburgo",
+      "valor": 6.34,
+      "anio": 2025
+    },
+    "LVA": {
+      "nombre": "Letonia",
+      "valor": 6.57,
+      "anio": 2025
+    },
+    "MEX": {
+      "nombre": "México",
+      "valor": 2.67,
+      "anio": 2025
+    },
+    "NLD": {
+      "nombre": "Países Bajos",
+      "valor": 3.87,
+      "anio": 2025
+    },
+    "NOR": {
+      "nombre": "Noruega",
+      "valor": 4.64,
+      "anio": 2025
+    },
+    "NZL": {
+      "nombre": "Nueva Zelanda",
+      "valor": 5.08,
+      "anio": 2025
+    },
+    "POL": {
+      "nombre": "Polonia",
+      "valor": 2.98,
+      "anio": 2025
+    },
+    "PRT": {
+      "nombre": "Portugal",
+      "valor": 6.16,
+      "anio": 2025
+    },
+    "SVK": {
+      "nombre": "Eslovaquia",
+      "valor": 5.36,
+      "anio": 2025
+    },
+    "SVN": {
+      "nombre": "Eslovenia",
+      "valor": 3.17,
+      "anio": 2025
+    },
+    "SWE": {
+      "nombre": "Suecia",
+      "valor": 8.69,
+      "anio": 2025
+    },
+    "TUR": {
+      "nombre": "Turquía",
+      "valor": 8.52,
+      "anio": 2025
+    },
+    "USA": {
+      "nombre": "Estados Unidos",
+      "valor": 4.2,
+      "anio": 2025
+    }
+  },
+  "inflacion": {
+    "AUS": {
+      "nombre": "Australia",
+      "valor": 2.87,
+      "anio": 2025
+    },
+    "AUT": {
+      "nombre": "Austria",
+      "valor": 3.53,
+      "anio": 2025
+    },
+    "BEL": {
+      "nombre": "Bélgica",
+      "valor": 2.47,
+      "anio": 2025
+    },
+    "CAN": {
+      "nombre": "Canadá",
+      "valor": 2.07,
+      "anio": 2025
+    },
+    "CHE": {
+      "nombre": "Suiza",
+      "valor": 0.15,
+      "anio": 2025
+    },
+    "CHL": {
+      "nombre": "Chile",
+      "valor": 4.21,
+      "anio": 2025
+    },
+    "COL": {
+      "nombre": "Colombia",
+      "valor": 5.14,
+      "anio": 2025
+    },
+    "CRI": {
+      "nombre": "Costa Rica",
+      "valor": -0.07,
+      "anio": 2025
+    },
+    "CZE": {
+      "nombre": "Chequia",
+      "valor": 2.46,
+      "anio": 2025
+    },
+    "DEU": {
+      "nombre": "Alemania",
+      "valor": 2.17,
+      "anio": 2025
+    },
+    "DNK": {
+      "nombre": "Dinamarca",
+      "valor": 1.89,
+      "anio": 2025
+    },
+    "ESP": {
+      "nombre": "España",
+      "valor": 2.7,
+      "anio": 2025
+    },
+    "EST": {
+      "nombre": "Estonia",
+      "valor": 4.83,
+      "anio": 2025
+    },
+    "FIN": {
+      "nombre": "Finlandia",
+      "valor": 0.34,
+      "anio": 2025
+    },
+    "FRA": {
+      "nombre": "Francia",
+      "valor": 0.94,
+      "anio": 2025
+    },
+    "GBR": {
+      "nombre": "Reino Unido",
+      "valor": 3.88,
+      "anio": 2025
+    },
+    "GRC": {
+      "nombre": "Grecia",
+      "valor": 2.48,
+      "anio": 2025
+    },
+    "HUN": {
+      "nombre": "Hungría",
+      "valor": 4.41,
+      "anio": 2025
+    },
+    "IRL": {
+      "nombre": "Irlanda",
+      "valor": 2.21,
+      "anio": 2025
+    },
+    "ISL": {
+      "nombre": "Islandia",
+      "valor": 4.09,
+      "anio": 2025
+    },
+    "ISR": {
+      "nombre": "Israel",
+      "valor": 3.04,
+      "anio": 2025
+    },
+    "ITA": {
+      "nombre": "Italia",
+      "valor": 1.53,
+      "anio": 2025
+    },
+    "JPN": {
+      "nombre": "Japón",
+      "valor": 3.17,
+      "anio": 2025
+    },
+    "KOR": {
+      "nombre": "Corea del Sur",
+      "valor": 2.12,
+      "anio": 2025
+    },
+    "LTU": {
+      "nombre": "Lituania",
+      "valor": 3.79,
+      "anio": 2025
+    },
+    "LUX": {
+      "nombre": "Luxemburgo",
+      "valor": 2.26,
+      "anio": 2025
+    },
+    "LVA": {
+      "nombre": "Letonia",
+      "valor": 3.75,
+      "anio": 2025
+    },
+    "MEX": {
+      "nombre": "México",
+      "valor": 3.81,
+      "anio": 2025
+    },
+    "NLD": {
+      "nombre": "Países Bajos",
+      "valor": 3.26,
+      "anio": 2025
+    },
+    "NOR": {
+      "nombre": "Noruega",
+      "valor": 3.06,
+      "anio": 2025
+    },
+    "NZL": {
+      "nombre": "Nueva Zelanda",
+      "valor": 2.84,
+      "anio": 2025
+    },
+    "POL": {
+      "nombre": "Polonia",
+      "valor": 3.81,
+      "anio": 2025
+    },
+    "PRT": {
+      "nombre": "Portugal",
+      "valor": 2.34,
+      "anio": 2025
+    },
+    "SVK": {
+      "nombre": "Eslovaquia",
+      "valor": 4.0,
+      "anio": 2025
+    },
+    "SVN": {
+      "nombre": "Eslovenia",
+      "valor": 2.37,
+      "anio": 2025
+    },
+    "SWE": {
+      "nombre": "Suecia",
+      "valor": 0.68,
+      "anio": 2025
+    },
+    "TUR": {
+      "nombre": "Turquía",
+      "valor": 34.88,
+      "anio": 2025
+    },
+    "USA": {
+      "nombre": "Estados Unidos",
+      "valor": 2.95,
+      "anio": 2024
+    }
+  },
+  "gini": {
+    "AUS": {
+      "nombre": "Australia",
+      "valor": 33.8,
+      "anio": 2020
+    },
+    "AUT": {
+      "nombre": "Austria",
+      "valor": 31.2,
+      "anio": 2023
+    },
+    "BEL": {
+      "nombre": "Bélgica",
+      "valor": 26.8,
+      "anio": 2023
+    },
+    "CAN": {
+      "nombre": "Canadá",
+      "valor": 31.5,
+      "anio": 2022
+    },
+    "CHE": {
+      "nombre": "Suiza",
+      "valor": 33.8,
+      "anio": 2022
+    },
+    "CHL": {
+      "nombre": "Chile",
+      "valor": 43.0,
+      "anio": 2024
+    },
+    "COL": {
+      "nombre": "Colombia",
+      "valor": 54.4,
+      "anio": 2024
+    },
+    "CRI": {
+      "nombre": "Costa Rica",
+      "valor": 45.5,
+      "anio": 2025
+    },
+    "CZE": {
+      "nombre": "Chequia",
+      "valor": 25.7,
+      "anio": 2023
+    },
+    "DEU": {
+      "nombre": "Alemania",
+      "valor": 33.7,
+      "anio": 2022
+    },
+    "DNK": {
+      "nombre": "Dinamarca",
+      "valor": 29.9,
+      "anio": 2023
+    },
+    "ESP": {
+      "nombre": "España",
+      "valor": 33.4,
+      "anio": 2023
+    },
+    "EST": {
+      "nombre": "Estonia",
+      "valor": 30.7,
+      "anio": 2023
+    },
+    "FIN": {
+      "nombre": "Finlandia",
+      "valor": 27.4,
+      "anio": 2023
+    },
+    "FRA": {
+      "nombre": "Francia",
+      "valor": 31.8,
+      "anio": 2023
+    },
+    "GBR": {
+      "nombre": "Reino Unido",
+      "valor": 32.4,
+      "anio": 2021
+    },
+    "GRC": {
+      "nombre": "Grecia",
+      "valor": 33.4,
+      "anio": 2023
+    },
+    "IRL": {
+      "nombre": "Irlanda",
+      "valor": 29.0,
+      "anio": 2023
+    },
+    "ISL": {
+      "nombre": "Islandia",
+      "valor": 26.8,
+      "anio": 2019
+    },
+    "ISR": {
+      "nombre": "Israel",
+      "valor": 38.3,
+      "anio": 2022
+    },
+    "ITA": {
+      "nombre": "Italia",
+      "valor": 34.3,
+      "anio": 2023
+    },
+    "JPN": {
+      "nombre": "Japón",
+      "valor": 32.3,
+      "anio": 2020
+    },
+    "KOR": {
+      "nombre": "Corea del Sur",
+      "valor": 32.9,
+      "anio": 2021
+    },
+    "LTU": {
+      "nombre": "Lituania",
+      "valor": 36.0,
+      "anio": 2023
+    },
+    "LUX": {
+      "nombre": "Luxemburgo",
+      "valor": 33.6,
+      "anio": 2023
+    },
+    "LVA": {
+      "nombre": "Letonia",
+      "valor": 34.0,
+      "anio": 2023
+    },
+    "MEX": {
+      "nombre": "México",
+      "valor": 42.6,
+      "anio": 2024
+    },
+    "NLD": {
+      "nombre": "Países Bajos",
+      "valor": 25.7,
+      "anio": 2021
+    },
+    "NOR": {
+      "nombre": "Noruega",
+      "valor": 26.5,
+      "anio": 2023
+    },
+    "POL": {
+      "nombre": "Polonia",
+      "valor": 28.5,
+      "anio": 2023
+    },
+    "PRT": {
+      "nombre": "Portugal",
+      "valor": 33.9,
+      "anio": 2023
+    },
+    "SVK": {
+      "nombre": "Eslovaquia",
+      "valor": 23.8,
+      "anio": 2023
+    },
+    "SVN": {
+      "nombre": "Eslovenia",
+      "valor": 24.7,
+      "anio": 2023
+    },
+    "SWE": {
+      "nombre": "Suecia",
+      "valor": 29.3,
+      "anio": 2023
+    },
+    "TUR": {
+      "nombre": "Turquía",
+      "valor": 43.7,
+      "anio": 2023
+    },
+    "USA": {
+      "nombre": "Estados Unidos",
+      "valor": 41.8,
+      "anio": 2024
+    }
+  }
+}

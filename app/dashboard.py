@@ -5,8 +5,22 @@ import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
-from config import CATEGORIAS, DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES, PIB_ESTADOS_PATH
-from series_utils import COMPUTADOS, describir_fecha_kpi, estado_mas_parecido_a_chile, insertar_huecos
+from config import (
+    CATEGORIAS,
+    DEFINICIONES,
+    HISTORICO_PATH,
+    NOMBRES_SERIES,
+    OCDE_INDICADORES,
+    OCDE_PAISES_PATH,
+    PIB_ESTADOS_PATH,
+)
+from series_utils import (
+    COMPUTADOS,
+    construir_figura_ranking_ocde,
+    describir_fecha_kpi,
+    estado_mas_parecido_a_chile,
+    insertar_huecos,
+)
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 TICKERS_EN_VIVO = {
@@ -158,6 +172,28 @@ def _contenido_categoria(series_disponibles: list[str], computados_disponibles: 
                 st.caption(f"Último dato: {describir_fecha_kpi(serie, ultimo['fecha'])}.")
 
 
+def seccion_ocde() -> None:
+    """Sección de referencia (no viene de historico.csv): compara a Chile contra
+    el resto de los países de la OCDE en algunos de los indicadores que ya se
+    siguen en el resto del dashboard. Ver data_pipeline/fetch_worldbank.py.
+    """
+    if not OCDE_PAISES_PATH.exists():
+        return
+    comparacion = json.loads(OCDE_PAISES_PATH.read_text(encoding="utf-8"))
+    if not comparacion:
+        return
+
+    with st.expander("**Países OCDE**", expanded=False):
+        for clave, (titulo, definicion) in OCDE_INDICADORES.items():
+            datos_indicador = comparacion.get(clave)
+            if not datos_indicador:
+                continue
+            st.markdown(f"**{titulo}**")
+            fig = construir_figura_ranking_ocde(datos_indicador)
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(definicion)
+
+
 def seccion_historica() -> None:
     if not HISTORICO_PATH.exists():
         st.info("Todavía no hay datos históricos acumulados. Corré el pipeline de datos primero.")
@@ -170,3 +206,4 @@ def seccion_historica() -> None:
 
 seccion_en_vivo()
 seccion_historica()
+seccion_ocde()

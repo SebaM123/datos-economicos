@@ -1,4 +1,5 @@
 import pandas as pd
+import plotly.graph_objects as go
 
 # Series de expectativas (EOF): el valor de una fecha es el pronóstico que hizo
 # el mercado ESE día para un momento futuro, no un dato vigente de esa fecha.
@@ -178,6 +179,37 @@ def estado_mas_parecido_a_chile(estados: dict, valor_chile: float) -> tuple[str,
     if not estados:
         return None
     return min(estados.items(), key=lambda item: abs(item[1]["pib_per_capita_usd"] - valor_chile))
+
+
+def construir_figura_ranking_ocde(datos_por_pais: dict, pais_destacado: str = "CHL") -> go.Figure:
+    """Gráfico de barras horizontal comparando un indicador entre países de la OCDE
+    (ver data_pipeline/fetch_worldbank.py), ordenado de menor a mayor, con Chile
+    destacado en otro color para ubicarlo rápido entre sus pares.
+    """
+    filas = sorted(
+        ((info["nombre"], info["valor"], codigo, info["anio"]) for codigo, info in datos_por_pais.items()),
+        key=lambda fila: fila[1],
+    )
+    nombres = [fila[0] for fila in filas]
+    valores = [fila[1] for fila in filas]
+    anios = [fila[3] for fila in filas]
+    colores = ["#7c8ff0" if fila[2] == pais_destacado else "#3a3f4f" for fila in filas]
+
+    fig = go.Figure(
+        go.Bar(
+            x=valores,
+            y=nombres,
+            orientation="h",
+            marker_color=colores,
+            customdata=anios,
+            hovertemplate="%{y}: %{x}<br>Año: %{customdata}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        height=max(500, 24 * len(filas)),
+        margin=dict(l=10, r=10, t=10, b=10),
+    )
+    return fig
 
 
 def insertar_huecos(datos_serie: pd.DataFrame, umbral_dias: int = 45) -> pd.DataFrame:
