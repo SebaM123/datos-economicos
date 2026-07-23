@@ -1487,6 +1487,7 @@ fecha,serie,valor
 2026-05-14,eof_inflacion_12m,3.4
 2026-06-11,eof_inflacion_12m,3.1
 2026-07-02,eof_inflacion_12m,2.6
+2026-07-23,eof_inflacion_12m,3.0
 2010-01-15,eof_tipo_cambio_7d,490.0
 2010-01-31,eof_tipo_cambio_7d,505.0
 2010-02-15,eof_tipo_cambio_7d,540.0
@@ -1816,6 +1817,7 @@ fecha,serie,valor
 2026-05-14,eof_tipo_cambio_7d,895.0
 2026-06-11,eof_tipo_cambio_7d,910.0
 2026-07-02,eof_tipo_cambio_7d,920.0
+2026-07-23,eof_tipo_cambio_7d,930.0
 2018-02-19,eof_tpm_proxima_reunion,2.5
 2018-03-14,eof_tpm_proxima_reunion,2.5
 2018-04-06,eof_tpm_proxima_reunion,2.5
@@ -1951,6 +1953,7 @@ fecha,serie,valor
 2026-05-14,eof_tpm_proxima_reunion,4.5
 2026-06-11,eof_tpm_proxima_reunion,4.5
 2026-07-02,eof_tpm_proxima_reunion,4.5
+2026-07-23,eof_tpm_proxima_reunion,4.5
 2010-03-01,fuerza_trabajo,7859.86941911695
 2010-04-01,fuerza_trabajo,7879.89670587499
 2010-05-01,fuerza_trabajo,7881.18621328541
@@ -13106,7 +13109,7 @@ fecha,serie,valor
 2026-07-20,sp500,7443.27978515625
 2026-07-21,sp500,7509.2001953125
 2026-07-22,sp500,7498.9599609375
-2026-07-23,sp500,7398.85009765625
+2026-07-23,sp500,7389.66015625
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -17415,7 +17418,7 @@ fecha,serie,valor
 2026-07-20,tipo_cambio,933.5999755859376
 2026-07-21,tipo_cambio,934.1799926757812
 2026-07-22,tipo_cambio,937.27001953125
-2026-07-23,tipo_cambio,946.0
+2026-07-23,tipo_cambio,947.0999755859376
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -21536,3 +21539,7 @@ fecha,serie,valor
 2026-07-14,tpm,4.5
 2026-07-15,tpm,4.5
 2026-07-17,tpm,4.5
+2026-07-20,tpm,4.5
+2026-07-21,tpm,4.5
+2026-07-22,tpm,4.5
+2026-07-23,tpm,4.5
