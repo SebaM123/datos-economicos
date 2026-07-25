@@ -17,6 +17,10 @@ from config import (
 )
 from series_utils import (
     COMPUTADOS,
+    SERIES_EXPORTACIONES,
+    calcular_exportaciones_totales_interanual,
+    calcular_interanual_generico,
+    calcular_total_exportaciones,
     construir_figura_ranking_ocde,
     describir_fecha_kpi,
     estado_mas_parecido_a_chile,
@@ -221,6 +225,54 @@ def _contenido_categoria(series_disponibles: list[str], computados_disponibles: 
                 st.caption(f"Último dato: {describir_fecha_kpi(serie, ultimo['fecha'])}.")
 
 
+def seccion_comercio_exterior(historico: pd.DataFrame) -> None:
+    """Exportaciones de bienes por sector, con variación interanual (Streamlit
+    colorea el delta en verde/rojo automáticamente) para identificar rápido
+    qué sector sube o baja en cada actualización.
+    """
+    series_disponibles = [s for s in SERIES_EXPORTACIONES if s in historico["serie"].unique()]
+    if not series_disponibles:
+        return
+
+    with st.expander("**Comercio Exterior**", expanded=False):
+        tarjetas = []
+        total_interanual = calcular_exportaciones_totales_interanual(historico)
+        if total_interanual is not None:
+            variacion, fecha = total_interanual
+            total_actual = calcular_total_exportaciones(historico).iloc[-1]
+            tarjetas.append(
+                ("Exportaciones totales de bienes", total_actual["valor"], variacion, f"al {fecha.strftime('%d-%m-%Y')}")
+            )
+
+        for serie in series_disponibles:
+            datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+            ultimo = datos_serie.iloc[-1]
+            interanual = calcular_interanual_generico(historico, serie)
+            variacion = interanual[0] if interanual else None
+            tarjetas.append((NOMBRES_SERIES[serie], ultimo["valor"], variacion, describir_fecha_kpi(serie, ultimo["fecha"])))
+
+        columnas = st.columns(len(tarjetas))
+        for columna, (etiqueta, valor, variacion, fecha_texto) in zip(columnas, tarjetas):
+            with columna:
+                delta = f"{variacion:+.1f}% interanual" if variacion is not None else None
+                st.metric(etiqueta, f"US$ {valor:,.0f} MM", delta)
+                st.caption(fecha_texto)
+
+        GRAFICOS_POR_FILA = 2
+        for inicio in range(0, len(series_disponibles), GRAFICOS_POR_FILA):
+            columnas = st.columns(GRAFICOS_POR_FILA)
+            for columna, serie in zip(columnas, series_disponibles[inicio : inicio + GRAFICOS_POR_FILA]):
+                with columna:
+                    datos_completos = historico[historico["serie"] == serie].sort_values("fecha")
+                    datos_serie = insertar_huecos(datos_completos)
+                    fig = px.line(datos_serie, x="fecha", y="valor", title=NOMBRES_SERIES[serie], markers=True)
+                    fig.update_layout(xaxis_title="", yaxis_title="")
+                    st.plotly_chart(fig, use_container_width=True)
+                    definicion = DEFINICIONES.get(serie)
+                    if definicion:
+                        st.caption(definicion)
+
+
 def seccion_ocde() -> None:
     """Sección de referencia (no viene de historico.csv): compara a Chile contra
     el resto de los países de la OCDE en algunos de los indicadores que ya se
@@ -243,16 +295,19 @@ def seccion_ocde() -> None:
             st.caption(definicion)
 
 
-def seccion_historica() -> None:
+def seccion_historica() -> pd.DataFrame | None:
     if not HISTORICO_PATH.exists():
         st.info("Todavía no hay datos históricos acumulados. Corré el pipeline de datos primero.")
-        return
+        return None
 
     historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
     for i, categoria in enumerate(CATEGORIAS):
         seccion_categoria(categoria, historico, abierta=(i == 0))
+    return historico
 
 
 seccion_en_vivo()
-seccion_historica()
+historico = seccion_historica()
+if historico is not None:
+    seccion_comercio_exterior(historico)
 seccion_ocde()

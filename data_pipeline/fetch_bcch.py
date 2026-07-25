@@ -49,6 +49,12 @@ SERIES = {
     # del cobre o si el resto de la economía (servicios, etc.) va por otro lado.
     "pib_mineria": "F032.PIB.FLU.R.CLP.2018.03.Z.1.M",
     "pib_no_minero": "F032.PIB.FLU.R.CLP.EP18.N03.Z.1.T",
+    # Exportaciones de bienes por sector (FOB, millones de USD, mensual, NO desestacionalizado
+    # — por eso los indicadores calculados usan variación interanual, no mes contra mes, para
+    # no confundir estacionalidad de la fruta con una caída/alza real). Fuente: Balanza de Pagos.
+    "exportaciones_mineria": "F068.B1.FLU.A.0.C.N.Z.Z.Z.Z.6.0.M",
+    "exportaciones_agropecuario": "F068.B1.FLU.B.0.C.N.Z.Z.Z.Z.6.0.M",
+    "exportaciones_industrial": "F068.B1.FLU.C.0.C.N.Z.Z.Z.Z.6.0.M",
     # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
     # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
     # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se

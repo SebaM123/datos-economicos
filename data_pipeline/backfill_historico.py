@@ -24,7 +24,7 @@ def main() -> None:
 
     print("Trayendo historial de Gini (Banco Mundial)...")
     filas_gini = []
-    for pais, serie in fetch_worldbank.PAISES.items():
+    for pais, serie in fetch_worldbank.PAISES_GINI.items():
         filas_gini.extend(fetch_worldbank.obtener_gini(pais, serie))
     print(f"  {len(filas_gini)} observaciones de Gini")
 

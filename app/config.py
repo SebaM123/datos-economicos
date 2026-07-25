@@ -63,6 +63,9 @@ NOMBRES_SERIES = {
     "pib_no_minero": "PIB No minero (miles de millones de $, trimestral, desestacionalizado)",
     "chile_gini": "Chile - Índice de Gini",
     "eeuu_gini": "EEUU - Índice de Gini",
+    "exportaciones_mineria": "Exportaciones Minería (FOB, millones de USD)",
+    "exportaciones_agropecuario": "Exportaciones Agropecuario-silvícola y pesquero (FOB, millones de USD)",
+    "exportaciones_industrial": "Exportaciones Industrial (FOB, millones de USD)",
 }
 
 # Etiquetas cortas solo para la cinta animada (ticker): ahí no hay espacio para
@@ -101,6 +104,9 @@ DEFINICIONES = {
     "pib_no_minero": "Producto Interno Bruto excluyendo minería, en volumen (términos reales). Muestra cómo le va al resto de la economía (servicios, comercio, construcción, etc.) sin el efecto del cobre, que puede mover mucho el PIB total por sí solo.",
     "chile_gini": "Índice de Gini: mide la desigualdad de ingresos entre 0 (igualdad perfecta) y 100 (un solo hogar concentra todo el ingreso). Fuente: Banco Mundial, en base a encuestas de hogares (CASEN en Chile). Serie anual con huecos, no todos los años tienen encuesta.",
     "eeuu_gini": "Índice de Gini de Estados Unidos, mismo origen y metodología (Banco Mundial) que el de Chile, para comparar directamente el nivel de desigualdad entre ambos países.",
+    "exportaciones_mineria": "Exportaciones de bienes del sector minero (principalmente cobre), valor FOB mensual. Fuente: Balanza de Pagos, BCCh. No está desestacionalizado — para ver si un mes fue realmente mejor o peor hay que mirar la variación interanual, no el mes anterior.",
+    "exportaciones_agropecuario": "Exportaciones de bienes agropecuarios, silvícolas y pesqueros (fruta, vino, salmón, madera, etc.), valor FOB mensual. Muy estacional: la fruta se concentra en los meses de cosecha (fin de año), así que el nivel mensual salta mucho — la variación interanual compara contra el mismo mes del año pasado para evitar ese ruido.",
+    "exportaciones_industrial": "Exportaciones de bienes industriales (alimentos procesados, celulosa y papel, químicos, etc.), valor FOB mensual. Fuente: Balanza de Pagos, BCCh.",
 }
 
 # Agrupación temática, para no mostrar todo como una lista plana: cada categoría

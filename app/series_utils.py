@@ -183,6 +183,46 @@ def estado_mas_parecido_a_chile(
     return min(estados.items(), key=lambda item: abs(item[1][clave_valor] - valor_chile))
 
 
+SERIES_EXPORTACIONES = ["exportaciones_mineria", "exportaciones_agropecuario", "exportaciones_industrial"]
+
+
+def calcular_interanual_generico(historico: pd.DataFrame, serie: str) -> tuple[float, pd.Timestamp] | None:
+    """Variación interanual (12 meses) de una serie mensual cualquiera: compara
+    el último dato contra el mismo mes del año anterior, para no confundir
+    estacionalidad (ej. la fruta exporta mucho más en verano) con una caída o
+    alza real de la actividad.
+    """
+    datos = historico[historico["serie"] == serie].sort_values("fecha")
+    if len(datos) < 13:
+        return None
+    actual = datos.iloc[-1]
+    hace_un_anio = datos.iloc[-13]
+    variacion = (actual["valor"] / hace_un_anio["valor"] - 1) * 100
+    return variacion, actual["fecha"]
+
+
+def calcular_total_exportaciones(historico: pd.DataFrame) -> pd.DataFrame:
+    """Suma las exportaciones de bienes de los tres sectores (minería, agropecuario-
+    silvícola-pesquero, industrial) por fecha. No incluye exportación de servicios.
+    """
+    disponibles = [s for s in SERIES_EXPORTACIONES if s in historico["serie"].unique()]
+    pivote = historico[historico["serie"].isin(disponibles)].pivot(index="fecha", columns="serie", values="valor")
+    pivote = pivote.dropna()
+    total = pivote.sum(axis=1).reset_index()
+    total.columns = ["fecha", "valor"]
+    return total
+
+
+def calcular_exportaciones_totales_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    total = calcular_total_exportaciones(historico)
+    if len(total) < 13:
+        return None
+    actual = total.iloc[-1]
+    hace_un_anio = total.iloc[-13]
+    variacion = (actual["valor"] / hace_un_anio["valor"] - 1) * 100
+    return variacion, actual["fecha"]
+
+
 def construir_figura_ranking_ocde(datos_por_pais: dict, pais_destacado: str = "CHL") -> go.Figure:
     """Gráfico de barras horizontal comparando un indicador entre países de la OCDE
     (ver data_pipeline/fetch_worldbank.py), ordenado de menor a mayor, con Chile

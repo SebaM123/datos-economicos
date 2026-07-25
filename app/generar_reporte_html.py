@@ -26,6 +26,10 @@ from config import (
 )
 from series_utils import (
     COMPUTADOS,
+    SERIES_EXPORTACIONES,
+    calcular_exportaciones_totales_interanual,
+    calcular_interanual_generico,
+    calcular_total_exportaciones,
     construir_figura_ranking_ocde,
     describir_fecha_kpi,
     estado_mas_parecido_a_chile,
@@ -66,6 +70,7 @@ ESTILO = """
   .estado-callout { background: #171923; border: 1px solid #262a35; border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.9rem; margin: 0.75rem 0; }
   .por-estado select { background: #171923; color: #fafafa; border: 1px solid #262a35; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; margin-top: 0.5rem; }
   .graficos-ocde .grafico-bloque { margin-bottom: 2rem; }
+  .kpi .variacion { font-size: 0.85rem; font-weight: 600; margin-top: 0.15rem; }
 </style>
 """
 
@@ -111,6 +116,85 @@ def valor_kpi(etiqueta: str, valor: float, fecha_texto: str, sufijo: str = "") -
         <div class="valor">{valor:,.2f}{sufijo}</div>
         <div class="fecha">{fecha_texto}</div>
     </div>"""
+
+
+def valor_kpi_con_variacion(etiqueta: str, valor: float, variacion: float | None, fecha_texto: str) -> str:
+    """Como valor_kpi, pero con la variación interanual destacada en verde/rojo
+    debajo del valor, para ver de un vistazo qué sector sube o baja.
+    """
+    variacion_html = ""
+    if variacion is not None:
+        clase = "ticker-up" if variacion > 0 else ("ticker-down" if variacion < 0 else "")
+        flecha = "▲" if variacion > 0 else ("▼" if variacion < 0 else "")
+        variacion_html = f'<div class="variacion {clase}">{flecha} {variacion:+.1f}% interanual</div>'
+    return f"""<div class="kpi">
+        <div class="etiqueta">{etiqueta}</div>
+        <div class="valor">US$ {valor:,.0f} MM</div>
+        {variacion_html}
+        <div class="fecha">{fecha_texto}</div>
+    </div>"""
+
+
+def construir_seccion_comercio_exterior(historico: pd.DataFrame) -> str:
+    """Exportaciones de bienes por sector, con variación interanual coloreada
+    para identificar rápido qué sector sube o baja en cada actualización.
+    """
+    series_disponibles = [s for s in SERIES_EXPORTACIONES if s in historico["serie"].unique()]
+    if not series_disponibles:
+        return ""
+
+    tarjetas = []
+    total_interanual = calcular_exportaciones_totales_interanual(historico)
+    if total_interanual is not None:
+        variacion, fecha = total_interanual
+        total_actual = calcular_total_exportaciones(historico).iloc[-1]
+        tarjetas.append(
+            valor_kpi_con_variacion(
+                "Exportaciones totales de bienes", total_actual["valor"], variacion, f"al {fecha.strftime('%d-%m-%Y')}"
+            )
+        )
+
+    for serie in series_disponibles:
+        datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+        ultimo = datos_serie.iloc[-1]
+        interanual = calcular_interanual_generico(historico, serie)
+        variacion = interanual[0] if interanual else None
+        tarjetas.append(
+            valor_kpi_con_variacion(
+                NOMBRES_SERIES[serie], ultimo["valor"], variacion, describir_fecha_kpi(serie, ultimo["fecha"])
+            )
+        )
+
+    graficos = []
+    for serie in series_disponibles:
+        datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+        datos_grafico = insertar_huecos(datos_serie)
+        fig = px.line(datos_grafico, x="fecha", y="valor", markers=True, template="plotly_dark")
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=10, b=10),
+            xaxis_title="",
+            yaxis_title="",
+            paper_bgcolor="#0e1117",
+            plot_bgcolor="#0e1117",
+        )
+        grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
+        definicion = DEFINICIONES.get(serie)
+        definicion_html = f"<p class='definicion'>{definicion}</p>" if definicion else ""
+        graficos.append(
+            f"""<div class="grafico-bloque">
+                <h3>{NOMBRES_SERIES[serie]}</h3>
+                {definicion_html}
+                <div class="grafico">{grafico_html}</div>
+            </div>"""
+        )
+
+    return f"""<details class="categoria">
+        <summary>Comercio Exterior</summary>
+        <div class="categoria-contenido">
+            <div class="kpis">{"".join(tarjetas)}</div>
+            <div class="graficos">{"".join(graficos)}</div>
+        </div>
+    </details>"""
 
 
 def construir_bloque_estados_eeuu(historico: pd.DataFrame) -> str:
@@ -342,6 +426,7 @@ def generar() -> None:
         )
         for i, categoria in enumerate(CATEGORIAS)
     )
+    secciones += construir_seccion_comercio_exterior(historico)
     secciones += construir_seccion_ocde()
 
     html = f"""<!doctype html>
