@@ -27,6 +27,7 @@ from config import (
 from series_utils import (
     COMPUTADOS,
     SERIES_EXPORTACIONES,
+    calcular_anio_movil,
     calcular_exportaciones_totales_interanual,
     calcular_interanual_generico,
     calcular_total_exportaciones,
@@ -135,9 +136,30 @@ def valor_kpi_con_variacion(etiqueta: str, valor: float, variacion: float | None
     </div>"""
 
 
+def construir_grafico_html(datos: pd.DataFrame, titulo: str, definicion: str | None, aplicar_huecos: bool = True) -> str:
+    datos_grafico = insertar_huecos(datos) if aplicar_huecos else datos
+    fig = px.line(datos_grafico, x="fecha", y="valor", markers=True, template="plotly_dark")
+    fig.update_layout(
+        margin=dict(l=10, r=10, t=10, b=10),
+        xaxis_title="",
+        yaxis_title="",
+        paper_bgcolor="#0e1117",
+        plot_bgcolor="#0e1117",
+    )
+    grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
+    definicion_html = f"<p class='definicion'>{definicion}</p>" if definicion else ""
+    return f"""<div class="grafico-bloque">
+        <h3>{titulo}</h3>
+        {definicion_html}
+        <div class="grafico">{grafico_html}</div>
+    </div>"""
+
+
 def construir_seccion_comercio_exterior(historico: pd.DataFrame) -> str:
     """Exportaciones de bienes por sector, con variación interanual coloreada
-    para identificar rápido qué sector sube o baja en cada actualización.
+    para identificar rápido qué sector sube o baja en cada actualización, más
+    gráficos de año móvil (suma de los últimos 12 meses) para ver la tendencia
+    de fondo sin el ruido estacional de mes a mes.
     """
     series_disponibles = [s for s in SERIES_EXPORTACIONES if s in historico["serie"].unique()]
     if not series_disponibles:
@@ -168,24 +190,30 @@ def construir_seccion_comercio_exterior(historico: pd.DataFrame) -> str:
     graficos = []
     for serie in series_disponibles:
         datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
-        datos_grafico = insertar_huecos(datos_serie)
-        fig = px.line(datos_grafico, x="fecha", y="valor", markers=True, template="plotly_dark")
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10),
-            xaxis_title="",
-            yaxis_title="",
-            paper_bgcolor="#0e1117",
-            plot_bgcolor="#0e1117",
+        graficos.append(construir_grafico_html(datos_serie, NOMBRES_SERIES[serie], DEFINICIONES.get(serie)))
+
+    graficos_anio_movil = []
+    definicion_anio_movil = (
+        "Año móvil: suma de los últimos 12 meses, recalculada cada mes (no solo a fin de año calendario). "
+        "Muestra la tendencia de fondo sin los saltos estacionales del gráfico mensual de arriba."
+    )
+    total_exportaciones = calcular_total_exportaciones(historico)
+    anio_movil_total = calcular_anio_movil(total_exportaciones)
+    if not anio_movil_total.empty:
+        graficos_anio_movil.append(
+            construir_grafico_html(
+                anio_movil_total, "Exportaciones totales de bienes - año móvil", definicion_anio_movil, aplicar_huecos=False
+            )
         )
-        grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
-        definicion = DEFINICIONES.get(serie)
-        definicion_html = f"<p class='definicion'>{definicion}</p>" if definicion else ""
-        graficos.append(
-            f"""<div class="grafico-bloque">
-                <h3>{NOMBRES_SERIES[serie]}</h3>
-                {definicion_html}
-                <div class="grafico">{grafico_html}</div>
-            </div>"""
+    for serie in series_disponibles:
+        datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+        anio_movil = calcular_anio_movil(datos_serie)
+        if anio_movil.empty:
+            continue
+        graficos_anio_movil.append(
+            construir_grafico_html(
+                anio_movil, f"{NOMBRES_SERIES[serie]} - año móvil", definicion_anio_movil, aplicar_huecos=False
+            )
         )
 
     return f"""<details class="categoria">
@@ -193,6 +221,10 @@ def construir_seccion_comercio_exterior(historico: pd.DataFrame) -> str:
         <div class="categoria-contenido">
             <div class="kpis">{"".join(tarjetas)}</div>
             <div class="graficos">{"".join(graficos)}</div>
+            <div class="por-estado">
+                <h3>Año móvil (tendencia sin estacionalidad)</h3>
+                <div class="graficos">{"".join(graficos_anio_movil)}</div>
+            </div>
         </div>
     </details>"""
 

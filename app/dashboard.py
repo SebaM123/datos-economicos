@@ -18,6 +18,7 @@ from config import (
 from series_utils import (
     COMPUTADOS,
     SERIES_EXPORTACIONES,
+    calcular_anio_movil,
     calcular_exportaciones_totales_interanual,
     calcular_interanual_generico,
     calcular_total_exportaciones,
@@ -271,6 +272,27 @@ def seccion_comercio_exterior(historico: pd.DataFrame) -> None:
                     definicion = DEFINICIONES.get(serie)
                     if definicion:
                         st.caption(definicion)
+
+        st.markdown("**Año móvil (tendencia sin estacionalidad)**")
+        st.caption(
+            "Año móvil: suma de los últimos 12 meses, recalculada cada mes (no solo a fin de año calendario). "
+            "Muestra la tendencia de fondo sin los saltos estacionales de los gráficos mensuales de arriba."
+        )
+        series_anio_movil = [("Exportaciones totales de bienes", calcular_total_exportaciones(historico))]
+        for serie in series_disponibles:
+            datos_serie = historico[historico["serie"] == serie].sort_values("fecha")
+            series_anio_movil.append((NOMBRES_SERIES[serie], datos_serie))
+
+        for inicio in range(0, len(series_anio_movil), GRAFICOS_POR_FILA):
+            columnas = st.columns(GRAFICOS_POR_FILA)
+            for columna, (etiqueta, datos_serie) in zip(columnas, series_anio_movil[inicio : inicio + GRAFICOS_POR_FILA]):
+                with columna:
+                    anio_movil = calcular_anio_movil(datos_serie)
+                    if anio_movil.empty:
+                        continue
+                    fig = px.line(anio_movil, x="fecha", y="valor", title=f"{etiqueta} - año móvil", markers=False)
+                    fig.update_layout(xaxis_title="", yaxis_title="")
+                    st.plotly_chart(fig, use_container_width=True)
 
 
 def seccion_ocde() -> None:

@@ -223,6 +223,20 @@ def calcular_exportaciones_totales_interanual(historico: pd.DataFrame) -> tuple[
     return variacion, actual["fecha"]
 
 
+def calcular_anio_movil(datos_serie: pd.DataFrame, ventana: int = 12) -> pd.DataFrame:
+    """Año móvil: la suma de los últimos `ventana` meses, recalculada en cada
+    fecha (no solo a fin de año calendario). Para series de flujo mensuales muy
+    estacionales (como exportaciones), es la forma estándar de ver la tendencia
+    de fondo sin que los picos/valles estacionales tapen si en realidad viene
+    subiendo o bajando. `datos_serie` debe venir ordenado por fecha, con
+    columnas "fecha" y "valor".
+    """
+    datos_serie = datos_serie.sort_values("fecha")
+    resultado = datos_serie[["fecha"]].copy()
+    resultado["valor"] = datos_serie["valor"].rolling(window=ventana).sum()
+    return resultado.dropna().reset_index(drop=True)
+
+
 def construir_figura_ranking_ocde(datos_por_pais: dict, pais_destacado: str = "CHL") -> go.Figure:
     """Gráfico de barras horizontal comparando un indicador entre países de la OCDE
     (ver data_pipeline/fetch_worldbank.py), ordenado de menor a mayor, con Chile
