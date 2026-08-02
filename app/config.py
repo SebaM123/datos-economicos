@@ -66,6 +66,8 @@ NOMBRES_SERIES = {
     "exportaciones_mineria": "Exportaciones Minería (FOB, millones de USD)",
     "exportaciones_agropecuario": "Exportaciones Agropecuario-silvícola y pesquero (FOB, millones de USD)",
     "exportaciones_industrial": "Exportaciones Industrial (FOB, millones de USD)",
+    "eee_pib_actual": "Expectativa PIB año en curso (EEE, %)",
+    "eee_pib_proximo": "Expectativa PIB año siguiente (EEE, %)",
 }
 
 # Etiquetas cortas solo para la cinta animada (ticker): ahí no hay espacio para
@@ -107,6 +109,8 @@ DEFINICIONES = {
     "exportaciones_mineria": "Exportaciones de bienes del sector minero (principalmente cobre), valor FOB mensual. Fuente: Balanza de Pagos, BCCh. No está desestacionalizado — para ver si un mes fue realmente mejor o peor hay que mirar la variación interanual, no el mes anterior.",
     "exportaciones_agropecuario": "Exportaciones de bienes agropecuarios, silvícolas y pesqueros (fruta, vino, salmón, madera, etc.), valor FOB mensual. Muy estacional: la fruta se concentra en los meses de cosecha (fin de año), así que el nivel mensual salta mucho — la variación interanual compara contra el mismo mes del año pasado para evitar ese ruido.",
     "exportaciones_industrial": "Exportaciones de bienes industriales (alimentos procesados, celulosa y papel, químicos, etc.), valor FOB mensual. Fuente: Balanza de Pagos, BCCh.",
+    "eee_pib_actual": "Expectativa de crecimiento del PIB para el año en curso, mediana de la Encuesta de Expectativas Económicas (EEE) del Banco Central — el consenso de mercado (economistas de bancos, AFPs, consultoras), no un modelo estadístico. Es el número de referencia más confiable de actividad económica del dashboard: incorpora información que ningún modelo univariado tiene (proyectos mineros, condiciones crediticias, efecto base, etc.). Compárese con la proyección ARIMA del IMACEC en la sección Proyecciones — no deberían coincidir necesariamente, son cosas distintas (crecimiento anual vs. variación mensual de un índice).",
+    "eee_pib_proximo": "Lo mismo que 'Expectativa PIB año en curso', pero para el año calendario siguiente.",
 }
 
 # Agrupación temática, para no mostrar todo como una lista plana: cada categoría
@@ -141,7 +145,15 @@ CATEGORIAS = [
     },
     {
         "nombre": "Actividad Económica",
-        "series": ["imacec", "pib_chile", "chile_pib_per_capita_ppa", "pib_mineria", "pib_no_minero"],
+        "series": [
+            "imacec",
+            "pib_chile",
+            "chile_pib_per_capita_ppa",
+            "pib_mineria",
+            "pib_no_minero",
+            "eee_pib_actual",
+            "eee_pib_proximo",
+        ],
         "computados": ["imacec_interanual", "pib_mineria_interanual", "pib_no_minero_interanual"],
     },
     {

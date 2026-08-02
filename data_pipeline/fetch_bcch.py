@@ -93,6 +93,39 @@ def obtener_ipc_sae_empalmado(cliente, desde: str, hasta: str) -> list[dict]:
     return filas
 
 
+def obtener_expectativas_pib(cliente, desde: str, hasta: str) -> list[dict]:
+    """Expectativa de crecimiento del PIB (Encuesta de Expectativas Económicas,
+    EEE) para el año en curso y el próximo, mediana de los encuestados.
+
+    El código de la serie en el BCCh depende del año calendario
+    (F089.PIB.V12.2026.M, el año que viene será F089.PIB.V12.2027.M, etc.), así
+    que se arma acá dinámicamente según la fecha de hoy, para no tener que
+    tocar el código cada enero. Como resultado, "eee_pib_actual"/"eee_pib_proximo"
+    son series empalmadas de facto: en 2026 reflejan el código de 2026, en 2027
+    reflejarán el código de 2027, y así — el nombre siempre significa "el año
+    en curso" y "el año siguiente", no un año fijo.
+
+    No se backfillea hacia atrás (solo acumula desde que se empezó a pedir):
+    para eso habría que encadenar el código de cada año histórico por separado,
+    como se hizo con el IPC SAE, y no hace falta para el uso que se le da acá.
+    """
+    anio_actual = date.today().year
+    codigos = {
+        "eee_pib_actual": f"F089.PIB.V12.{anio_actual}.M",
+        "eee_pib_proximo": f"F089.PIB.V12.{anio_actual + 1}.M",
+    }
+    tabla = cliente.cuadro(series=list(codigos.values()), nombres=list(codigos.keys()), desde=desde, hasta=hasta)
+
+    filas = []
+    for fecha, fila in tabla.iterrows():
+        for nombre in codigos:
+            valor = fila.get(nombre)
+            if valor is None or valor != valor:  # descarta NaN
+                continue
+            filas.append({"fecha": fecha.date().isoformat(), "serie": nombre, "valor": float(valor)})
+    return filas
+
+
 def obtener_datos(desde: str, hasta: str | None = None) -> list[dict]:
     cliente = obtener_cliente()
     hasta = hasta or date.today().isoformat()
@@ -120,6 +153,7 @@ def obtener_datos(desde: str, hasta: str | None = None) -> list[dict]:
             filas.append({"fecha": fecha.date().isoformat(), "serie": serie, "valor": float(valor)})
 
     filas.extend(obtener_ipc_sae_empalmado(cliente, desde=desde, hasta=hasta))
+    filas.extend(obtener_expectativas_pib(cliente, desde=desde, hasta=hasta))
     return filas
 
 

@@ -173,6 +173,10 @@ SERIES_PROYECTABLES = {
         calcular_serie_interanual_imacec,
         "Proyección estadística (ARIMA sobre el historial de la propia serie, sin otras variables), "
         "no es un pronóstico oficial de nadie. El área sombreada es el intervalo de confianza al 80% — "
-        "mientras más lejos en el tiempo, más ancho (más incertidumbre).",
+        "mientras más lejos en el tiempo, más ancho (más incertidumbre). No confundir con crecimiento del "
+        "PIB anual: esto es la variación de un mes puntual, no un promedio del año. Para la proyección de "
+        "PIB que sí incorpora criterio de mercado (no solo el patrón de la propia serie), ver 'Expectativa "
+        "PIB' (EEE) en la sección Actividad Económica — ese número, no este gráfico, es la referencia más "
+        "confiable si lo que buscás es crecimiento esperado del PIB.",
     ),
 }
