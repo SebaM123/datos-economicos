@@ -27,6 +27,7 @@ from series_utils import (
     estado_mas_parecido_a_chile,
     insertar_huecos,
 )
+from proyecciones import SERIES_PROYECTABLES, construir_figura_proyeccion, proyectar_serie
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 TICKERS_EN_VIVO = {
@@ -295,6 +296,22 @@ def seccion_comercio_exterior(historico: pd.DataFrame) -> None:
                     st.plotly_chart(fig, use_container_width=True)
 
 
+def seccion_proyecciones(historico: pd.DataFrame) -> None:
+    """Proyección estadística (ARIMA) de algunas series clave. Ver el docstring
+    de proyecciones.py para la explicación completa de la metodología.
+    """
+    with st.expander("**Proyecciones**", expanded=False):
+        for etiqueta, funcion_historico, definicion in SERIES_PROYECTABLES.values():
+            serie_historica = funcion_historico(historico)
+            if serie_historica.empty:
+                continue
+            proyeccion = proyectar_serie(serie_historica)
+            st.markdown(f"**{etiqueta}**")
+            fig = construir_figura_proyeccion(serie_historica, proyeccion)
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(definicion)
+
+
 def seccion_ocde() -> None:
     """Sección de referencia (no viene de historico.csv): compara a Chile contra
     el resto de los países de la OCDE en algunos de los indicadores que ya se
@@ -332,4 +349,5 @@ seccion_en_vivo()
 historico = seccion_historica()
 if historico is not None:
     seccion_comercio_exterior(historico)
+    seccion_proyecciones(historico)
 seccion_ocde()

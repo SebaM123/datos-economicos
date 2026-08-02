@@ -36,6 +36,7 @@ from series_utils import (
     estado_mas_parecido_a_chile,
     insertar_huecos,
 )
+from proyecciones import SERIES_PROYECTABLES, construir_figura_proyeccion, proyectar_serie
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 SERIES_TICKER = ["ipsa_indice_real", "tipo_cambio", "sp500", "tpm"]
@@ -381,6 +382,39 @@ def construir_seccion_ocde() -> str:
     </details>"""
 
 
+def construir_seccion_proyecciones(historico: pd.DataFrame) -> str:
+    """Proyección estadística (ARIMA) de algunas series clave. Ver el docstring
+    de proyecciones.py para la explicación completa de la metodología — acá
+    solo se arma el HTML con lo que ese módulo calcula.
+    """
+    graficos = []
+    for etiqueta, funcion_historico, definicion in SERIES_PROYECTABLES.values():
+        serie_historica = funcion_historico(historico)
+        if serie_historica.empty:
+            continue
+        proyeccion = proyectar_serie(serie_historica)
+        fig = construir_figura_proyeccion(serie_historica, proyeccion)
+        fig.update_layout(template="plotly_dark", paper_bgcolor="#0e1117", plot_bgcolor="#0e1117")
+        grafico_html = pio.to_html(fig, include_plotlyjs=False, full_html=False)
+        graficos.append(
+            f"""<div class="grafico-bloque">
+                <h3>{etiqueta}</h3>
+                <p class="definicion">{definicion}</p>
+                <div class="grafico">{grafico_html}</div>
+            </div>"""
+        )
+
+    if not graficos:
+        return ""
+
+    return f"""<details class="categoria">
+        <summary>Proyecciones</summary>
+        <div class="categoria-contenido">
+            <div class="graficos-ocde">{"".join(graficos)}</div>
+        </div>
+    </details>"""
+
+
 def construir_seccion(categoria: dict, historico: pd.DataFrame, abierta: bool, bloque_extra: str = "") -> str:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -459,6 +493,7 @@ def generar() -> None:
         for i, categoria in enumerate(CATEGORIAS)
     )
     secciones += construir_seccion_comercio_exterior(historico)
+    secciones += construir_seccion_proyecciones(historico)
     secciones += construir_seccion_ocde()
 
     html = f"""<!doctype html>
