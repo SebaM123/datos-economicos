@@ -168,6 +168,28 @@ def bloque_gini_estados(historico: pd.DataFrame) -> None:
         st.caption(f"Índice de Gini, {datos['anio']}")
 
 
+def bloque_anio_movil_desempleo(historico: pd.DataFrame) -> None:
+    """Promedio móvil de 12 meses de la tasa de desempleo. A diferencia del año
+    móvil de exportaciones (que suma), acá se promedia: sumar una tasa no
+    tiene interpretación, promediarla sí sirve para suavizar el ruido mes a mes.
+    """
+    datos_serie = historico[historico["serie"] == "desempleo"].sort_values("fecha")
+    if datos_serie.empty:
+        return
+    anio_movil = calcular_anio_movil(datos_serie, operacion="mean")
+    if anio_movil.empty:
+        return
+
+    st.markdown("**Tendencia (promedio móvil 12 meses)**")
+    fig = px.line(anio_movil, x="fecha", y="valor", title="Desempleo - promedio móvil 12 meses", markers=False)
+    fig.update_layout(xaxis_title="", yaxis_title="")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Promedio móvil de los últimos 12 meses de la tasa de desempleo, recalculado cada mes. "
+        "Suaviza el ruido mes a mes para ver mejor la tendencia de fondo."
+    )
+
+
 def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -> None:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -183,6 +205,8 @@ def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -
             bloque_estados_eeuu(historico)
         if categoria["nombre"] == "Desigualdad":
             bloque_gini_estados(historico)
+        if categoria["nombre"] == "Empleo":
+            bloque_anio_movil_desempleo(historico)
 
 
 def _contenido_categoria(series_disponibles: list[str], computados_disponibles: list, historico: pd.DataFrame) -> None:

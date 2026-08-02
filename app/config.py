@@ -137,7 +137,7 @@ CATEGORIAS = [
     {
         "nombre": "Empleo",
         "series": ["desempleo", "fuerza_trabajo", "ocupados", "desocupados"],
-        "computados": [],
+        "computados": ["desempleo_interanual"],
     },
     {
         "nombre": "Actividad Económica",

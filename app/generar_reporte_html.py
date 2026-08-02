@@ -344,6 +344,31 @@ def construir_bloque_gini_estados(historico: pd.DataFrame) -> str:
     </script>"""
 
 
+def construir_bloque_anio_movil_desempleo(historico: pd.DataFrame) -> str:
+    """Promedio móvil de 12 meses de la tasa de desempleo. A diferencia del año
+    móvil de exportaciones (que suma), acá se promedia: sumar una tasa no
+    tiene interpretación, promediarla sí sirve para suavizar el ruido mes a mes.
+    """
+    datos_serie = historico[historico["serie"] == "desempleo"].sort_values("fecha")
+    if datos_serie.empty:
+        return ""
+    anio_movil = calcular_anio_movil(datos_serie, operacion="mean")
+    if anio_movil.empty:
+        return ""
+
+    definicion = (
+        "Promedio móvil de los últimos 12 meses de la tasa de desempleo, recalculado cada mes. "
+        "Suaviza el ruido mes a mes para ver mejor la tendencia de fondo."
+    )
+    grafico = construir_grafico_html(
+        anio_movil, "Desempleo - promedio móvil 12 meses", definicion, aplicar_huecos=False
+    )
+    return f"""<div class="por-estado">
+        <h3>Tendencia (promedio móvil 12 meses)</h3>
+        <div class="graficos">{grafico}</div>
+    </div>"""
+
+
 def construir_seccion_ocde() -> str:
     """Sección de referencia (no viene de historico.csv): compara a Chile contra
     el resto de los países de la OCDE en algunos de los indicadores que ya se
@@ -482,6 +507,7 @@ def generar() -> None:
     BLOQUES_EXTRA = {
         "Estados Unidos": construir_bloque_estados_eeuu,
         "Desigualdad": construir_bloque_gini_estados,
+        "Empleo": construir_bloque_anio_movil_desempleo,
     }
     secciones = "".join(
         construir_seccion(

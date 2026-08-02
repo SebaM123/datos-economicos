@@ -152,6 +152,11 @@ def calcular_tpm_real(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | N
     return tpm_actual["valor"] - inflacion_valor, tpm_actual["fecha"]
 
 
+def calcular_desempleo_interanual(historico: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Diferencia interanual de la tasa de desempleo, en puntos porcentuales."""
+    return calcular_diferencia_interanual_generico(historico, "desempleo")
+
+
 # Registro de indicadores calculados (no son una serie cruda de historico.csv,
 # se derivan de una o más series). "{year}" en la etiqueta se reemplaza por el
 # año de la fecha del dato al momento de mostrarlo.
@@ -167,6 +172,7 @@ COMPUTADOS = {
     "tpm_real": ("TPM real ex-post", calcular_tpm_real),
     "pib_mineria_interanual": ("PIB Minería - variación interanual", calcular_pib_mineria_interanual),
     "pib_no_minero_interanual": ("PIB No minero - variación interanual", calcular_pib_no_minero_interanual),
+    "desempleo_interanual": ("Desempleo - variación interanual (puntos porcentuales)", calcular_desempleo_interanual),
 }
 
 
@@ -223,17 +229,41 @@ def calcular_exportaciones_totales_interanual(historico: pd.DataFrame) -> tuple[
     return variacion, actual["fecha"]
 
 
-def calcular_anio_movil(datos_serie: pd.DataFrame, ventana: int = 12) -> pd.DataFrame:
-    """Año móvil: la suma de los últimos `ventana` meses, recalculada en cada
-    fecha (no solo a fin de año calendario). Para series de flujo mensuales muy
-    estacionales (como exportaciones), es la forma estándar de ver la tendencia
-    de fondo sin que los picos/valles estacionales tapen si en realidad viene
-    subiendo o bajando. `datos_serie` debe venir ordenado por fecha, con
-    columnas "fecha" y "valor".
+def calcular_diferencia_interanual_generico(historico: pd.DataFrame, serie: str) -> tuple[float, pd.Timestamp] | None:
+    """Diferencia interanual EN PUNTOS de una serie mensual que ya es una tasa
+    o porcentaje (ej. desempleo): valor actual menos el mismo mes del año
+    anterior. A diferencia de calcular_interanual_generico (que da un % DE
+    CAMBIO, apropiado para niveles/índices), acá tiene más sentido la
+    diferencia en puntos — pasar de 8% a 9% de desempleo son "+1 punto",
+    no "+12,5%".
+    """
+    datos = historico[historico["serie"] == serie].sort_values("fecha")
+    if len(datos) < 13:
+        return None
+    actual = datos.iloc[-1]
+    hace_un_anio = datos.iloc[-13]
+    diferencia = actual["valor"] - hace_un_anio["valor"]
+    return diferencia, actual["fecha"]
+
+
+def calcular_anio_movil(datos_serie: pd.DataFrame, ventana: int = 12, operacion: str = "sum") -> pd.DataFrame:
+    """Año móvil: agregado de los últimos `ventana` meses, recalculado en cada
+    fecha (no solo a fin de año calendario). `datos_serie` debe venir ordenado
+    por fecha, con columnas "fecha" y "valor".
+
+    `operacion="sum"` (por defecto): para series de flujo aditivas y muy
+    estacionales (ej. exportaciones en USD) — sumar los últimos 12 meses es
+    la forma estándar de ver la tendencia de fondo sin que los picos/valles
+    estacionales tapen si en realidad viene subiendo o bajando.
+
+    `operacion="mean"`: para tasas o índices donde sumar 12 meses no tiene
+    sentido (ej. tasa de desempleo: sumar da un número sin interpretación,
+    promediar sí sirve para suavizar el ruido mes a mes).
     """
     datos_serie = datos_serie.sort_values("fecha")
     resultado = datos_serie[["fecha"]].copy()
-    resultado["valor"] = datos_serie["valor"].rolling(window=ventana).sum()
+    rolling = datos_serie["valor"].rolling(window=ventana)
+    resultado["valor"] = rolling.mean() if operacion == "mean" else rolling.sum()
     return resultado.dropna().reset_index(drop=True)
 
 
