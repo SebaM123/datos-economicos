@@ -1094,6 +1094,7 @@ fecha,serie,valor
 2026-03-01,eeuu_ipp,6.7
 2026-04-01,eeuu_ipp,9.4
 2026-05-01,eeuu_ipp,13.0
+2026-06-01,eeuu_ipp,10.1
 2010-01-01,eeuu_pib_per_capita,48.586288
 2011-01-01,eeuu_pib_per_capita,50.008108
 2012-01-01,eeuu_pib_per_capita,51.736738
@@ -2170,6 +2171,7 @@ fecha,serie,valor
 2026-04-01,exportaciones_agropecuario,670.19162227
 2026-05-01,exportaciones_agropecuario,464.54387253
 2026-06-01,exportaciones_agropecuario,510.65655191
+2026-07-01,exportaciones_agropecuario,568.85417991
 2010-01-01,exportaciones_industrial,1799.28278577728
 2010-02-01,exportaciones_industrial,1546.71141550803
 2010-03-01,exportaciones_industrial,1451.98623138099
@@ -2368,6 +2370,7 @@ fecha,serie,valor
 2026-04-01,exportaciones_industrial,3084.9351751
 2026-05-01,exportaciones_industrial,2915.2089089
 2026-06-01,exportaciones_industrial,3331.9675822
+2026-07-01,exportaciones_industrial,3232.6681857
 2010-01-01,exportaciones_mineria,2754.88767199429
 2010-02-01,exportaciones_mineria,3029.93449304437
 2010-03-01,exportaciones_mineria,3508.7782939145
@@ -2566,6 +2569,7 @@ fecha,serie,valor
 2026-04-01,exportaciones_mineria,5963.2339376
 2026-05-01,exportaciones_mineria,6160.1565278
 2026-06-01,exportaciones_mineria,6946.1866041
+2026-07-01,exportaciones_mineria,6446.8332842
 2010-03-01,fuerza_trabajo,7859.86941911695
 2010-04-01,fuerza_trabajo,7879.89670587499
 2010-05-01,fuerza_trabajo,7881.18621328541
@@ -3158,6 +3162,7 @@ fecha,serie,valor
 2026-04-01,ipc_sae_variacion_mensual,0.3
 2026-05-01,ipc_sae_variacion_mensual,0.4
 2026-06-01,ipc_sae_variacion_mensual,-0.1
+2026-07-01,ipc_sae_variacion_mensual,0.4
 2010-01-01,ipc_variacion_mensual,0.5
 2010-02-01,ipc_variacion_mensual,0.3
 2010-03-01,ipc_variacion_mensual,0.1
@@ -3356,6 +3361,7 @@ fecha,serie,valor
 2026-04-01,ipc_variacion_mensual,1.3
 2026-05-01,ipc_variacion_mensual,0.2
 2026-06-01,ipc_variacion_mensual,0.0
+2026-07-01,ipc_variacion_mensual,0.1
 2019-01-01,ipp_general,97.18
 2019-02-01,ipp_general,97.88
 2019-03-01,ipp_general,99.96
@@ -13753,7 +13759,7 @@ fecha,serie,valor
 2026-08-04,sp500,7736.52001953125
 2026-08-05,sp500,7723.5498046875
 2026-08-06,sp500,7729.10009765625
-2026-08-07,sp500,7729.83984375
+2026-08-07,sp500,7727.16015625
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -18076,7 +18082,7 @@ fecha,serie,valor
 2026-08-04,tipo_cambio,910.5499877929688
 2026-08-05,tipo_cambio,913.25
 2026-08-06,tipo_cambio,911.9600219726562
-2026-08-07,tipo_cambio,911.0900268554688
+2026-08-07,tipo_cambio,911.8699951171876
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -22210,3 +22216,5 @@ fecha,serie,valor
 2026-08-03,tpm,4.5
 2026-08-04,tpm,4.5
 2026-08-05,tpm,4.5
+2026-08-06,tpm,4.5
+2026-08-07,tpm,4.5
