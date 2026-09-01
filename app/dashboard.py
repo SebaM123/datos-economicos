@@ -1,10 +1,13 @@
 import json
+from datetime import datetime, timezone
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
+from calendario import calendario_del_mes
+from comentarios import COMENTARIOS
 from config import (
     CATEGORIAS,
     DEFINICIONES,
@@ -29,6 +32,11 @@ from series_utils import (
 )
 from proyecciones import SERIES_PROYECTABLES, construir_figura_proyeccion, proyectar_serie
 from ticker import TICKER_ESTILO, construir_ticker_html
+
+MESES_ES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
 
 TICKERS_EN_VIVO = {
     "IPSA (índice real)": "^IPSA",
@@ -336,6 +344,44 @@ def seccion_proyecciones(historico: pd.DataFrame) -> None:
             st.caption(definicion)
 
 
+def seccion_calendario_y_comentarios(historico: pd.DataFrame) -> None:
+    """Calendario de publicaciones económicas del mes en curso (fechas
+    oficiales INE/Banco Central, ver calendario.py) y un comentario corto
+    y automático de los últimos datos de cada indicador principal (ver
+    comentarios.py: son plantillas con lógica fija, no texto generado por
+    IA, para que se pueda publicar sin revisión humana cada día).
+    """
+    hoy = datetime.now(timezone.utc).date()
+    eventos = calendario_del_mes(hoy.year, hoy.month)
+
+    with st.expander(f"**Calendario y comentario — {MESES_ES[hoy.month - 1]} {hoy.year}**", expanded=True):
+        if eventos:
+            st.markdown("**Publicaciones del mes**")
+            filas = []
+            for e in eventos:
+                estado = "✅ publicado" if e["ya_publicado"] else "⏳ pendiente"
+                indicador = e["indicador"] + (" *(fecha aprox.)*" if e["aproximado"] else "")
+                filas.append({"Día": e["dia"], "Indicador": indicador, "Estado": estado})
+            st.table(pd.DataFrame(filas).set_index("Día"))
+            st.caption(
+                "Fechas oficiales del INE (IPC, Empleo, IPP) y confirmadas contra notas de prensa "
+                "del Banco Central (TPM). IMACEC y PIB trimestral son aproximados: el Banco Central "
+                "no publica una lista fija tan clara como el INE, así que se calculan con la regla que "
+                "el propio Banco Central aplica en la práctica (ver docstring de calendario.py)."
+            )
+
+        st.markdown("**Últimos datos, comentados**")
+        for clave, (titulo, funcion, _serie) in COMENTARIOS.items():
+            texto = funcion(historico)
+            if texto:
+                st.markdown(f"**{titulo}**: {texto}")
+        st.caption(
+            "Comentario generado automáticamente con plantillas de texto (no con un modelo de "
+            "lenguaje) a partir de los mismos cálculos que las tarjetas de abajo — se actualiza "
+            "solo cuando el pipeline diario trae un dato nuevo."
+        )
+
+
 def seccion_ocde() -> None:
     """Sección de referencia (no viene de historico.csv): compara a Chile contra
     el resto de los países de la OCDE en algunos de los indicadores que ya se
@@ -358,20 +404,23 @@ def seccion_ocde() -> None:
             st.caption(definicion)
 
 
-def seccion_historica() -> pd.DataFrame | None:
+def cargar_historico() -> pd.DataFrame | None:
     if not HISTORICO_PATH.exists():
         st.info("Todavía no hay datos históricos acumulados. Corré el pipeline de datos primero.")
         return None
+    return pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
 
-    historico = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
+
+def seccion_historica(historico: pd.DataFrame) -> None:
     for i, categoria in enumerate(CATEGORIAS):
         seccion_categoria(categoria, historico, abierta=(i == 0))
-    return historico
 
 
 seccion_en_vivo()
-historico = seccion_historica()
+historico = cargar_historico()
 if historico is not None:
+    seccion_calendario_y_comentarios(historico)
+    seccion_historica(historico)
     seccion_comercio_exterior(historico)
     seccion_proyecciones(historico)
 seccion_ocde()

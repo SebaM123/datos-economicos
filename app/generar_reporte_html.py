@@ -13,6 +13,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
+from calendario import calendario_del_mes
+from comentarios import COMENTARIOS
 from config import (
     CATEGORIAS,
     DEFINICIONES,
@@ -38,6 +40,11 @@ from series_utils import (
 )
 from proyecciones import SERIES_PROYECTABLES, construir_figura_proyeccion, proyectar_serie
 from ticker import TICKER_ESTILO, construir_ticker_html
+
+MESES_ES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
 
 SERIES_TICKER = ["ipsa_indice_real", "tipo_cambio", "sp500", "tpm"]
 
@@ -73,6 +80,9 @@ ESTILO = """
   .por-estado select { background: #171923; color: #fafafa; border: 1px solid #262a35; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; margin-top: 0.5rem; }
   .graficos-ocde .grafico-bloque { margin-bottom: 2rem; }
   .kpi .variacion { font-size: 0.85rem; font-weight: 600; margin-top: 0.15rem; }
+  .calendario-tabla { border-collapse: collapse; width: 100%; max-width: 520px; margin-top: 0.5rem; font-size: 0.9rem; }
+  .calendario-tabla th, .calendario-tabla td { text-align: left; padding: 0.4rem 0.75rem; border-bottom: 1px solid #262a35; }
+  .calendario-tabla th { color: #9a9a9a; font-weight: 600; }
 </style>
 """
 
@@ -369,6 +379,54 @@ def construir_bloque_anio_movil_desempleo(historico: pd.DataFrame) -> str:
     </div>"""
 
 
+def construir_seccion_calendario_y_comentarios(historico: pd.DataFrame) -> str:
+    """Calendario de publicaciones del mes (fechas oficiales, ver
+    calendario.py) y comentario automático por plantillas de los últimos
+    datos (ver comentarios.py) -- mismo contenido que la sección homónima
+    del dashboard de Streamlit.
+    """
+    hoy = datetime.now(timezone.utc).date()
+    eventos = calendario_del_mes(hoy.year, hoy.month)
+
+    filas_calendario = ""
+    if eventos:
+        filas = []
+        for e in eventos:
+            estado = "✅ publicado" if e["ya_publicado"] else "⏳ pendiente"
+            indicador = e["indicador"] + (" <em>(fecha aprox.)</em>" if e["aproximado"] else "")
+            filas.append(f"<tr><td>{e['dia']}</td><td>{indicador}</td><td>{estado}</td></tr>")
+        filas_calendario = f"""
+        <p><strong>Publicaciones del mes</strong></p>
+        <table class="calendario-tabla">
+            <thead><tr><th>Día</th><th>Indicador</th><th>Estado</th></tr></thead>
+            <tbody>{"".join(filas)}</tbody>
+        </table>
+        <p class="definicion">Fechas oficiales del INE (IPC, Empleo, IPP) y confirmadas contra notas de
+        prensa del Banco Central (TPM). IMACEC y PIB trimestral son aproximados: el Banco Central no
+        publica una lista fija tan clara como el INE, así que se calculan con la regla que el propio
+        Banco Central aplica en la práctica (ver docstring de calendario.py).</p>
+        """
+
+    comentarios_html = "<p><strong>Últimos datos, comentados</strong></p>"
+    for _clave, (titulo, funcion, _serie) in COMENTARIOS.items():
+        texto = funcion(historico)
+        if texto:
+            comentarios_html += f"<p><strong>{titulo}</strong>: {texto}</p>"
+    comentarios_html += (
+        "<p class='definicion'>Comentario generado automáticamente con plantillas de texto "
+        "(no con un modelo de lenguaje) a partir de los mismos cálculos que las tarjetas de abajo "
+        "— se actualiza solo cuando el pipeline diario trae un dato nuevo.</p>"
+    )
+
+    return f"""<details class="categoria" open>
+        <summary>Calendario y comentario — {MESES_ES[hoy.month - 1]} {hoy.year}</summary>
+        <div class="categoria-contenido">
+            {filas_calendario}
+            {comentarios_html}
+        </div>
+    </details>"""
+
+
 def construir_seccion_ocde() -> str:
     """Sección de referencia (no viene de historico.csv): compara a Chile contra
     el resto de los países de la OCDE en algunos de los indicadores que ya se
@@ -504,6 +562,7 @@ def generar() -> None:
     ahora = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M UTC")
 
     ticker = construir_ticker(historico)
+    seccion_calendario = construir_seccion_calendario_y_comentarios(historico)
     BLOQUES_EXTRA = {
         "Estados Unidos": construir_bloque_estados_eeuu,
         "Desigualdad": construir_bloque_gini_estados,
@@ -535,6 +594,7 @@ def generar() -> None:
 <h1>Datos Económicos Chile</h1>
 <div class="generado">Generado el {ahora} · se actualiza una vez al día vía GitHub Actions</div>
 {ticker}
+{seccion_calendario}
 {secciones}
 {SCRIPT_TOGGLE}
 </body>
