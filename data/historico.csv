@@ -2185,6 +2185,7 @@ fecha,serie,valor
 2026-05-01,exportaciones_agropecuario,464.54387253
 2026-06-01,exportaciones_agropecuario,510.65655191
 2026-07-01,exportaciones_agropecuario,568.85417991
+2026-08-01,exportaciones_agropecuario,542.83374981
 2010-01-01,exportaciones_industrial,1799.28278577728
 2010-02-01,exportaciones_industrial,1546.71141550803
 2010-03-01,exportaciones_industrial,1451.98623138099
@@ -2384,6 +2385,7 @@ fecha,serie,valor
 2026-05-01,exportaciones_industrial,2915.2089089
 2026-06-01,exportaciones_industrial,3331.9675822
 2026-07-01,exportaciones_industrial,3232.6681857
+2026-08-01,exportaciones_industrial,3238.2616117
 2010-01-01,exportaciones_mineria,2754.88767199429
 2010-02-01,exportaciones_mineria,3029.93449304437
 2010-03-01,exportaciones_mineria,3508.7782939145
@@ -2583,6 +2585,7 @@ fecha,serie,valor
 2026-05-01,exportaciones_mineria,6160.1565278
 2026-06-01,exportaciones_mineria,6946.1866041
 2026-07-01,exportaciones_mineria,6446.8332842
+2026-08-01,exportaciones_mineria,5718.3953033
 2010-03-01,fuerza_trabajo,7859.86941911695
 2010-04-01,fuerza_trabajo,7879.89670587499
 2010-05-01,fuerza_trabajo,7881.18621328541
@@ -22339,3 +22342,4 @@ fecha,serie,valor
 2026-09-02,tpm,4.5
 2026-09-03,tpm,4.5
 2026-09-04,tpm,4.5
+2026-09-07,tpm,4.5
