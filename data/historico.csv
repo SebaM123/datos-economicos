@@ -1521,6 +1521,7 @@ fecha,serie,valor
 2026-07-23,eof_inflacion_12m,3.0
 2026-08-12,eof_inflacion_12m,3.2
 2026-09-03,eof_inflacion_12m,3.3
+2026-09-24,eof_inflacion_12m,3.5
 2010-01-15,eof_tipo_cambio_7d,490.0
 2010-01-31,eof_tipo_cambio_7d,505.0
 2010-02-15,eof_tipo_cambio_7d,540.0
@@ -1853,6 +1854,7 @@ fecha,serie,valor
 2026-07-23,eof_tipo_cambio_7d,930.0
 2026-08-12,eof_tipo_cambio_7d,915.0
 2026-09-03,eof_tipo_cambio_7d,935.0
+2026-09-24,eof_tipo_cambio_7d,945.0
 2018-02-19,eof_tpm_proxima_reunion,2.5
 2018-03-14,eof_tpm_proxima_reunion,2.5
 2018-04-06,eof_tpm_proxima_reunion,2.5
@@ -1991,6 +1993,7 @@ fecha,serie,valor
 2026-07-23,eof_tpm_proxima_reunion,4.5
 2026-08-12,eof_tpm_proxima_reunion,4.5
 2026-09-03,eof_tpm_proxima_reunion,4.5
+2026-09-24,eof_tpm_proxima_reunion,4.5
 2010-01-01,exportaciones_agropecuario,532.4733446781
 2010-02-01,exportaciones_agropecuario,449.0704788344
 2010-03-01,exportaciones_agropecuario,601.9873666407
@@ -3478,6 +3481,7 @@ fecha,serie,valor
 2026-05-01,ipp_general,216.08
 2026-06-01,ipp_general,217.36
 2026-07-01,ipp_general,221.43
+2026-08-01,ipp_general,227.66
 2013-08-30,ipsa_etf,2462.882080078125
 2013-09-02,ipsa_etf,2471.93359375
 2013-09-03,ipsa_etf,2459.0654296875
@@ -13872,7 +13876,7 @@ fecha,serie,valor
 2026-09-21,sp500,7764.7001953125
 2026-09-22,sp500,7764.64013671875
 2026-09-23,sp500,7706.02978515625
-2026-09-24,sp500,7699.6201171875
+2026-09-24,sp500,7697.580078125
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -18242,7 +18246,7 @@ fecha,serie,valor
 2026-09-21,tipo_cambio,946.9500122070312
 2026-09-22,tipo_cambio,947.469970703125
 2026-09-23,tipo_cambio,946.75
-2026-09-24,tipo_cambio,961.8499755859375
+2026-09-24,tipo_cambio,961.8300170898438
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -22410,3 +22414,4 @@ fecha,serie,valor
 2026-09-21,tpm,4.5
 2026-09-22,tpm,4.5
 2026-09-23,tpm,4.5
+2026-09-24,tpm,4.5
