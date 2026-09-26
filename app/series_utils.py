@@ -267,6 +267,83 @@ def calcular_anio_movil(datos_serie: pd.DataFrame, ventana: int = 12, operacion:
     return resultado.dropna().reset_index(drop=True)
 
 
+def calcular_variacion_interanual_serie(datos_serie: pd.DataFrame, periodos: int = 12) -> pd.DataFrame:
+    """Variación interanual (respecto a `periodos` observaciones atrás) de una
+    serie YA agregada -- ej. la salida de calcular_anio_movil -- pensada para
+    graficar la evolución completa en el tiempo, no solo el último dato (a
+    diferencia de calcular_interanual_generico y afines, que solo devuelven
+    el último valor para una tarjeta KPI).
+    """
+    datos_serie = datos_serie.sort_values("fecha").reset_index(drop=True)
+    resultado = datos_serie[["fecha"]].copy()
+    resultado["valor"] = (datos_serie["valor"] / datos_serie["valor"].shift(periodos) - 1) * 100
+    return resultado.dropna().reset_index(drop=True)
+
+
+def calcular_poblacion_mensual_interpolada(historico: pd.DataFrame) -> pd.DataFrame:
+    """Población de Chile (Banco Mundial, anual) interpolada linealmente a
+    frecuencia mensual, para poder dividir series mensuales (ej. IMACEC) por
+    población. La población cambia muy poco de un mes a otro, así que
+    interpolar linealmente entre los datos anuales es una aproximación
+    razonable.
+
+    El Banco Mundial suele publicar el dato del año en curso o del anterior
+    (ej. población 2025 ya disponible en 2026), pero para los últimos meses
+    de la muestra puede no haber todavía un punto anual posterior con el que
+    interpolar -- se extrapolan hasta 2 años hacia adelante usando la tasa de
+    crecimiento anual más reciente, para no dejar sin dato justo los meses
+    más recientes (los más consultados).
+    """
+    poblacion = historico[historico["serie"] == "chile_poblacion"].sort_values("fecha")
+    if len(poblacion) < 2:
+        return pd.DataFrame(columns=["fecha", "valor"])
+
+    serie = poblacion.set_index("fecha")["valor"]
+    crecimiento_anual = serie.iloc[-1] / serie.iloc[-2] - 1
+    fechas_extra = pd.date_range(serie.index.max() + pd.DateOffset(years=1), periods=2, freq="YS")
+    valores_extra = [serie.iloc[-1] * (1 + crecimiento_anual) ** (i + 1) for i in range(len(fechas_extra))]
+    serie_extendida = pd.concat([serie, pd.Series(valores_extra, index=fechas_extra)]).sort_index()
+
+    rango_mensual = pd.date_range(serie_extendida.index.min(), serie_extendida.index.max(), freq="MS")
+    serie_mensual = (
+        serie_extendida.reindex(serie_extendida.index.union(rango_mensual))
+        .sort_index()
+        .interpolate(method="index")
+        .reindex(rango_mensual)
+    )
+    return serie_mensual.rename("valor").rename_axis("fecha").reset_index()
+
+
+def calcular_imacec_tendencia(historico: pd.DataFrame, ventana: int, per_capita: bool = False) -> pd.DataFrame:
+    """PIB vía IMACEC: variación interanual del "año móvil" (promedio de los
+    últimos `ventana` meses), para ver la tendencia de fondo del crecimiento
+    sin el ruido mes a mes del IMACEC. `ventana=12` es el año móvil estándar;
+    `ventana=48` (4 años) muestra una tendencia de más largo plazo.
+
+    `per_capita=True` divide el IMACEC por la población interpolada
+    mensualmente (ver calcular_poblacion_mensual_interpolada) ANTES de
+    suavizar, para separar cuánto del crecimiento es "más gente" de cuánto
+    es "más producto por persona" -- la comparación clásica entre PIB total
+    y PIB per cápita.
+    """
+    imacec = historico[historico["serie"] == "imacec"].sort_values("fecha")
+    if imacec.empty:
+        return imacec
+
+    if per_capita:
+        poblacion = calcular_poblacion_mensual_interpolada(historico)
+        if poblacion.empty:
+            return pd.DataFrame(columns=["fecha", "valor"])
+        combinado = imacec.merge(poblacion, on="fecha", suffixes=("", "_poblacion"))
+        if combinado.empty:
+            return pd.DataFrame(columns=["fecha", "valor"])
+        combinado["valor"] = combinado["valor"] / combinado["valor_poblacion"]
+        imacec = combinado[["fecha", "valor"]]
+
+    suavizado = calcular_anio_movil(imacec, ventana=ventana, operacion="mean")
+    return calcular_variacion_interanual_serie(suavizado)
+
+
 def construir_figura_ranking_ocde(datos_por_pais: dict, pais_destacado: str = "CHL") -> go.Figure:
     """Gráfico de barras horizontal comparando un indicador entre países de la OCDE
     (ver data_pipeline/fetch_worldbank.py), ordenado de menor a mayor, con Chile

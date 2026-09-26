@@ -33,6 +33,12 @@ PAISES_GINI = {
     "USA": "eeuu_gini",
 }
 
+# Población total de Chile (anual), para calcular IMACEC per cápita
+# (ver series_utils.calcular_poblacion_mensual_interpolada).
+PAISES_POBLACION = {
+    "CHL": "chile_poblacion",
+}
+
 # Los 38 países miembro de la OCDE (a 2026).
 PAISES_OCDE = {
     "AUS": "Australia", "AUT": "Austria", "BEL": "Bélgica", "CAN": "Canadá", "CHL": "Chile",
@@ -67,9 +73,12 @@ def _get_con_reintentos(url: str, params: dict, intentos: int = 3):
             time.sleep(5)
 
 
-def obtener_gini(pais: str, serie: str) -> list[dict]:
+def _obtener_serie_anual(pais: str, indicador: str, serie: str) -> list[dict]:
+    """Serie anual genérica del Banco Mundial: cada observación queda fechada
+    el 1 de enero del año correspondiente (mismo criterio para Gini y para
+    población)."""
     respuesta = _get_con_reintentos(
-        BASE_URL.format(pais=pais, indicador="SI.POV.GINI"),
+        BASE_URL.format(pais=pais, indicador=indicador),
         params={"format": "json", "per_page": 100},
     )
     datos = respuesta.json()
@@ -82,6 +91,14 @@ def obtener_gini(pais: str, serie: str) -> list[dict]:
             continue
         filas.append({"fecha": f"{fila['date']}-01-01", "serie": serie, "valor": float(fila["value"])})
     return filas
+
+
+def obtener_gini(pais: str, serie: str) -> list[dict]:
+    return _obtener_serie_anual(pais, "SI.POV.GINI", serie)
+
+
+def obtener_poblacion(pais: str, serie: str) -> list[dict]:
+    return _obtener_serie_anual(pais, "SP.POP.TOTL", serie)
 
 
 def obtener_ultimo_valor_por_pais(indicador: str) -> dict:
@@ -121,6 +138,12 @@ def main() -> None:
     for pais, serie in PAISES_GINI.items():
         print(f"Trayendo Gini de {pais}...")
         datos_pais = obtener_gini(pais, serie)
+        print(f"  {len(datos_pais)} observaciones")
+        filas.extend(datos_pais)
+
+    for pais, serie in PAISES_POBLACION.items():
+        print(f"Trayendo población de {pais}...")
+        datos_pais = obtener_poblacion(pais, serie)
         print(f"  {len(datos_pais)} observaciones")
         filas.extend(datos_pais)
 

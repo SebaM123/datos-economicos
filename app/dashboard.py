@@ -23,6 +23,7 @@ from series_utils import (
     SERIES_EXPORTACIONES,
     calcular_anio_movil,
     calcular_exportaciones_totales_interanual,
+    calcular_imacec_tendencia,
     calcular_interanual_generico,
     calcular_total_exportaciones,
     construir_figura_ranking_ocde,
@@ -198,6 +199,39 @@ def bloque_anio_movil_desempleo(historico: pd.DataFrame) -> None:
     )
 
 
+def bloque_pib_tendencia(historico: pd.DataFrame) -> None:
+    """Crecimiento del PIB vía IMACEC, visto como tendencia (año móvil de 12
+    y de 48 meses) y en versión per cápita (dividiendo por la población
+    interpolada del Banco Mundial) -- ver
+    series_utils.calcular_imacec_tendencia para la metodología completa.
+    """
+    st.markdown("**Crecimiento del PIB (vía IMACEC): tendencia y per cápita**")
+    configuraciones = [
+        (12, False, "Año móvil (12 meses), variación interanual"),
+        (48, False, "Tendencia larga (48 meses), variación interanual"),
+        (12, True, "Año móvil (12 meses) per cápita, variación interanual"),
+        (48, True, "Tendencia larga (48 meses) per cápita, variación interanual"),
+    ]
+    columnas = st.columns(2)
+    for i, (ventana, per_capita, titulo) in enumerate(configuraciones):
+        datos = calcular_imacec_tendencia(historico, ventana=ventana, per_capita=per_capita)
+        if datos.empty:
+            continue
+        with columnas[i % 2]:
+            fig = px.line(datos, x="fecha", y="valor", title=titulo, markers=False)
+            fig.update_layout(xaxis_title="", yaxis_title="%")
+            st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "El IMACEC se suaviza tomando el promedio de los últimos 12 (o 48) meses en cada fecha "
+        "(mismo mecanismo que el 'año móvil' de exportaciones/desempleo), y se grafica la variación "
+        "interanual de esa serie ya suavizada -- así se ve la tendencia de fondo del crecimiento, sin "
+        "el ruido mes a mes del IMACEC. Las versiones 'per cápita' dividen por la población de Chile "
+        "(Banco Mundial, anual, interpolada a mensual) para separar cuánto del crecimiento es más "
+        "población de cuánto es más producto por persona. El IMACEC es un proxy mensual del PIB, no "
+        "el PIB trimestral oficial."
+    )
+
+
 def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -> None:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -215,6 +249,8 @@ def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -
             bloque_gini_estados(historico)
         if categoria["nombre"] == "Empleo":
             bloque_anio_movil_desempleo(historico)
+        if categoria["nombre"] == "Actividad Económica":
+            bloque_pib_tendencia(historico)
 
 
 def _contenido_categoria(series_disponibles: list[str], computados_disponibles: list, historico: pd.DataFrame) -> None:

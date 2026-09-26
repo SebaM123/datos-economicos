@@ -31,6 +31,7 @@ from series_utils import (
     SERIES_EXPORTACIONES,
     calcular_anio_movil,
     calcular_exportaciones_totales_interanual,
+    calcular_imacec_tendencia,
     calcular_interanual_generico,
     calcular_total_exportaciones,
     construir_figura_ranking_ocde,
@@ -379,6 +380,43 @@ def construir_bloque_anio_movil_desempleo(historico: pd.DataFrame) -> str:
     </div>"""
 
 
+def construir_bloque_pib_tendencia(historico: pd.DataFrame) -> str:
+    """Crecimiento del PIB vía IMACEC: tendencia (año móvil 12 y 48 meses) y
+    per cápita -- mismo contenido que bloque_pib_tendencia en dashboard.py,
+    ver series_utils.calcular_imacec_tendencia para la metodología.
+    """
+    configuraciones = [
+        (12, False, "Año móvil (12 meses), variación interanual"),
+        (48, False, "Tendencia larga (48 meses), variación interanual"),
+        (12, True, "Año móvil (12 meses) per cápita, variación interanual"),
+        (48, True, "Tendencia larga (48 meses) per cápita, variación interanual"),
+    ]
+    graficos = []
+    for ventana, per_capita, titulo in configuraciones:
+        datos = calcular_imacec_tendencia(historico, ventana=ventana, per_capita=per_capita)
+        if datos.empty:
+            continue
+        graficos.append(construir_grafico_html(datos, titulo, None, aplicar_huecos=False))
+
+    if not graficos:
+        return ""
+
+    definicion = (
+        "El IMACEC se suaviza tomando el promedio de los últimos 12 (o 48) meses en cada fecha "
+        "(mismo mecanismo que el 'año móvil' de exportaciones/desempleo), y se grafica la variación "
+        "interanual de esa serie ya suavizada -- así se ve la tendencia de fondo del crecimiento, sin "
+        "el ruido mes a mes del IMACEC. Las versiones 'per cápita' dividen por la población de Chile "
+        "(Banco Mundial, anual, interpolada a mensual) para separar cuánto del crecimiento es más "
+        "población de cuánto es más producto por persona. El IMACEC es un proxy mensual del PIB, no "
+        "el PIB trimestral oficial."
+    )
+    return f"""<div class="por-estado">
+        <h3>Crecimiento del PIB (vía IMACEC): tendencia y per cápita</h3>
+        <div class="graficos">{"".join(graficos)}</div>
+        <p class="definicion">{definicion}</p>
+    </div>"""
+
+
 def construir_seccion_calendario_y_comentarios(historico: pd.DataFrame) -> str:
     """Calendario de publicaciones del mes (fechas oficiales, ver
     calendario.py) y comentario automático por plantillas de los últimos
@@ -567,6 +605,7 @@ def generar() -> None:
         "Estados Unidos": construir_bloque_estados_eeuu,
         "Desigualdad": construir_bloque_gini_estados,
         "Empleo": construir_bloque_anio_movil_desempleo,
+        "Actividad Económica": construir_bloque_pib_tendencia,
     }
     secciones = "".join(
         construir_seccion(
