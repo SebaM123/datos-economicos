@@ -26,11 +26,17 @@ from series_utils import (
     calcular_interanual_generico,
     calcular_total_exportaciones,
     construir_figura_ranking_ocde,
+    construir_figura_variacion_interanual,
     describir_fecha_kpi,
     estado_mas_parecido_a_chile,
     insertar_huecos,
 )
-from proyecciones import SERIES_PROYECTABLES, construir_figura_proyeccion, proyectar_serie
+from proyecciones import (
+    SERIES_PROYECTABLES,
+    calcular_serie_interanual_imacec,
+    construir_figura_proyeccion,
+    proyectar_serie,
+)
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 MESES_ES = [
@@ -225,7 +231,18 @@ def bloque_pib_tendencia(historico: pd.DataFrame) -> None:
     interpolada del Banco Mundial) -- ver
     series_utils.calcular_imacec_tendencia para la metodología completa.
     """
-    st.markdown("**Crecimiento del PIB (vía IMACEC): tendencia y per cápita**")
+    st.markdown("**Crecimiento del PIB (vía IMACEC): variación interanual, tendencia y per cápita**")
+    interanual = calcular_serie_interanual_imacec(historico)
+    if not interanual.empty:
+        st.plotly_chart(
+            construir_figura_variacion_interanual(interanual, "IMACEC - variación interanual (%)"),
+            use_container_width=True,
+        )
+        st.caption(
+            "Variación del IMACEC respecto al mismo mes del año anterior, que es la forma habitual de "
+            "reportarlo. Verde = la actividad creció, rojo = cayó. Es un proxy mensual del PIB, no el "
+            "PIB trimestral oficial. Los gráficos de abajo suavizan este mismo dato para ver la tendencia."
+        )
     configuraciones = [
         (12, False, "Año móvil (12 meses), variación interanual"),
         (48, False, "Tendencia larga (48 meses), variación interanual"),

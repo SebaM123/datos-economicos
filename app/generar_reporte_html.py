@@ -35,11 +35,17 @@ from series_utils import (
     calcular_interanual_generico,
     calcular_total_exportaciones,
     construir_figura_ranking_ocde,
+    construir_figura_variacion_interanual,
     describir_fecha_kpi,
     estado_mas_parecido_a_chile,
     insertar_huecos,
 )
-from proyecciones import SERIES_PROYECTABLES, construir_figura_proyeccion, proyectar_serie
+from proyecciones import (
+    SERIES_PROYECTABLES,
+    calcular_serie_interanual_imacec,
+    construir_figura_proyeccion,
+    proyectar_serie,
+)
 from ticker import TICKER_ESTILO, construir_ticker_html
 
 MESES_ES = [
@@ -234,9 +240,17 @@ def valor_kpi_con_variacion(etiqueta: str, valor: float, variacion: float | None
     </div>"""
 
 
-def construir_grafico_html(datos: pd.DataFrame, titulo: str, definicion: str | None, aplicar_huecos: bool = True) -> str:
-    datos_grafico = insertar_huecos(datos) if aplicar_huecos else datos
-    fig = px.line(datos_grafico, x="fecha", y="valor", markers=True, template="plotly_dark")
+def construir_grafico_html(
+    datos: pd.DataFrame, titulo: str, definicion: str | None, aplicar_huecos: bool = True, figura=None
+) -> str:
+    """Si se pasa `figura` (ej. un gráfico de barras ya armado) se usa tal cual,
+    solo con el tema oscuro de esta página; si no, se arma la línea de `datos`."""
+    if figura is None:
+        datos_grafico = insertar_huecos(datos) if aplicar_huecos else datos
+        fig = px.line(datos_grafico, x="fecha", y="valor", markers=True, template="plotly_dark")
+    else:
+        fig = figura
+        fig.update_layout(template="plotly_dark", title=None)
     fig.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
         xaxis_title="",
@@ -478,6 +492,17 @@ def construir_bloque_pib_tendencia(historico: pd.DataFrame) -> str:
         (48, True, "Tendencia larga (48 meses) per cápita, variación interanual"),
     ]
     graficos = []
+    interanual = calcular_serie_interanual_imacec(historico)
+    if not interanual.empty:
+        bloque_interanual = construir_grafico_html(
+            interanual,
+            "IMACEC - variación interanual (%)",
+            "Variación del IMACEC respecto al mismo mes del año anterior, que es la forma habitual de "
+            "reportarlo. Verde = la actividad creció, rojo = cayó. Es un proxy mensual del PIB, no el PIB "
+            "trimestral oficial. Los gráficos de abajo suavizan este mismo dato para ver la tendencia.",
+            figura=construir_figura_variacion_interanual(interanual, ""),
+        )
+        graficos.append(f'<div style="grid-column: 1 / -1">{bloque_interanual}</div>')
     for ventana, per_capita, titulo in configuraciones:
         datos = calcular_imacec_tendencia(historico, ventana=ventana, per_capita=per_capita)
         if datos.empty:
@@ -497,7 +522,7 @@ def construir_bloque_pib_tendencia(historico: pd.DataFrame) -> str:
         "el PIB trimestral oficial."
     )
     return f"""<div class="por-estado">
-        <h3>Crecimiento del PIB (vía IMACEC): tendencia y per cápita</h3>
+        <h3>Crecimiento del PIB (vía IMACEC): variación interanual, tendencia y per cápita</h3>
         <div class="graficos">{"".join(graficos)}</div>
         <p class="definicion">{definicion}</p>
     </div>"""

@@ -344,6 +344,27 @@ def calcular_imacec_tendencia(historico: pd.DataFrame, ventana: int, per_capita:
     return calcular_variacion_interanual_serie(suavizado)
 
 
+def construir_figura_variacion_interanual(datos: pd.DataFrame, titulo: str) -> go.Figure:
+    """Barras de una variación interanual (%) mes a mes, verde cuando es
+    positiva y roja cuando es negativa: la forma habitual de mostrar el
+    crecimiento del IMACEC. `datos` con columnas fecha/valor. Compartida
+    entre Streamlit y el HTML estático (el HTML le aplica después el tema
+    oscuro propio).
+    """
+    colores = ["#4ade80" if v >= 0 else "#f87171" for v in datos["valor"]]
+    fig = go.Figure(
+        go.Bar(
+            x=datos["fecha"],
+            y=datos["valor"],
+            marker_color=colores,
+            hovertemplate="%{x|%b %Y}: %{y:+.1f}%<extra></extra>",
+        )
+    )
+    fig.update_layout(title=titulo, xaxis_title="", yaxis_title="%", bargap=0.15, showlegend=False)
+    fig.add_hline(y=0, line_width=1, line_color="gray")
+    return fig
+
+
 def construir_figura_ranking_ocde(datos_por_pais: dict, pais_destacado: str = "CHL") -> go.Figure:
     """Gráfico de barras horizontal comparando un indicador entre países de la OCDE
     (ver data_pipeline/fetch_worldbank.py), ordenado de menor a mayor, con Chile
