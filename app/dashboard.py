@@ -1,12 +1,11 @@
 import json
-from datetime import datetime, timezone
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
-from calendario import calendario_del_mes
+from calendario import calendario_del_mes, hoy_chile
 from comentarios import COMENTARIOS
 from config import (
     CATEGORIAS,
@@ -408,23 +407,26 @@ def seccion_calendario_y_comentarios(historico: pd.DataFrame) -> None:
     comentarios.py: son plantillas con lógica fija, no texto generado por
     IA, para que se pueda publicar sin revisión humana cada día).
     """
-    hoy = datetime.now(timezone.utc).date()
-    eventos = calendario_del_mes(hoy.year, hoy.month)
+    hoy = hoy_chile()
+    eventos = calendario_del_mes(hoy.year, hoy.month, historico, hoy)
 
     with st.expander(f"**Calendario y comentario — {MESES_ES[hoy.month - 1]} {hoy.year}**", expanded=True):
         if eventos:
             st.markdown("**Publicaciones del mes**")
             filas = []
             for e in eventos:
-                estado = "✅ publicado" if e["ya_publicado"] else "⏳ pendiente"
                 indicador = e["indicador"] + (" *(fecha aprox.)*" if e["aproximado"] else "")
-                filas.append({"Día": e["dia"], "Indicador": indicador, "Estado": estado})
+                filas.append({"Día": e["dia"], "Indicador": indicador, "Estado": e["estado"]})
             st.table(pd.DataFrame(filas).set_index("Día"))
             st.caption(
                 "Fechas oficiales del INE (IPC, Empleo, IPP) y confirmadas contra notas de prensa "
                 "del Banco Central (TPM). IMACEC y PIB trimestral son aproximados: el Banco Central "
                 "no publica una lista fija tan clara como el INE, así que se calculan con la regla que "
-                "el propio Banco Central aplica en la práctica (ver docstring de calendario.py)."
+                "el propio Banco Central aplica en la práctica (ver docstring de calendario.py). "
+                "**Estado:** 'publicado y cargado' significa que el dato ya está en este dashboard; "
+                "'publicado, aún sin cargar' es el rato entre que el INE/Banco Central publican y que "
+                "el pipeline lo baja (corre una vez al día y, los días de publicación, reintenta cada 2 "
+                "horas hasta que el dato llega)."
             )
 
         st.markdown("**Últimos datos, comentados**")

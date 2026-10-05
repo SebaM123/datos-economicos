@@ -27,7 +27,8 @@ desfasados 1-2 días alrededor de un feriado. Se marca explícitamente como
 aproximado en la UI.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 # ---- INE: día exacto de publicación por mes, 2026 (índice 0 = enero) ----
 # Cada valor es el día en que se publica el dato del mes ANTERIOR (rezago de
@@ -96,55 +97,107 @@ def fecha_pib_trimestral(anio: int, mes_cierre_trimestre: int) -> date:
     return d
 
 
-def calendario_del_mes(anio: int, mes: int) -> list[dict]:
-    """Devuelve la lista de publicaciones económicas esperadas para un mes
-    dado, ordenadas por día. Cada item: {dia, fecha, indicador, fuente,
-    aproximado, ya_publicado}.
+def hoy_chile() -> date:
+    """Fecha de hoy en Chile (no UTC): una publicación "de hoy" se publica en
+    horario chileno, y entre las ~20:00 y las 24:00 de Chile la fecha UTC ya
+    es la del día siguiente."""
+    return datetime.now(ZoneInfo("America/Santiago")).date()
+
+
+def _evento(fecha: date, clave: str, aproximado: bool, serie_dato: str, periodo: date | None) -> dict:
+    """`serie_dato` y `periodo` dicen QUÉ dato de historico.csv se espera que
+    aparezca cuando se publique este evento (periodo=None: la serie es diaria
+    y basta con que tenga algún dato desde la fecha del evento, ej. TPM)."""
+    return {
+        "fecha": fecha,
+        "indicador": NOMBRES_PUBLICACION[clave],
+        "aproximado": aproximado,
+        "serie_dato": serie_dato,
+        "periodo": periodo,
+    }
+
+
+def _dato_cargado(evento: dict, historico) -> bool:
+    """¿Ya está en historico.csv el dato que este evento publica? Distinto de
+    "ya se publicó": entre que el INE/Banco Central publican y que la corrida
+    del pipeline lo baja pasan horas (a veces un día)."""
+    if historico is None:
+        return False
+    serie = historico[historico["serie"] == evento["serie_dato"]]
+    if serie.empty:
+        return False
+    if evento["periodo"] is None:
+        return serie["fecha"].max().date() >= evento["fecha"]
+    return bool((serie["fecha"].dt.date == evento["periodo"]).any())
+
+
+def calendario_del_mes(anio: int, mes: int, historico=None, hoy: date | None = None) -> list[dict]:
+    """Publicaciones económicas esperadas en un mes, ordenadas por día. Cada
+    item: {dia, fecha, indicador, aproximado, cargado, estado}.
+
+    `estado` combina la fecha con si el dato ya llegó a historico.csv:
+      - "pendiente": todavía no es la fecha.
+      - "se publica hoy, aún sin cargar": es hoy y el dato no llegó (puede
+        que ni siquiera se haya publicado todavía, según la hora).
+      - "publicado, aún sin cargar": la fecha ya pasó pero el dato no está en
+        historico.csv (el pipeline todavía no corrió, o la fecha es aproximada).
+      - "publicado y cargado": el dato ya está en historico.csv.
     """
-    hoy = date.today()
+    hoy = hoy or hoy_chile()
     eventos = []
 
     if anio == 2026:
         for serie, dias in INE_DIAS_2026.items():
-            dia = dias[mes - 1]
-            fecha = date(anio, mes, dia)
-            eventos.append(
-                {
-                    "fecha": fecha,
-                    "indicador": NOMBRES_PUBLICACION[serie],
-                    "aproximado": False,
-                }
-            )
+            fecha = date(anio, mes, dias[mes - 1])
+            # El INE publica el dato del mes anterior.
+            a, m = _mes_siguiente(anio, mes, -1)
+            eventos.append(_evento(fecha, serie, False, serie, date(a, m, 1)))
         for mes_rpm, dia_rpm in BCCH_RPM_2026:
             if mes_rpm == mes:
-                fecha = date(anio, mes, dia_rpm)
-                eventos.append(
-                    {
-                        "fecha": fecha,
-                        "indicador": NOMBRES_PUBLICACION["tpm"],
-                        "aproximado": False,
-                    }
-                )
+                eventos.append(_evento(date(anio, mes, dia_rpm), "tpm", False, "tpm", None))
 
     anio_origen, mes_origen = _mes_siguiente(anio, mes, -2)
     fecha_im = fecha_imacec(anio_origen, mes_origen)
     if fecha_im.year == anio and fecha_im.month == mes:
-        eventos.append(
-            {"fecha": fecha_im, "indicador": NOMBRES_PUBLICACION["imacec"], "aproximado": True}
-        )
+        eventos.append(_evento(fecha_im, "imacec", True, "imacec", date(anio_origen, mes_origen, 1)))
 
     if mes in (5, 8, 11, 2):  # PIB se publica ~2 meses despues del cierre de trimestre (mar/jun/sep/dic)
         mes_cierre = {5: 3, 8: 6, 11: 9, 2: 12}[mes]
         anio_cierre = anio if mes != 2 else anio - 1
         fecha_pib = fecha_pib_trimestral(anio_cierre, mes_cierre)
         if fecha_pib.year == anio and fecha_pib.month == mes:
-            eventos.append(
-                {"fecha": fecha_pib, "indicador": NOMBRES_PUBLICACION["pib_chile"], "aproximado": True}
-            )
+            # pib_chile se fecha al inicio del trimestre que cierra.
+            a, m = _mes_siguiente(fecha_pib.year, fecha_pib.month, -4)
+            eventos.append(_evento(fecha_pib, "pib_chile", True, "pib_chile", date(a, m, 1)))
 
     for e in eventos:
         e["dia"] = e["fecha"].day
-        e["ya_publicado"] = e["fecha"] <= hoy
+        e["cargado"] = _dato_cargado(e, historico)
+        if e["cargado"]:
+            e["estado"] = "✅ publicado y cargado"
+        elif e["fecha"] > hoy:
+            e["estado"] = "⏳ pendiente"
+        elif e["fecha"] == hoy:
+            e["estado"] = "📅 se publica hoy, aún sin cargar"
+        else:
+            e["estado"] = "📥 publicado, aún sin cargar"
 
     eventos.sort(key=lambda e: e["fecha"])
     return eventos
+
+
+def publicaciones_pendientes_de_carga(historico, hoy: date | None = None, dias_atras: int = 2) -> list[dict]:
+    """Publicaciones de hoy y de los últimos `dias_atras` días cuyo dato aún
+    no está en historico.csv. Lo usa el "portero" del workflow de GitHub
+    Actions (revisar_publicaciones_pendientes.py) para decidir si vale la pena
+    una corrida extra: mientras haya algo pendiente se reintenta; apenas llega
+    el dato, se detiene solo. La ventana de 2 días cubre el rezago de un día
+    que se vio en el IMACEC y el desempleo."""
+    hoy = hoy or hoy_chile()
+    desde = hoy - timedelta(days=dias_atras)
+    pendientes = []
+    for anio, mes in sorted({(desde.year, desde.month), (hoy.year, hoy.month)}):
+        for e in calendario_del_mes(anio, mes, historico, hoy):
+            if desde <= e["fecha"] <= hoy and not e["cargado"]:
+                pendientes.append(e)
+    return pendientes

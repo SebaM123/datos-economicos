@@ -2,14 +2,49 @@ name: Actualizar datos
 
 on:
   schedule:
-    - cron: "0 13 * * *" # todos los días 10:00 America/Santiago (13:00 UTC)
+    - cron: "0 13 * * *" # diaria completa: todos los días 10:00 America/Santiago (13:00 UTC)
+    # Reintentos en días hábiles, cada 2 h (~08:30-18:30 hora de Chile, según horario de verano).
+    # El job "decidir" los deja correr SOLO si hay una publicación del INE/Banco Central de hoy o de
+    # los últimos 2 días cuyo dato aún no llegó a historico.csv; si no, terminan sin bajar nada.
+    # Este cron debe ser idéntico a CRON_REINTENTO en app/revisar_publicaciones_pendientes.py.
+    - cron: "30 12,14,16,18,20,22 * * 1-5"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
+# Evita que dos corridas de este workflow pisen el push una a la otra.
+concurrency:
+  group: actualizar-datos
+  cancel-in-progress: false
+
 jobs:
+  decidir:
+    runs-on: ubuntu-latest
+    outputs:
+      ejecutar: ${{ steps.portero.outputs.ejecutar }}
+      completa: ${{ steps.portero.outputs.completa }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar pandas
+        run: pip install pandas
+
+      - name: Decidir si corresponde correr
+        id: portero
+        env:
+          EVENTO: ${{ github.event_name }}
+          CRON: ${{ github.event.schedule }}
+        run: python revisar_publicaciones_pendientes.py
+        working-directory: app
+
   actualizar:
+    needs: decidir
+    if: needs.decidir.outputs.ejecutar == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +67,10 @@ jobs:
         run: python fetch_market.py
         working-directory: data_pipeline
 
+      # Fuentes secundarias: solo en la corrida completa (no en los reintentos) y sin
+      # cancelar el job si fallan (ej. timeout del Banco Mundial el 2026-10-03).
       - name: Traer datos de la Reserva Federal (FRED)
+        if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
@@ -40,11 +78,13 @@ jobs:
         working-directory: data_pipeline
 
       - name: Traer índice de Gini (Banco Mundial)
+        if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true
         run: python fetch_worldbank.py
         working-directory: data_pipeline
 
       - name: Traer índice de Gini por estado (Census Bureau)
+        if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true
         env:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}

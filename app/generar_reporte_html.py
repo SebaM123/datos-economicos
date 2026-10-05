@@ -13,7 +13,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
-from calendario import calendario_del_mes
+from calendario import calendario_del_mes, hoy_chile
 from comentarios import COMENTARIOS
 from config import (
     CATEGORIAS,
@@ -473,16 +473,15 @@ def construir_seccion_calendario_y_comentarios(historico: pd.DataFrame) -> str:
     datos (ver comentarios.py) -- mismo contenido que la sección homónima
     del dashboard de Streamlit.
     """
-    hoy = datetime.now(timezone.utc).date()
-    eventos = calendario_del_mes(hoy.year, hoy.month)
+    hoy = hoy_chile()
+    eventos = calendario_del_mes(hoy.year, hoy.month, historico, hoy)
 
     filas_calendario = ""
     if eventos:
         filas = []
         for e in eventos:
-            estado = "✅ publicado" if e["ya_publicado"] else "⏳ pendiente"
             indicador = e["indicador"] + (" <em>(fecha aprox.)</em>" if e["aproximado"] else "")
-            filas.append(f"<tr><td>{e['dia']}</td><td>{indicador}</td><td>{estado}</td></tr>")
+            filas.append(f"<tr><td>{e['dia']}</td><td>{indicador}</td><td>{e['estado']}</td></tr>")
         filas_calendario = f"""
         <p><strong>Publicaciones del mes</strong></p>
         <table class="calendario-tabla">
@@ -492,7 +491,10 @@ def construir_seccion_calendario_y_comentarios(historico: pd.DataFrame) -> str:
         <p class="definicion">Fechas oficiales del INE (IPC, Empleo, IPP) y confirmadas contra notas de
         prensa del Banco Central (TPM). IMACEC y PIB trimestral son aproximados: el Banco Central no
         publica una lista fija tan clara como el INE, así que se calculan con la regla que el propio
-        Banco Central aplica en la práctica (ver docstring de calendario.py).</p>
+        Banco Central aplica en la práctica (ver docstring de calendario.py). <strong>Estado:</strong>
+        "publicado y cargado" significa que el dato ya está en este reporte; "publicado, aún sin cargar"
+        es el rato entre que el INE/Banco Central publican y que el pipeline lo baja (corre una vez al
+        día y, los días de publicación, reintenta cada 2 horas hasta que el dato llega).</p>
         """
 
     comentarios_html = "<p><strong>Últimos datos, comentados</strong></p>"
