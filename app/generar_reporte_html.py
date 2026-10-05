@@ -104,6 +104,42 @@ document.querySelectorAll('details.categoria').forEach(function (det) {
 </script>
 """
 
+# Cada gráfico Plotly calcula su ancho UNA vez, cuando se dibuja. Si en ese
+# momento la grilla todavía no terminó de acomodarse (o la ventana cambia de
+# tamaño después), el gráfico queda más ancho que su caja y la parte derecha --
+# justo las fechas más recientes -- se recorta. SCRIPT_TOGGLE solo corregía eso
+# al ABRIR una sección, así que los gráficos de la sección que arranca abierta
+# nunca se re-medían. Acá se re-miden (a) al terminar de cargar la página y
+# (b) cada vez que cambie el tamaño de la caja de cualquier gráfico.
+SCRIPT_REDIBUJO = """
+<script>
+(function () {
+  function redibujar(el) { if (window.Plotly) { window.Plotly.Plots.resize(el); } }
+  function disponible(el) { return el.parentElement.getBoundingClientRect().width; }
+  function desajustado(el) {
+    var w = disponible(el), fl = el._fullLayout;
+    return w > 0 && fl && Math.abs(fl.width - w) > 2;
+  }
+  function revisarTodos() {
+    document.querySelectorAll('.js-plotly-plot').forEach(function (el) {
+      if (desajustado(el)) { redibujar(el); }
+    });
+  }
+  window.addEventListener('load', function () { revisarTodos(); setTimeout(revisarTodos, 400); });
+  window.addEventListener('resize', revisarTodos);
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(function (entradas) {
+      entradas.forEach(function (e) {
+        var el = e.target.querySelector('.js-plotly-plot');
+        if (el && desajustado(el)) { redibujar(el); }
+      });
+    });
+    document.querySelectorAll('.grafico').forEach(function (c) { ro.observe(c); });
+  }
+})();
+</script>
+"""
+
 # Esta página es un archivo estático: una pestaña ya abierta nunca se entera
 # de que el pipeline (GitHub Actions) publicó una versión más nueva. Cada 5 min
 # se baja de nuevo el HTML (sin caché) y se compara el sello "Generado el ..."
@@ -688,6 +724,7 @@ def generar() -> None:
 {seccion_calendario}
 {secciones}
 {SCRIPT_TOGGLE}
+{SCRIPT_REDIBUJO}
 {SCRIPT_AUTORECARGA}
 </body>
 </html>"""
