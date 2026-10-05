@@ -59,7 +59,7 @@ INDICADORES_OCDE = {
 }
 
 
-def _get_con_reintentos(url: str, params: dict, intentos: int = 3):
+def _get_con_reintentos(url: str, params: dict, intentos: int = 5):
     """La API del Banco Mundial a veces tarda o no responde; reintenta antes de fallar."""
     for intento in range(1, intentos + 1):
         try:

@@ -84,6 +84,27 @@ def seccion_en_vivo() -> None:
 
     st.caption("Se actualiza solo cada 5 minutos mientras esta página esté abierta.")
 
+    _recargar_si_hay_datos_nuevos()
+
+
+def _recargar_si_hay_datos_nuevos() -> None:
+    """Solo este fragmento se re-ejecuta solo cada 5 min; el resto de la página
+    (calendario, tarjetas, gráficos) lee historico.csv una vez al abrir y no lo
+    vuelve a mirar. Acá se compara la fecha de modificación del CSV contra la
+    que tenía al cargar la página: si el pipeline de GitHub Actions trajo datos
+    nuevos, se re-ejecuta la app completa (scope="app"). Se re-renderiza todo
+    solo cuando hay un cambio real, no cada 5 minutos.
+    """
+    if not HISTORICO_PATH.exists():
+        return
+    modificado = HISTORICO_PATH.stat().st_mtime
+    cargado = st.session_state.get("historico_mtime")
+    if cargado is None:
+        st.session_state["historico_mtime"] = modificado
+    elif modificado != cargado:
+        st.session_state["historico_mtime"] = modificado
+        st.rerun(scope="app")
+
 
 def bloque_estados_eeuu(historico: pd.DataFrame) -> None:
     """Bloque de referencia (no es una serie de historico.csv): selector con el

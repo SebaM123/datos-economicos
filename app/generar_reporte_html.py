@@ -104,6 +104,56 @@ document.querySelectorAll('details.categoria').forEach(function (det) {
 </script>
 """
 
+# Esta página es un archivo estático: una pestaña ya abierta nunca se entera
+# de que el pipeline (GitHub Actions) publicó una versión más nueva. Cada 5 min
+# se baja de nuevo el HTML (sin caché) y se compara el sello "Generado el ..."
+# contra el de la página abierta: si cambió, recarga. Solo recarga cuando hay
+# una versión nueva (no a ciegas cada X minutos), y antes de hacerlo guarda qué
+# secciones estaban abiertas para reabrirlas igual -- si no, cada recarga
+# colapsaría todo lo que el usuario estaba leyendo.
+SCRIPT_AUTORECARGA = """
+<script>
+(function () {
+  var INTERVALO_MS = 5 * 60 * 1000;
+  var CLAVE = 'secciones_abiertas';
+  var secciones = Array.prototype.slice.call(document.querySelectorAll('details.categoria'));
+
+  try {
+    var guardado = sessionStorage.getItem(CLAVE);
+    if (guardado) {
+      var abiertas = JSON.parse(guardado);
+      secciones.forEach(function (det, i) { det.open = abiertas.indexOf(i) !== -1; });
+      sessionStorage.removeItem(CLAVE);
+    }
+  } catch (e) {}
+
+  function sello(texto) {
+    var m = texto.match(/<div class="generado">([^<]*)<\\/div>/);
+    return m ? m[1].trim() : null;
+  }
+  var selloActual = sello(document.documentElement.innerHTML);
+
+  function revisar() {
+    fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var nuevo = sello(html);
+        if (nuevo && selloActual && nuevo !== selloActual) {
+          try {
+            var abiertas = [];
+            secciones.forEach(function (det, i) { if (det.open) abiertas.push(i); });
+            sessionStorage.setItem(CLAVE, JSON.stringify(abiertas));
+          } catch (e) {}
+          location.reload();
+        }
+      })
+      .catch(function () {});
+  }
+  setInterval(revisar, INTERVALO_MS);
+})();
+</script>
+"""
+
 
 def construir_ticker(historico: pd.DataFrame) -> str:
     items = []
@@ -631,11 +681,12 @@ def generar() -> None:
 </head>
 <body>
 <h1>Datos Económicos Chile</h1>
-<div class="generado">Generado el {ahora} · se actualiza una vez al día vía GitHub Actions</div>
+<div class="generado">Generado el {ahora} · se actualiza vía GitHub Actions y esta página se recarga sola cuando hay una versión nueva</div>
 {ticker}
 {seccion_calendario}
 {secciones}
 {SCRIPT_TOGGLE}
+{SCRIPT_AUTORECARGA}
 </body>
 </html>"""
 

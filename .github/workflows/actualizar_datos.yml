@@ -33,16 +33,19 @@ jobs:
         working-directory: data_pipeline
 
       - name: Traer datos de la Reserva Federal (FRED)
+        continue-on-error: true
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python fetch_fred.py
         working-directory: data_pipeline
 
       - name: Traer índice de Gini (Banco Mundial)
+        continue-on-error: true
         run: python fetch_worldbank.py
         working-directory: data_pipeline
 
       - name: Traer índice de Gini por estado (Census Bureau)
+        continue-on-error: true
         env:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: python fetch_census.py
