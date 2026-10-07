@@ -1,6 +1,7 @@
 from pathlib import Path
 
 HISTORICO_PATH = Path(__file__).resolve().parent.parent / "data" / "historico.csv"
+REVISIONES_PATH = Path(__file__).resolve().parent.parent / "data" / "revisiones.csv"
 PIB_ESTADOS_PATH = Path(__file__).resolve().parent.parent / "data" / "pib_por_estado_eeuu.json"
 GINI_ESTADOS_PATH = Path(__file__).resolve().parent.parent / "data" / "gini_por_estado_eeuu.json"
 OCDE_PAISES_PATH = Path(__file__).resolve().parent.parent / "data" / "ocde_paises.json"
@@ -57,6 +58,26 @@ NOMBRES_SERIES = {
     "sp500": "S&P 500 (EEUU)",
     "chile_pib_per_capita_ppa": "Chile - PIB per cápita (miles de USD, PPA)",
     "chile_poblacion": "Chile - Población total (Banco Mundial)",
+    "imacec_sa": "IMACEC desestacionalizado (índice 2018=100)",
+    "imacec_minero": "IMACEC minero (índice 2018=100)",
+    "imacec_minero_sa": "IMACEC minero desestacionalizado (índice 2018=100)",
+    "imacec_no_minero": "IMACEC no minero (índice 2018=100)",
+    "imacec_no_minero_sa": "IMACEC no minero desestacionalizado (índice 2018=100)",
+    "imacec_c_minero": "IMACEC - contribución de minería (pp)",
+    "imacec_c_industria": "IMACEC - contribución de industria (pp)",
+    "imacec_c_resto_bienes": "IMACEC - contribución de resto de bienes (pp)",
+    "imacec_c_comercio": "IMACEC - contribución de comercio (pp)",
+    "imacec_c_servicios": "IMACEC - contribución de servicios (pp)",
+    "imacec_c_impuestos": "IMACEC - contribución de impuestos (pp)",
+    "remuneraciones_real": "Índice real de remuneraciones (INE, 2023=100)",
+    "remuneraciones_nominal": "Índice nominal de remuneraciones (INE, 2023=100)",
+    "ocupados_asalariados": "Ocupados asalariados (miles de personas)",
+    "ipc_v12": "IPC total - variación anual oficial (%)",
+    "ipc_sae_indice": "IPC SAE - índice (2023=100)",
+    "ipc_sin_volatiles_v12": "IPC sin volátiles - variación anual (%)",
+    "ipc_bienes_sin_volatiles_v12": "IPC bienes sin volátiles - variación anual (%)",
+    "ipc_servicios_sin_volatiles_v12": "IPC servicios sin volátiles - variación anual (%)",
+    "ipc_volatiles_v12": "IPC volátiles - variación anual (%)",
     "ipp_general": "Chile - IPP, índice de precios al productor (2019=100)",
     "eeuu_ipp": "EEUU - IPP, variación interanual (%)",
     "ipc_sae_variacion_mensual": "IPC SAE - variación mensual (%)",
@@ -143,7 +164,7 @@ CATEGORIAS = [
     {
         "nombre": "Empleo",
         "series": ["desempleo", "fuerza_trabajo", "ocupados", "desocupados"],
-        "computados": ["desempleo_interanual"],
+        "computados": ["desempleo_interanual", "masa_salarial_real_interanual"],
     },
     {
         "nombre": "Actividad Económica",
@@ -157,7 +178,10 @@ CATEGORIAS = [
             "eee_pib_proximo",
             "chile_poblacion",
         ],
-        "computados": ["imacec_interanual", "pib_mineria_interanual", "pib_no_minero_interanual"],
+        "computados": [
+            "imacec_interanual", "imacec_sa_mensual", "imacec_minero_interanual", "imacec_no_minero_interanual",
+            "pib_mineria_interanual", "pib_no_minero_interanual",
+        ],
     },
     {
         "nombre": "Mercado Financiero",

@@ -113,7 +113,7 @@ def main() -> None:
     print("Trayendo PIB total de EEUU...")
     filas = obtener_pib_total_eeuu(desde="2010-01-01")
     print(f"  {len(filas)} observaciones")
-    agregadas = append_historico(filas)
+    agregadas = append_historico(filas, registrar_revisiones=True)
     print(f"  {agregadas} filas nuevas agregadas a historico.csv")
 
     print("Trayendo PIB per cápita por estado...")

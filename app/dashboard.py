@@ -16,20 +16,32 @@ from config import (
     OCDE_INDICADORES,
     OCDE_PAISES_PATH,
     PIB_ESTADOS_PATH,
+    REVISIONES_PATH,
 )
 from series_utils import (
     COMPUTADOS,
     SERIES_EXPORTACIONES,
     calcular_anio_movil,
+    calcular_contribuciones_imacec,
     calcular_exportaciones_totales_interanual,
     calcular_imacec_tendencia,
     calcular_interanual_generico,
+    calcular_interanual_mensual,
+    calcular_ipc_componentes_interanual,
+    calcular_masa_salarial_real,
     calcular_total_exportaciones,
+    calcular_variacion_mensual_serie,
+    construir_figura_barras_apiladas,
+    construir_figura_barras_variacion,
+    construir_figura_contribuciones_imacec,
+    construir_figura_lineas,
     construir_figura_ranking_ocde,
     construir_figura_variacion_interanual,
     describir_fecha_kpi,
     estado_mas_parecido_a_chile,
     insertar_huecos,
+    obtener_serie,
+    resumir_revisiones,
 )
 from proyecciones import (
     SERIES_PROYECTABLES,
@@ -269,6 +281,137 @@ def bloque_pib_tendencia(historico: pd.DataFrame) -> None:
     )
 
 
+def bloque_imacec_sectores(historico: pd.DataFrame) -> None:
+    """IMACEC abierto por sector: contribución de cada uno al crecimiento (cifras oficiales del
+    Banco Central), minero vs no minero, y la serie desestacionalizada (cuya variación mensual
+    es como el Banco Central titula el dato)."""
+    contribuciones = calcular_contribuciones_imacec(historico)
+    if contribuciones.empty:
+        return
+    st.markdown("**IMACEC por sector: qué explica el crecimiento, minero vs no minero y desestacionalizado**")
+    st.plotly_chart(construir_figura_contribuciones_imacec(contribuciones), use_container_width=True)
+    st.caption(
+        "Cada barra es cuánto aportó (o restó) un sector, en puntos porcentuales, a la variación interanual del "
+        "IMACEC; la línea blanca es el total y es la suma de los seis sectores. Fuente: contribuciones publicadas "
+        "por el Banco Central (base 2018)."
+    )
+    columnas = st.columns(2)
+    with columnas[0]:
+        lineas = {
+            "Total": calcular_interanual_mensual(historico, "imacec"),
+            "Minero": calcular_interanual_mensual(historico, "imacec_minero"),
+            "No minero": calcular_interanual_mensual(historico, "imacec_no_minero"),
+        }
+        st.plotly_chart(
+            construir_figura_lineas(lineas, "IMACEC total, minero y no minero - variación interanual (%)"),
+            use_container_width=True,
+        )
+    with columnas[1]:
+        mensual = calcular_variacion_mensual_serie(historico, "imacec_sa")
+        if not mensual.empty:
+            st.plotly_chart(
+                construir_figura_barras_variacion(mensual, "IMACEC desestacionalizado - variación mensual (%)"),
+                use_container_width=True,
+            )
+    niveles = {
+        "Total": obtener_serie(historico, "imacec_sa"),
+        "Minero": obtener_serie(historico, "imacec_minero_sa"),
+        "No minero": obtener_serie(historico, "imacec_no_minero_sa"),
+    }
+    st.plotly_chart(
+        construir_figura_lineas(niveles, "IMACEC desestacionalizado (índice 2018=100)", ytitulo="índice", ventana_inicial=2),
+        use_container_width=True,
+    )
+    st.caption(
+        "Desestacionalizado = serie ajustada por el Banco Central para quitar el patrón estacional (ej. el verano o "
+        "las fiestas), lo que permite comparar un mes contra el anterior. La variación interanual, en cambio, usa "
+        "la serie original: compara cada mes contra el mismo mes del año anterior."
+    )
+
+
+def bloque_masa_salarial(historico: pd.DataFrame) -> None:
+    """Masa salarial real: APROXIMACIÓN PROPIA (no es una serie oficial), ver
+    series_utils.calcular_masa_salarial_real para la construcción y sus límites."""
+    masa = calcular_masa_salarial_real(historico)
+    if masa.empty:
+        return
+    st.markdown("**Masa salarial real (aproximación propia)**")
+    tabla = masa.set_index("fecha").rename(
+        columns={"aporte_remuneracion": "Remuneración real", "aporte_empleo": "Empleo asalariado", "interanual": "total"}
+    )
+    st.plotly_chart(
+        construir_figura_barras_apiladas(
+            tabla, [("Remuneración real", "#6c8cf0"), ("Empleo asalariado", "#e0a83a")],
+            "Masa salarial real (aprox.): aporte de la remuneración real y del empleo asalariado (pp)",
+            "puntos porcentuales",
+        ),
+        use_container_width=True,
+    )
+    lineas = {
+        "Remuneración nominal": calcular_interanual_mensual(historico, "remuneraciones_nominal"),
+        "Remuneración real": calcular_interanual_mensual(historico, "remuneraciones_real"),
+        "Inflación (IPC)": obtener_serie(historico, "ipc_v12"),
+    }
+    st.plotly_chart(
+        construir_figura_lineas(lineas, "Remuneraciones nominales, reales e inflación - variación interanual (%)"),
+        use_container_width=True,
+    )
+    st.caption(
+        "No existe una serie oficial de 'masa salarial real': esta es una aproximación propia = índice real de "
+        "remuneraciones (INE, por hora) x ocupados asalariados (ENE). Por eso no captura cambios en las horas "
+        "trabajadas, y los asalariados incluyen a quienes el índice de remuneraciones podría no cubrir. Sirve para "
+        "ver cuánto del movimiento viene del salario real y cuánto del empleo; no como cifra oficial."
+    )
+
+
+def bloque_ipc_componentes(historico: pd.DataFrame) -> None:
+    """IPC total vs subyacente y las aperturas analíticas del Banco Central."""
+    comp = calcular_ipc_componentes_interanual(historico)
+    if comp["IPC total"].empty:
+        return
+    st.markdown("**Inflación total vs. subyacente y sus componentes (variación interanual)**")
+    columnas = st.columns(2)
+    with columnas[0]:
+        principal = {k: comp[k] for k in ("IPC total", "IPC subyacente (SAE: sin alimentos ni energía)", "IPC sin volátiles")}
+        st.plotly_chart(
+            construir_figura_lineas(principal, "IPC total y medidas subyacentes - variación interanual (%)", meta=3, ventana_inicial=2),
+            use_container_width=True,
+        )
+    with columnas[1]:
+        aperturas = {k: comp[k] for k in ("Bienes sin volátiles", "Servicios sin volátiles", "Volátiles")}
+        st.plotly_chart(
+            construir_figura_lineas(aperturas, "Bienes, servicios y volátiles - variación interanual (%)", meta=3, ventana_inicial=2),
+            use_container_width=True,
+        )
+    st.caption(
+        "El IPC total incluye todo; las medidas subyacentes quitan lo más volátil para ver la tendencia de fondo: SAE "
+        "excluye alimentos y energía, 'sin volátiles' excluye además otros componentes de precio muy cambiante "
+        "(alimentos frescos, combustibles, etc.). Bienes y servicios sin volátiles permiten ver si la inflación de "
+        "fondo viene de los bienes (más ligada al dólar) o de los servicios (más ligada a salarios). La línea "
+        "punteada es la meta del Banco Central (3%). Variaciones anuales oficiales del Banco Central/INE."
+    )
+
+
+def seccion_revisiones() -> None:
+    """Archivo de valores anteriores que las fuentes oficiales revisaron (ver
+    data_pipeline/common.py): para no perder qué se sabía antes de cada revisión."""
+    if not REVISIONES_PATH.exists():
+        return
+    resumen, mayores = resumir_revisiones(pd.read_csv(REVISIONES_PATH), NOMBRES_SERIES)
+    if resumen.empty:
+        return
+    with st.expander("**Revisiones de datos**", expanded=False):
+        st.markdown(
+            "Las fuentes oficiales (Banco Central, INE) revisan cifras de meses anteriores cada vez que publican. "
+            "Los gráficos de arriba usan siempre el valor revisado (el vigente hoy), pero el valor anterior no se "
+            "descarta: queda archivado acá con la fecha en que se detectó el cambio."
+        )
+        st.markdown("**Resumen (últimos 90 días)**")
+        st.dataframe(resumen, hide_index=True, use_container_width=True)
+        st.markdown("**Los 15 cambios individuales más grandes**")
+        st.dataframe(mayores, hide_index=True, use_container_width=True)
+
+
 def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -> None:
     series_disponibles = [s for s in categoria["series"] if s in historico["serie"].unique()]
     computados_disponibles = [
@@ -284,9 +427,13 @@ def seccion_categoria(categoria: dict, historico: pd.DataFrame, abierta: bool) -
             bloque_estados_eeuu(historico)
         if categoria["nombre"] == "Desigualdad":
             bloque_gini_estados(historico)
+        if categoria["nombre"] == "Inflación y Política Monetaria":
+            bloque_ipc_componentes(historico)
         if categoria["nombre"] == "Empleo":
             bloque_anio_movil_desempleo(historico)
+            bloque_masa_salarial(historico)
         if categoria["nombre"] == "Actividad Económica":
+            bloque_imacec_sectores(historico)
             bloque_pib_tendencia(historico)
 
 
@@ -499,4 +646,5 @@ if historico is not None:
     seccion_historica(historico)
     seccion_comercio_exterior(historico)
     seccion_proyecciones(historico)
+    seccion_revisiones()
 seccion_ocde()

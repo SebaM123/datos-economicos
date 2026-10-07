@@ -7,6 +7,7 @@ IMPORTANTE: los códigos de series abajo deben confirmarse corriendo
 así que no hay que asumirlos de memoria.
 """
 
+import argparse
 from datetime import date, timedelta
 
 from common import append_historico
@@ -55,43 +56,46 @@ SERIES = {
     "exportaciones_mineria": "F068.B1.FLU.A.0.C.N.Z.Z.Z.Z.6.0.M",
     "exportaciones_agropecuario": "F068.B1.FLU.B.0.C.N.Z.Z.Z.Z.6.0.M",
     "exportaciones_industrial": "F068.B1.FLU.C.0.C.N.Z.Z.Z.Z.6.0.M",
+    # IMACEC por sector, base 2018, mensual. "_sa" = desestacionalizado (el resto es
+    # serie original). Las "_c_*" son la CONTRIBUCIÓN de cada sector a la variación
+    # interanual del IMACEC, en puntos porcentuales: publicadas por el BCCh, y las 6
+    # suman exactamente el total (verificado 2014-2026, diferencia máxima 0,0 pp).
+    "imacec_sa": "F032.IMC.IND.Z.Z.EP18.Z.Z.1.M",
+    "imacec_minero": "F032.IMC.IND.Z.Z.EP18.03.Z.0.M",
+    "imacec_minero_sa": "F032.IMC.IND.Z.Z.EP18.03.Z.1.M",
+    "imacec_no_minero": "F032.IMC.IND.Z.Z.EP18.N03.Z.0.M",
+    "imacec_no_minero_sa": "F032.IMC.IND.Z.Z.EP18.N03.Z.1.M",
+    "imacec_c_minero": "F032.IMC.V12.Z.Z.2018.03.Z.0.M",
+    "imacec_c_industria": "F032.IMC.V12.Z.Z.2018.04.Z.0.M",
+    "imacec_c_resto_bienes": "F032.IMC.V12.Z.Z.2018.RB.Z.0.M",
+    "imacec_c_comercio": "F032.IMC.V12.Z.Z.2018.COM.Z.0.M",
+    "imacec_c_servicios": "F032.IMC.V12.Z.Z.2018.SERV.Z.0.M",
+    "imacec_c_impuestos": "F032.IMC.V12.Z.Z.2018.IMP.Z.0.M",
+    # Remuneraciones (INE, índice IR, base 2023=100, serie empalmada) y ocupados
+    # asalariados (ENE): insumos de la "masa salarial real" aproximada (no existe
+    # una serie oficial con ese nombre, ver series_utils.calcular_masa_salarial_real).
+    "remuneraciones_real": "G049.RMM.IND.INE23.R.M",
+    "remuneraciones_nominal": "G049.RMM.IND.INE23.NE.M",
+    "ocupados_asalariados": "F049.OCU.PMT.INE9.87.M",
+    # IPC: variación anual OFICIAL (en vez de componerla desde variaciones mensuales
+    # redondeadas a 1 decimal, que se desvía hasta ~0,04 pp), e índice del IPC SAE
+    # (subyacente) para calcular su variación anual sin ese error de redondeo.
+    "ipc_v12": "G073.IPC.V12.2023.M",
+    "ipc_sae_indice": "F074.IPCSAE.IND.Z.EP23.Z.M",
+    # IPC SAE (subyacente), variación mensual: serie EMPALMADA OFICIAL del BCCh (cifras INE).
+    # Reemplaza el empalme manual que había acá antes, que estaba mal en 2023 (ej. feb-2023:
+    # 0,6 vs 0,2 oficial). Si el INE vuelve a cambiar de base habrá que cambiar EP23 por la
+    # nueva serie empalmada (ver buscar_series.py "IPC SAE").
+    "ipc_sae_variacion_mensual": "F074.IPCSAE.VAR.Z.EP23.Z.M",
+    "ipc_sin_volatiles_v12": "G073.IPCSV.V12.2023.M",
+    "ipc_bienes_sin_volatiles_v12": "G073.IPCBSV.V12.2023.M",
+    "ipc_servicios_sin_volatiles_v12": "G073.IPCSSV.V12.2023.M",
+    "ipc_volatiles_v12": "G073.IPCV.V12.2023.M",
     # Tasas bancarias (colocación/captación) pendientes: los códigos F022.COL.TIP.AN01.NO.Z.D
     # y F022.CAP.TIP.AN01.NO.Z.D dan valores que no calzan con la TPM (ej. 1.76% cuando la
     # TPM estaba en 10.75%), y la API no expone la unidad exacta para confirmarlo. No se
     # agregan hasta verificar qué representan realmente.
 }
-
-# IPC SAE (inflación subyacente, sin alimentos y energía): el BCCh recalcula la serie con
-# cada cambio de base (2018=100, 2023=100, etc.) y no mantiene actualizado un empalme
-# histórico único como sí hace con el IPC general. Se arma acá el empalme a mano: se usa
-# el histórico oficial hasta que corta, y de ahí en adelante la serie de la base vigente
-# (que gana en las fechas donde ambas se superponen, por venir después en la lista).
-SERIES_IPC_SAE_EMPALME = [
-    "F074.IPCSAE.VAR.Z.Z.C.M",  # histórico oficial, hasta 2023-12
-    "F074.IPCSAE.VAR.Z.2023.C.M",  # base 2023=100, vigente
-]
-
-
-def obtener_ipc_sae_empalmado(cliente, desde: str, hasta: str) -> list[dict]:
-    """Arma la serie de IPC SAE (inflación subyacente) empalmando el histórico oficial
-    con la base vigente. Donde ambas series tienen dato para la misma fecha, gana la
-    de la base vigente (se agrega después, y append_historico ya se queda con la
-    última fila por fecha+serie).
-    """
-    nombres_temp = [f"_ipc_sae_{i}" for i in range(len(SERIES_IPC_SAE_EMPALME))]
-    tabla = cliente.cuadro(series=SERIES_IPC_SAE_EMPALME, nombres=nombres_temp, desde=desde, hasta=hasta)
-
-    filas = []
-    for fecha, fila in tabla.iterrows():
-        for nombre_temp in nombres_temp:
-            valor = fila.get(nombre_temp)
-            if valor is None or valor != valor:  # descarta NaN
-                continue
-            filas.append(
-                {"fecha": fecha.date().isoformat(), "serie": "ipc_sae_variacion_mensual", "valor": float(valor)}
-            )
-    return filas
-
 
 def obtener_expectativas_pib(cliente, desde: str, hasta: str) -> list[dict]:
     """Expectativa de crecimiento del PIB (Encuesta de Expectativas Económicas,
@@ -152,18 +156,28 @@ def obtener_datos(desde: str, hasta: str | None = None) -> list[dict]:
                 continue
             filas.append({"fecha": fecha.date().isoformat(), "serie": serie, "valor": float(valor)})
 
-    filas.extend(obtener_ipc_sae_empalmado(cliente, desde=desde, hasta=hasta))
     filas.extend(obtener_expectativas_pib(cliente, desde=desde, hasta=hasta))
     return filas
 
 
+# El Banco Central REVISA meses anteriores cada vez que publica (típico del IMACEC y el
+# PIB). Con una ventana de solo 45 días esas revisiones nunca se recogían y el CSV
+# quedaba con cifras viejas (se detectó en octubre 2026: junio figuraba +2,41% cuando
+# ya estaba en +2,02%). 24 meses cubre las revisiones habituales; el valor anterior
+# queda archivado en revisiones.csv (ver common.append_historico).
+VENTANA_DIAS = 730
+
+
 def main() -> None:
-    desde = (date.today() - timedelta(days=45)).isoformat()
+    parser = argparse.ArgumentParser(description="Trae series del Banco Central a data/historico.csv")
+    parser.add_argument("--desde", help="fecha YYYY-MM-DD de inicio (por defecto, los últimos 24 meses)")
+    args = parser.parse_args()
+    desde = args.desde or (date.today() - timedelta(days=VENTANA_DIAS)).isoformat()
     filas = obtener_datos(desde=desde)
     if not filas:
         print("No se obtuvieron datos del BCCh.")
         return
-    agregadas = append_historico(filas)
+    agregadas = append_historico(filas, registrar_revisiones=True)
     print(f"Filas nuevas agregadas a historico.csv: {agregadas}")
 
 

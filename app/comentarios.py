@@ -17,6 +17,7 @@ from series_utils import (
     calcular_imacec_interanual,
     calcular_inflacion_acumulada_anual,
     calcular_inflacion_interanual,
+    calcular_inflacion_subyacente_interanual,
     calcular_tpm_real,
 )
 
@@ -53,6 +54,10 @@ def comentario_ipc(historico: pd.DataFrame) -> str | None:
     if interanual:
         valor_ia, _ = interanual
         partes.append(f"Con eso, la inflación interanual (12 meses) quedó en {valor_ia:.1f}%.")
+    subyacente = calcular_inflacion_subyacente_interanual(historico)
+    if subyacente:
+        valor_sub, _ = subyacente
+        partes.append(f"La inflación subyacente (sin alimentos ni energía) es de {valor_sub:.1f}% interanual.")
     if acumulada:
         valor_ac, fecha_ac = acumulada
         partes.append(f"En lo que va de {fecha_ac.year}, los precios acumulan un alza de {valor_ac:.1f}%.")
@@ -72,17 +77,32 @@ def comentario_imacec(historico: pd.DataFrame) -> str | None:
         hace_un_anio_de_anterior = imacec.iloc[-14]
         interanual_anterior = (anterior["valor"] / hace_un_anio_de_anterior["valor"] - 1) * 100
 
-    frase = (
-        f"La actividad económica (IMACEC) de {_nombre_mes(fecha)} {_direccion(valor)} "
-        f"{valor:+.1f}% en 12 meses."
-    )
+    verbo = "creció" if valor > 0.05 else ("cayó" if valor < -0.05 else "se mantuvo sin cambios")
+    frase = f"La actividad económica (IMACEC) de {_nombre_mes(fecha)} {verbo}"
+    frase += f" {abs(valor):.1f}% en 12 meses." if abs(valor) > 0.05 else " en 12 meses."
     if interanual_anterior is not None:
         if valor > interanual_anterior + 0.05:
-            frase += " Es una aceleración respecto al mes anterior."
+            frase += f" Mejora respecto al mes anterior ({interanual_anterior:+.1f}%)."
         elif valor < interanual_anterior - 0.05:
-            frase += " Es una desaceleración respecto al mes anterior."
+            frase += f" Empeora respecto al mes anterior ({interanual_anterior:+.1f}%)."
         else:
             frase += " Un ritmo similar al del mes anterior."
+
+    # Aporte por sector (contribuciones oficiales del Banco Central, en pp), solo si están
+    # al día para el mismo mes.
+    def aporte(serie: str) -> float | None:
+        fila = historico[(historico["serie"] == serie) & (historico["fecha"] == fecha)]
+        return float(fila["valor"].iloc[0]) if not fila.empty else None
+
+    c_minero = aporte("imacec_c_minero")
+    otros = [aporte(s) for s in ("imacec_c_industria", "imacec_c_resto_bienes", "imacec_c_comercio",
+                                 "imacec_c_servicios", "imacec_c_impuestos")]
+    if c_minero is not None and all(o is not None for o in otros):
+        resto = sum(otros)
+        frase += (
+            f" Por sector, la minería {'sumó' if c_minero >= 0 else 'restó'} {abs(c_minero):.1f} pp "
+            f"y el resto de la economía {'sumó' if resto >= 0 else 'restó'} {abs(resto):.1f} pp."
+        )
     return frase
 
 

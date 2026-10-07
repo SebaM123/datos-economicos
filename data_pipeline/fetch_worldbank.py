@@ -147,7 +147,7 @@ def main() -> None:
         print(f"  {len(datos_pais)} observaciones")
         filas.extend(datos_pais)
 
-    agregadas = append_historico(filas)
+    agregadas = append_historico(filas, registrar_revisiones=True)
     print(f"Filas nuevas agregadas a historico.csv: {agregadas}")
 
     print("Trayendo comparación OCDE...")

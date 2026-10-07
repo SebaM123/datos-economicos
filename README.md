@@ -22,6 +22,18 @@ Dashboard económico automático para Chile: series oficiales del Banco Central 
    pip install -r requirements.txt
    ```
 
+## Actualizar con un comando
+
+```bash
+python actualizar.py
+```
+
+(o doble clic en `actualizar.command`). Dispara en GitHub el mismo workflow que corre cada día, espera a que termine, trae el resultado a esta copia y muestra un resumen de los últimos datos y de las revisiones detectadas. Requiere la CLI de GitHub (`brew install gh`, luego `gh auth login`).
+
+## Revisiones de datos
+
+El Banco Central y el INE revisan cifras de meses anteriores. Los gráficos usan siempre el valor vigente (revisado), pero cada vez que una cifra cambia, el valor anterior queda archivado en `data/revisiones.csv` (serie, fecha, valor_anterior, valor_nuevo, detectado_el) y se resume en la sección «Revisiones de datos» del dashboard. Los datos de mercado (IPSA, dólar, etc.) no se registran como revisiones, porque sus cambios intradía no lo son.
+
 ## Actualización automática
 
 `.github/workflows/actualizar_datos.yml` corre todos los días y comitea `data/historico.csv` si hay datos nuevos. Para que funcione hay que cargar los secrets del repo en GitHub (Settings → Secrets and variables → Actions):
