@@ -5212,6 +5212,7 @@ fecha,serie,valor
 2026-06-01,ipc_bienes_sin_volatiles_v12,2.03851230336818
 2026-07-01,ipc_bienes_sin_volatiles_v12,1.72144947737884
 2026-08-01,ipc_bienes_sin_volatiles_v12,1.92505121764086
+2026-09-01,ipc_bienes_sin_volatiles_v12,1.66647741527323
 2010-01-01,ipc_sae_indice,63.48
 2010-02-01,ipc_sae_indice,63.61
 2010-03-01,ipc_sae_indice,63.55
@@ -5412,6 +5413,7 @@ fecha,serie,valor
 2026-06-01,ipc_sae_indice,109.79
 2026-07-01,ipc_sae_indice,110.19
 2026-08-01,ipc_sae_indice,110.62
+2026-09-01,ipc_sae_indice,110.74
 2010-01-01,ipc_sae_variacion_mensual,0.8
 2010-02-01,ipc_sae_variacion_mensual,0.2
 2010-03-01,ipc_sae_variacion_mensual,-0.1
@@ -5612,6 +5614,7 @@ fecha,serie,valor
 2026-06-01,ipc_sae_variacion_mensual,-0.1
 2026-07-01,ipc_sae_variacion_mensual,0.4
 2026-08-01,ipc_sae_variacion_mensual,0.4
+2026-09-01,ipc_sae_variacion_mensual,0.1
 2010-01-01,ipc_servicios_sin_volatiles_v12,2.087431421
 2010-02-01,ipc_servicios_sin_volatiles_v12,2.591310632
 2010-03-01,ipc_servicios_sin_volatiles_v12,2.237513063
@@ -5812,6 +5815,7 @@ fecha,serie,valor
 2026-06-01,ipc_servicios_sin_volatiles_v12,4.36647858970306
 2026-07-01,ipc_servicios_sin_volatiles_v12,4.30087651215791
 2026-08-01,ipc_servicios_sin_volatiles_v12,4.293444409125
+2026-09-01,ipc_servicios_sin_volatiles_v12,4.30675622080355
 2010-01-01,ipc_sin_volatiles_v12,0.42407838
 2010-02-01,ipc_sin_volatiles_v12,0.56774308
 2010-03-01,ipc_sin_volatiles_v12,0.300572721
@@ -6012,6 +6016,7 @@ fecha,serie,valor
 2026-06-01,ipc_sin_volatiles_v12,3.38638312986205
 2026-07-01,ipc_sin_volatiles_v12,3.2115004310816
 2026-08-01,ipc_sin_volatiles_v12,3.29597727537248
+2026-09-01,ipc_sin_volatiles_v12,3.1924263464074
 2010-01-01,ipc_v12,-1.320588228
 2010-02-01,ipc_v12,0.258670818
 2010-03-01,ipc_v12,0.303468392
@@ -6212,6 +6217,7 @@ fecha,serie,valor
 2026-06-01,ipc_v12,4.33611581705455
 2026-07-01,ipc_v12,3.52112990427294
 2026-08-01,ipc_v12,4.12746701097232
+2026-09-01,ipc_v12,4.06987177520521
 2010-01-01,ipc_variacion_mensual,0.5
 2010-02-01,ipc_variacion_mensual,0.3
 2010-03-01,ipc_variacion_mensual,0.1
@@ -6412,6 +6418,7 @@ fecha,serie,valor
 2026-06-01,ipc_variacion_mensual,0.0
 2026-07-01,ipc_variacion_mensual,0.1
 2026-08-01,ipc_variacion_mensual,0.6
+2026-09-01,ipc_variacion_mensual,0.4
 2010-01-01,ipc_volatiles_v12,-3.843198366
 2010-02-01,ipc_volatiles_v12,-0.204078676
 2010-03-01,ipc_volatiles_v12,0.30788082
@@ -6612,6 +6619,7 @@ fecha,serie,valor
 2026-06-01,ipc_volatiles_v12,5.88350235192274
 2026-07-01,ipc_volatiles_v12,4.02242792209097
 2026-08-01,ipc_volatiles_v12,5.47257163099879
+2026-09-01,ipc_volatiles_v12,5.48757680557983
 2019-01-01,ipp_general,97.18
 2019-02-01,ipp_general,97.88
 2019-03-01,ipp_general,99.96
@@ -9977,6 +9985,7 @@ fecha,serie,valor
 2026-10-05,ipsa_etf,5035.39990234375
 2026-10-06,ipsa_etf,5124.7998046875
 2026-10-07,ipsa_etf,5065.39990234375
+2026-10-08,ipsa_etf,5080.0
 2010-01-04,ipsa_indice_real,3620.699951171875
 2010-01-05,ipsa_indice_real,3624.10009765625
 2010-01-06,ipsa_indice_real,3639.9599609375
@@ -17727,6 +17736,7 @@ fecha,serie,valor
 2026-10-05,sp500,7722.72021484375
 2026-10-06,sp500,7818.93017578125
 2026-10-07,sp500,7801.77001953125
+2026-10-08,sp500,7756.47021484375
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -22108,7 +22118,8 @@ fecha,serie,valor
 2026-10-04,tipo_cambio,989.5999755859376
 2026-10-05,tipo_cambio,989.5999755859376
 2026-10-06,tipo_cambio,971.5
-2026-10-07,tipo_cambio,972.8900146484375
+2026-10-07,tipo_cambio,972.8900146484376
+2026-10-08,tipo_cambio,977.0499877929688
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -26286,3 +26297,4 @@ fecha,serie,valor
 2026-10-05,tpm,4.5
 2026-10-06,tpm,4.5
 2026-10-07,tpm,4.5
+2026-10-08,tpm,4.5
