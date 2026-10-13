@@ -530,6 +530,7 @@ fecha,serie,valor
 2026-07-01,eee_pib_actual,1.3
 2026-08-01,eee_pib_actual,1.3
 2026-09-01,eee_pib_actual,0.7
+2026-10-01,eee_pib_actual,0.2
 2025-01-01,eee_pib_proximo,2.1
 2025-02-01,eee_pib_proximo,2.1
 2025-03-01,eee_pib_proximo,2.1
@@ -551,6 +552,7 @@ fecha,serie,valor
 2026-07-01,eee_pib_proximo,2.7
 2026-08-01,eee_pib_proximo,2.8
 2026-09-01,eee_pib_proximo,2.9
+2026-10-01,eee_pib_proximo,3.0
 2010-01-01,eeuu_desempleo,9.8
 2010-02-01,eeuu_desempleo,9.8
 2010-03-01,eeuu_desempleo,9.9
@@ -17745,7 +17747,7 @@ fecha,serie,valor
 2026-10-10,sp500,7811.5400390625
 2026-10-11,sp500,7811.5400390625
 2026-10-12,sp500,7807.240234375
-2026-10-13,sp500,7810.330078125
+2026-10-13,sp500,7810.91015625
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -22133,7 +22135,7 @@ fecha,serie,valor
 2026-10-10,tipo_cambio,975.0599975585938
 2026-10-11,tipo_cambio,975.0599975585938
 2026-10-12,tipo_cambio,975.0599975585938
-2026-10-13,tipo_cambio,981.5800170898438
+2026-10-13,tipo_cambio,981.6500244140624
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -26313,3 +26315,4 @@ fecha,serie,valor
 2026-10-07,tpm,4.5
 2026-10-08,tpm,4.5
 2026-10-09,tpm,4.5
+2026-10-13,tpm,4.5
