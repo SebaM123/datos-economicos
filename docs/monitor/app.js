@@ -12,6 +12,8 @@ const ICONOS = {
   percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
   briefcase: '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
   globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+  scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
 };
@@ -32,11 +34,22 @@ function numero(valor, decimales) {
 function fmtValor(serie, valor) {
   const redondeado = Number(valor.toFixed(serie.decimales));
   const signo = redondeado < 0 ? "−" : serie.firmado && redondeado > 0 ? "+" : "";
-  const txt = signo + numero(Math.abs(redondeado), serie.decimales);
-  if (serie.unidad === "%") return txt + "%";
-  if (serie.unidad === "pp") return txt + " p.p.";
-  if (serie.unidad === "CLP") return signo + "$" + numero(Math.abs(redondeado), serie.decimales);
-  return txt;
+  const abs = numero(Math.abs(redondeado), serie.decimales);
+  if (serie.unidad === "%") return `${signo}${abs}%`;
+  if (serie.unidad === "pp") return `${signo}${abs} p.p.`;
+  if (serie.unidad === "CLP") return `${signo}$${abs}`;
+  return `${signo}${serie.prefijo || ""}${abs}${serie.sufijo || ""}`;
+}
+
+// Formato para gráficos compuestos (llevan `unidad` y `decimales`, sin prefijo/sufijo propios).
+function fmtGen(g, v) {
+  if (v === null || v === undefined) return "";
+  const dec = g.decimales ?? 1, abs = numero(Math.abs(v), dec), signo = v < 0 ? "−" : "";
+  if (g.unidad === "%") return `${signo}${abs}%`;
+  if (g.unidad === "pp") return `${signo}${abs} p.p.`;
+  if (g.unidad === "US$") return `${signo}US$${abs}`;
+  if (g.unidad === "US$ MM") return `${signo}US$${abs} MM`;
+  return `${signo}${abs}`;
 }
 
 function fmtDelta(serie, delta) {
@@ -51,7 +64,7 @@ const NOMBRE_TONO = { mejor: "Mejor", peor: "Peor", igual: "Igual" };
 const claseTono = (t) => `tono-${t ?? "null"}`;
 
 // ---------- Estado ----------
-const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, renderId: 0, vista: "ultimo" };
+const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, compuestos: {}, revisiones: null, renderId: 0, vista: "ultimo" };
 
 async function pedirJSON(ruta, version) {
   const resp = await fetch(`data/${ruta}?v=${encodeURIComponent(version || "")}`, { cache: "no-cache" });
@@ -65,12 +78,22 @@ async function cargarDatos() {
   const [indice, calendario, comentarios] = await Promise.all([
     pedirJSON("indice.json", v), pedirJSON("calendario.json", v), pedirJSON("comentarios.json", v),
   ]);
-  Object.assign(estado, { meta, indice, calendario, comentarios, detalles: {} });
+  Object.assign(estado, { meta, indice, calendario, comentarios, detalles: {}, compuestos: {}, revisiones: null });
 }
 
 async function cargarDetalle(id) {
   if (!estado.detalles[id]) estado.detalles[id] = await pedirJSON(`series/${id}.json`, estado.meta.generado);
   return estado.detalles[id];
+}
+
+async function cargarCompuesto(id) {
+  if (!estado.compuestos[id]) estado.compuestos[id] = await pedirJSON(`graficos/${id}.json`, estado.meta.generado);
+  return estado.compuestos[id];
+}
+
+async function cargarRevisiones() {
+  if (!estado.revisiones) estado.revisiones = await pedirJSON("revisiones.json", estado.meta.generado);
+  return estado.revisiones;
 }
 
 // ---------- Gráficos ----------
@@ -81,7 +104,8 @@ function dibujarMini(contenedor, serie) {
   const grafico = echarts.init(contenedor, null, { renderer: "svg" });
   const datos = serie.mini;
   const valores = datos.map((p) => p[1]);
-  const cruzaCero = Math.min(...valores) < 0 && Math.max(...valores) > 0;
+  const numericos = valores.filter((v) => v !== null);
+  const cruzaCero = Math.min(...numericos) < 0 && Math.max(...numericos) > 0;
   const acento = css("--accent");
   grafico.setOption({
     animation: false,
@@ -92,7 +116,7 @@ function dibujarMini(contenedor, serie) {
       trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"),
       textStyle: { color: css("--text"), fontSize: 12 },
       axisPointer: { type: "line", lineStyle: { color: css("--muted"), type: "dashed" } },
-      formatter: (p) => `${etiquetaFecha(p[0].axisValue, serie.frecuencia)}<br><b>${fmtValor(serie, p[0].value)}</b>`,
+      formatter: (p) => (p[0].value === null || p[0].value === undefined ? "" : `${etiquetaFecha(p[0].axisValue, serie.frecuencia)}<br><b>${fmtValor(serie, p[0].value)}</b>`),
     },
     series: [{
       type: "line", data: valores, showSymbol: false, symbolSize: 7, lineStyle: { width: 2, color: acento },
@@ -119,6 +143,7 @@ function etiquetaFecha(iso, frecuencia) {
   const [a, m, d] = iso.split("-");
   if (frecuencia === "M") return `${MESES[Number(m) - 1]} ${a}`;
   if (frecuencia === "T") return `T${Math.floor((Number(m) - 1) / 3) + 1} ${a}`;
+  if (frecuencia === "A") return a;
   return `${d}-${m}-${a}`;
 }
 
@@ -128,26 +153,36 @@ const diasDesde = (iso) => Math.floor((Date.now() - new Date(iso + "T00:00:00Z")
 
 // Las series de las vistas "en el año" / "12 meses" se calculan de otras: contarlas aparte duplicaría los avisos.
 function idsDerivados() {
-  const base = new Set(estado.indice.temas.flatMap((t) => [t.serie, ...t.secundarias]));
+  const base = new Set([...estado.indice.temas.flatMap((t) => [t.serie, ...t.secundarias]), ...estado.indice.series.map((x) => x.id).filter((id) => !estado.indice.temas.some((t) => Object.values(t.vistas || {}).includes(id)))]);
   return new Set(estado.indice.temas.flatMap((t) => Object.values(t.vistas || {})).filter((id) => !base.has(id)));
 }
 const seriesBase = () => { const d = idsDerivados(); return estado.indice.series.filter((s) => !d.has(s.id)); };
-const seriesDemoradas = () => seriesBase().filter((s) => diasDesde(s.ultimo.fecha) > s.max_dias);
+const seriesDemoradas = () => seriesBase().filter((s) => s.alerta !== false && diasDesde(s.ultimo.fecha) > s.max_dias);
 const horasDesdeGenerado = () => (Date.now() - new Date(estado.meta.generado).getTime()) / 3600000;
 const pipelineAtrasado = () => horasDesdeGenerado() > 72;
+
+const todasLasPestanas = () => [...estado.indice.temas, ...(estado.indice.secciones || [])];
 
 function buscar(texto) {
   const tokens = norm(texto).split(/\s+/).filter(Boolean);
   if (!tokens.length) return [];
-  const temas = Object.fromEntries(estado.indice.temas.map((t) => [t.id, t.nombre]));
-  const resultados = [];
-  for (const s of estado.indice.series) {
-    const nombre = norm(s.nombre);
-    const pajar = `${nombre} ${norm(temas[s.tema] || "")} ${norm(s.fuente)} ${norm(s.definicion || "")}`;
-    if (!tokens.every((t) => pajar.includes(t))) continue;
-    resultados.push({ s, puntaje: tokens.every((t) => nombre.includes(t)) ? 0 : 1 });
-  }
-  return resultados.sort((a, b) => a.puntaje - b.puntaje).slice(0, 8).map((r) => r.s);
+  const nombrePestana = Object.fromEntries(todasLasPestanas().map((t) => [t.id, t.nombre]));
+  const candidatos = [
+    ...estado.indice.series.map((s) => ({
+      titulo: s.nombre, sub: nombrePestana[s.tema] || "", valor: fmtValor(s, s.ultimo.valor), hash: `#/serie/${s.id}`,
+      pajar: `${norm(s.nombre)} ${norm(nombrePestana[s.tema] || "")} ${norm(s.fuente)} ${norm(s.definicion || "")}`,
+    })),
+    ...(estado.indice.graficos || []).map((g) => ({
+      titulo: g.nombre, sub: `${nombrePestana[g.pestana] || ""} · gráfico`, valor: "", hash: `#/${g.pestana}/${g.id}`,
+      pajar: `${norm(g.nombre)} ${norm(nombrePestana[g.pestana] || "")} ${norm(g.definicion || "")}`,
+    })),
+    ...todasLasPestanas().map((t) => ({ titulo: t.nombre, sub: "Sección", valor: "", hash: `#/${t.id}`, pajar: norm(t.nombre) })),
+  ];
+  return candidatos
+    .filter((c) => tokens.every((t) => c.pajar.includes(t)))
+    .map((c) => ({ ...c, puntaje: tokens.every((t) => norm(c.titulo).includes(t)) ? 0 : 1 }))
+    .sort((a, b) => a.puntaje - b.puntaje)
+    .slice(0, 10);
 }
 
 function activarBuscador() {
@@ -160,13 +195,12 @@ function activarBuscador() {
     [...lista.children].forEach((li, k) => li.setAttribute("aria-selected", String(k === i)));
     if (i >= 0) entrada.setAttribute("aria-activedescendant", lista.children[i].id); else entrada.removeAttribute("aria-activedescendant");
   };
-  const ir = (s) => { cerrar(); entrada.value = ""; location.hash = `#/serie/${s.id}`; entrada.blur(); };
+  const ir = (item) => { cerrar(); entrada.value = ""; location.hash = item.hash; entrada.blur(); };
   const pintar = () => {
     items = buscar(entrada.value);
     if (!entrada.value.trim()) return cerrar();
-    const temas = Object.fromEntries(estado.indice.temas.map((t) => [t.id, t.nombre]));
     lista.innerHTML = items.length
-      ? items.map((s, i) => `<li role="option" id="res-${i}" data-i="${i}" aria-selected="false"><span>${esc(s.nombre)}<small>${esc(temas[s.tema] || "")}</small></span><b class="num">${fmtValor(s, s.ultimo.valor)}</b></li>`).join("")
+      ? items.map((c, i) => `<li role="option" id="res-${i}" data-i="${i}" aria-selected="false"><span>${esc(c.titulo)}<small>${esc(c.sub)}</small></span><b class="num">${esc(c.valor)}</b></li>`).join("")
       : '<li class="sin-resultados" role="presentation">Sin resultados</li>';
     lista.hidden = false; entrada.setAttribute("aria-expanded", "true"); activo = -1;
   };
@@ -207,10 +241,25 @@ function htmlEncabezado() {
   </header>`;
 }
 
-function htmlPestanas(ruta) {
-  const items = [{ id: "", nombre: "Visión general" }, ...estado.indice.temas.map((t) => ({ id: t.id, nombre: t.nombre }))];
-  return `<nav class="pestanas" aria-label="Temas">${items
-    .map((t) => `<a class="pestana" href="#/${t.id}" ${t.id === ruta ? 'aria-current="page"' : ""}>${esc(t.nombre)}</a>`)
+// Cinta de mercado (como la del reporte completo): último dato de las series de mercado con su variación.
+function htmlCinta() {
+  const items = [["tipo_cambio", "Dólar"], ["ipsa", "IPSA"], ["sp500", "S&P 500"], ["tpm", "TPM"]]
+    .map(([id, etq]) => ({ s: serieDe(id), etq })).filter((x) => x.s);
+  if (!items.length) return "";
+  const una = items.map(({ s, etq }) => {
+    const d = s.delta, sube = d !== null && d > 0.005, baja = d !== null && d < -0.005;
+    const flecha = sube ? "▲" : baja ? "▼" : "•";
+    const variacion = d === null ? "" : fmtDelta(s, d);
+    return `<a class="cinta-item" href="#/serie/${esc(s.id)}"><span class="cinta-nombre">${esc(etq)}</span> <b class="num">${fmtValor(s, s.ultimo.valor)}</b>
+      <span class="${sube ? "cinta-sube" : baja ? "cinta-baja" : ""} num">${flecha} ${variacion}</span></a>`;
+  }).join("");
+  return `<div class="cinta" role="region" aria-label="Mercado"><div class="cinta-pista">${una}${una}</div></div>`;
+}
+
+function htmlPestanas(activa) {
+  const items = [{ id: "", nombre: "Visión general" }, ...todasLasPestanas().map((t) => ({ id: t.id, nombre: t.nombre }))];
+  return `<nav class="pestanas" aria-label="Temas y secciones">${items
+    .map((t) => `<a class="pestana" href="#/${t.id}" ${t.id === activa ? 'aria-current="page"' : ""}>${esc(t.nombre)}</a>`)
     .join("")}</nav>`;
 }
 
@@ -315,10 +364,10 @@ function htmlPie() {
 
 // ---------- Página «Estado de los datos» ----------
 function htmlEstado() {
-  const temas = Object.fromEntries(estado.indice.temas.map((t) => [t.id, t.nombre]));
+  const temas = Object.fromEntries(todasLasPestanas().map((t) => [t.id, t.nombre]));
   const filas = seriesBase().map((s) => {
     const dias = diasDesde(s.ultimo.fecha);
-    return { s, dias, demorada: dias > s.max_dias };
+    return { s, dias, demorada: s.alerta !== false && dias > s.max_dias };
   }).sort((a, b) => Number(b.demorada) - Number(a.demorada) || a.s.tema.localeCompare(b.s.tema));
   const n = filas.filter((f) => f.demorada).length;
   const hora = new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(estado.meta.generado));
@@ -335,7 +384,7 @@ function htmlEstado() {
         <tbody>${filas.map(({ s, dias, demorada }) => `<tr>
           <td><a href="#/serie/${esc(s.id)}">${esc(s.nombre)}</a></td><td>${esc(temas[s.tema] || "")}</td><td>${esc(s.fuente)}</td>
           <td>${esc(s.ultimo.etiqueta)}</td><td class="num">${dias} d</td><td class="num">${s.max_dias} d</td>
-          <td class="${demorada ? "tono-igual" : "tono-mejor"}"><b>${demorada ? "Demorada" : "Al día"}</b></td></tr>`).join("")}</tbody>
+          <td class="${demorada ? "tono-igual" : "tono-mejor"}"><b>${demorada ? "Demorada" : s.alerta === false ? "Sin seguimiento (fuente discontinua)" : "Al día"}</b></td></tr>`).join("")}</tbody>
       </table></div>
     </section>`;
 }
@@ -353,6 +402,7 @@ function recortar(datos, anios) {
 
 function etiquetaEje(iso, frecuencia) {
   const [a, m, d] = iso.split("-");
+  if (frecuencia === "A") return a;
   if (frecuencia === "D") return `${Number(d)} ${MESES[Number(m) - 1]} ${a.slice(2)}`;
   return `${MESES[Number(m) - 1]} ${a.slice(2)}`;
 }
@@ -360,7 +410,8 @@ function etiquetaEje(iso, frecuencia) {
 function opcionGrande(serie, detalle, anios) {
   const datos = recortar(detalle.datos, anios);
   const valores = datos.map((p) => p[1]);
-  const min = Math.min(...valores), max = Math.max(...valores);
+  const numericos = valores.filter((v) => v !== null);
+  const min = Math.min(...numericos), max = Math.max(...numericos);
   const decEje = max - min < 10 ? 1 : 0;
   const acento = css("--accent"), muted = css("--muted");
   const barras = detalle.tipo === "barras";
@@ -376,7 +427,7 @@ function opcionGrande(serie, detalle, anios) {
       trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"),
       textStyle: { color: css("--text"), fontSize: 13 },
       axisPointer: { type: barras ? "shadow" : "line", lineStyle: { color: muted, type: "dashed" } },
-      formatter: (p) => `${etiquetaFecha(p[0].axisValue, detalle.frecuencia)}<br><b>${fmtValor(detalle, p[0].value)}</b>`,
+      formatter: (p) => (p[0].value === null || p[0].value === undefined ? "" : `${etiquetaFecha(p[0].axisValue, detalle.frecuencia)}<br><b>${fmtValor(detalle, p[0].value)}</b>`),
     },
     xAxis: {
       type: "category", data: datos.map((p) => p[0]), boundaryGap: barras,
@@ -445,7 +496,7 @@ function htmlRevisiones(detalle) {
 }
 
 function htmlDetalle(serie, detalle) {
-  const tema = estado.indice.temas.find((t) => t.id === serie.tema);
+  const tema = todasLasPestanas().find((t) => t.id === serie.tema);
   const url = location.href.split("#")[0] + "#/serie/" + serie.id;
   const texto = `${serie.nombre}: ${fmtValor(serie, serie.ultimo.valor)} (${serie.ultimo.etiqueta})`;
   const enc = encodeURIComponent;
@@ -513,16 +564,223 @@ function activarDetalle(serie, detalle) {
   });
 }
 
+// ---------- Gráficos compuestos y secciones ----------
+const PALETA = () => [css("--accent"), "#e8c15a", "#5fd38d", "#f08a7a", "#c792ea", "#5ec4c4"];
+const CONFIGURABLE_EN_TIEMPO = (g) => ["lineas", "barras_apiladas", "proyeccion"].includes(g.tipo) && g.frecuencia !== "A";
+
+function unirFechas(listas) {
+  return [...new Set(listas.flat().map((p) => p[0]))].sort();
+}
+function alinear(datos, fechas) {
+  const m = new Map(datos.map((p) => [p[0], p[1]]));
+  return fechas.map((f) => (m.has(f) ? m.get(f) : null));
+}
+function corteIso(g, anios) {
+  if (!anios) return "0000-00-00";
+  const ultimas = g.series.map((s) => s.datos[s.datos.length - 1][0]).sort();
+  const c = new Date(ultimas[ultimas.length - 1] + "T00:00:00Z");
+  c.setUTCFullYear(c.getUTCFullYear() - anios);
+  return c.toISOString().slice(0, 10);
+}
+
+function tooltipCompuesto(g, extra) {
+  return {
+    trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"),
+    textStyle: { color: css("--text"), fontSize: 13 },
+    axisPointer: { type: g.tipo === "barras_apiladas" ? "shadow" : "line", lineStyle: { color: css("--muted"), type: "dashed" } },
+    formatter: (ps) => {
+      const filas = ps.filter((p) => p.value !== null && p.value !== undefined && !String(p.seriesName).startsWith("__"));
+      if (!filas.length) return "";
+      const cuerpo = filas.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${fmtGen(g, p.value)}</b>`).join("<br>");
+      return `${etiquetaFecha(ps[0].axisValue, g.frecuencia)}<br>${cuerpo}${extra ? extra(ps[0].axisValue) : ""}`;
+    },
+  };
+}
+
+function ejesTiempo(g, fechas, barras) {
+  const muted = css("--muted");
+  let min = Infinity, max = -Infinity;
+  return {
+    xAxis: {
+      type: "category", data: fechas, boundaryGap: barras,
+      axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisTick: { show: false },
+      axisLabel: { color: muted, hideOverlap: true, formatter: (v) => etiquetaEje(v, g.frecuencia) },
+    },
+    yAxis: {
+      type: "value", scale: !barras, splitLine: { lineStyle: { color: css("--border") } },
+      axisLabel: { color: muted, formatter: (v) => fmtGen({ ...g, decimales: Math.abs(v) < 10 && !Number.isInteger(v) ? 1 : 0 }, v) },
+    },
+  };
+}
+
+function referencias(g, valores) {
+  const muted = css("--muted"), refs = [];
+  if (g.meta !== null && g.meta !== undefined) refs.push({ yAxis: g.meta, label: { formatter: `Meta ${numero(g.meta, 0)}%`, color: muted, position: "insideEndTop" } });
+  const nums = valores.filter((v) => v !== null && v !== undefined);
+  if (nums.length && Math.min(...nums) < 0 && Math.max(...nums) > 0) refs.push({ yAxis: 0, label: { show: false } });
+  return refs.length ? { silent: true, symbol: "none", lineStyle: { color: muted, type: "dashed", opacity: 0.6 }, data: refs } : undefined;
+}
+
+function opcionRanking(g) {
+  const filas = [...g.filas].sort((a, b) => a.valor - b.valor), acento = css("--accent");
+  return {
+    animation: false,
+    grid: { left: 8, right: 64, top: 8, bottom: 8, containLabel: true },
+    tooltip: {
+      trigger: "item", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (p) => `${esc(p.name)}: <b>${fmtGen(g, p.value)}</b><br>Año: ${esc(filas[p.dataIndex].anio)}`,
+    },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => fmtGen({ ...g, decimales: 0 }, v) } },
+    yAxis: {
+      type: "category", data: filas.map((f) => f.nombre), axisTick: { show: false }, axisLine: { show: false },
+      axisLabel: { fontSize: 11, interval: 0, color: (_v, i) => (filas[i] && filas[i].destacado ? acento : css("--muted")), fontWeight: "normal" },
+    },
+    series: [{
+      type: "bar", barMaxWidth: 16,
+      data: filas.map((f) => ({ value: f.valor, itemStyle: { color: f.destacado ? acento : css("--border-fuerte"), borderRadius: [0, 3, 3, 0] } })),
+      label: { show: true, position: "right", color: css("--muted"), fontSize: 11, formatter: (p) => fmtGen(g, p.value) },
+    }],
+  };
+}
+
+function opcionCompuesta(g, anios) {
+  if (g.tipo === "ranking") return opcionRanking(g);
+  const cols = PALETA(), corte = corteIso(g, anios);
+  const cortar = (datos) => datos.filter((p) => p[0] >= corte);
+  const leyenda = (data) => ({ top: 0, left: 0, textStyle: { color: css("--muted") }, data, icon: "roundRect", itemWidth: 12, itemHeight: 6 });
+  const grid = { left: 56, right: 22, top: 40, bottom: 30 };
+
+  if (g.tipo === "proyeccion") {
+    const hist = cortar(g.series[0].datos), proy = g.proyeccion.datos;
+    const fechas = unirFechas([hist, proy]);
+    const ultimoHist = hist[hist.length - 1];
+    const dProy = alinear(proy.map((p) => [p[0], p[1]]), fechas);
+    dProy[fechas.indexOf(ultimoHist[0])] = ultimoHist[1]; // la proyección arranca pegada al histórico
+    const lo = alinear(proy.map((p) => [p[0], p[2]]), fechas), hi = alinear(proy.map((p) => [p[0], p[3]]), fechas);
+    const banda = fechas.map((_, i) => (lo[i] === null ? null : hi[i] - lo[i]));
+    const base = fechas.map((_, i) => lo[i]);
+    const rango = new Map(proy.map((p) => [p[0], [p[2], p[3]]]));
+    const naranja = "#f0a97c";
+    return {
+      animation: false, grid, legend: leyenda([g.series[0].nombre, g.proyeccion.nombre, g.proyeccion.banda]),
+      tooltip: tooltipCompuesto(g, (f) => (rango.has(f) ? `<br>${g.proyeccion.banda}: ${fmtGen(g, rango.get(f)[0])} a ${fmtGen(g, rango.get(f)[1])}` : "")),
+      ...ejesTiempo(g, fechas, false),
+      series: [
+        { name: "__base", type: "line", data: base, stack: "banda", symbol: "none", lineStyle: { opacity: 0 }, silent: true, connectNulls: true },
+        { name: g.proyeccion.banda, type: "line", data: banda, stack: "banda", symbol: "none", lineStyle: { opacity: 0 }, itemStyle: { color: naranja }, areaStyle: { color: naranja + "33" }, silent: true, connectNulls: true },
+        { name: g.series[0].nombre, type: "line", data: alinear(hist, fechas), showSymbol: false, lineStyle: { width: 2.2, color: cols[0] }, itemStyle: { color: cols[0] }, markLine: referencias(g, hist.map((p) => p[1])) },
+        { name: g.proyeccion.nombre, type: "line", data: dProy, showSymbol: false, lineStyle: { width: 2.2, color: naranja, type: "dashed" }, itemStyle: { color: naranja } },
+      ],
+    };
+  }
+
+  const ss = g.series.map((s) => ({ ...s, datos: cortar(s.datos) }));
+  const fechas = unirFechas(ss.map((s) => s.datos));
+  if (g.tipo === "barras_apiladas") {
+    const total = cortar(g.total.datos);
+    return {
+      animation: false, grid, legend: leyenda([...ss.map((s) => s.nombre), g.total.nombre]),
+      tooltip: tooltipCompuesto(g), ...ejesTiempo(g, fechas, true),
+      series: [
+        ...ss.map((s, i) => ({ name: s.nombre, type: "bar", stack: "aportes", data: alinear(s.datos, fechas), itemStyle: { color: s.color || cols[i % cols.length] } })),
+        { name: g.total.nombre, type: "line", data: alinear(total, fechas), showSymbol: false, lineStyle: { width: 2, color: css("--text") }, itemStyle: { color: css("--text") }, z: 5, markLine: referencias(g, [-1, 1]) },
+      ],
+    };
+  }
+  const todos = ss.flatMap((s) => s.datos.map((p) => p[1]));
+  return {
+    animation: false, grid, legend: ss.length > 1 ? leyenda(ss.map((s) => s.nombre)) : undefined,
+    tooltip: tooltipCompuesto(g), ...ejesTiempo(g, fechas, false),
+    series: ss.map((s, i) => ({
+      name: s.nombre, type: "line", data: alinear(s.datos, fechas), connectNulls: true, showSymbol: fechas.length <= 40, symbolSize: 5,
+      lineStyle: { width: 2.2, color: s.color || cols[i % cols.length] }, itemStyle: { color: s.color || cols[i % cols.length] },
+      markLine: i === 0 ? referencias(g, todos) : undefined,
+    })),
+  };
+}
+
+function htmlBloquesGraficos(ids) {
+  return (ids || []).map((id) => {
+    const g = (estado.indice.graficos || []).find((x) => x.id === id);
+    if (!g) return "";
+    const rangos = CONFIGURABLE_EN_TIEMPO(g)
+      ? `<div class="rangos" role="group" aria-label="Rango de tiempo">${RANGOS.map(([etq, a]) => `<button type="button" data-anios="${a ?? ""}" aria-pressed="${a === 5}">${etq}</button>`).join("")}</div>`
+      : "";
+    return `<section class="bloque" id="g-${esc(g.id)}" aria-labelledby="h-${esc(g.id)}">
+      <div class="bloque-cabecera"><h2 id="h-${esc(g.id)}">${esc(g.nombre)}</h2>${rangos}</div>
+      <p class="bloque-nota">${esc(g.definicion)}</p>
+      <p class="callout" hidden></p>
+      <div class="grafico-compuesto" data-g="${esc(g.id)}" role="img" aria-label="${esc(g.nombre)}"></div>
+    </section>`;
+  }).join("");
+}
+
+async function activarCompuestos(idRender) {
+  const contenedores = [...document.querySelectorAll(".grafico-compuesto")];
+  await Promise.all(contenedores.map(async (el) => {
+    let g;
+    try { g = await cargarCompuesto(el.dataset.g); } catch (e) { el.textContent = "No se pudo cargar este gráfico."; return; }
+    if (idRender !== estado.renderId || !el.isConnected) return;
+    const seccion = el.closest("section");
+    let anios = g.frecuencia === "A" ? null : 5;
+    el.style.height = g.tipo === "ranking" ? `${g.filas.length * 22 + 30}px` : "380px";
+    if (g.callout) { const c = seccion.querySelector(".callout"); c.textContent = g.callout; c.hidden = false; }
+    const grafico = echarts.init(el, null, { renderer: "canvas" });
+    grafico.setOption(opcionCompuesta(g, anios));
+    const observador = new ResizeObserver(() => grafico.resize());
+    observador.observe(el);
+    estado.graficos.push({ grafico, observador });
+    seccion.querySelectorAll(".rangos button").forEach((b) =>
+      b.addEventListener("click", () => {
+        anios = b.dataset.anios ? Number(b.dataset.anios) : null;
+        seccion.querySelectorAll(".rangos button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        grafico.setOption(opcionCompuesta(g, anios), true);
+      })
+    );
+  }));
+}
+
+function htmlTablaRevisiones(filas, columnas) {
+  if (!filas.length) return '<p class="bloque-nota">Sin revisiones registradas todavía.</p>';
+  return `<div class="tabla-ancha"><table class="tabla-datos izq"><thead><tr>${columnas.map((c) => `<th scope="col">${esc(c)}</th>`).join("")}</tr></thead>
+    <tbody>${filas.map((f) => `<tr>${columnas.map((c) => `<td>${esc(f[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+async function activarRevisiones(idRender) {
+  const cont = document.getElementById("revisiones-contenido");
+  if (!cont) return;
+  let r;
+  try { r = await cargarRevisiones(); } catch (e) { cont.textContent = "No se pudieron cargar las revisiones."; return; }
+  if (idRender !== estado.renderId) return;
+  cont.innerHTML = `<h2>Resumen (últimos 90 días)</h2>${htmlTablaRevisiones(r.resumen, ["Detectado", "Serie", "Períodos revisados", "Desde", "Hasta", "Mayor cambio (%)"])}
+    <h2>Los 15 cambios individuales más grandes</h2>${htmlTablaRevisiones(r.mayores, ["Serie", "Período", "Valor anterior", "Valor nuevo", "Cambio (%)", "Detectado"])}`;
+}
+
+function htmlPestana(id) {
+  const tema = estado.indice.temas.find((t) => t.id === id), seccion = (estado.indice.secciones || []).find((t) => t.id === id);
+  const entrada = tema || seccion;
+  const series = tema ? estado.indice.series.filter((s) => s.tema === id) : (seccion.series || []).map(serieDe).filter(Boolean);
+  const cabecera = seccion ? `<h1 class="detalle-titulo">${esc(seccion.nombre)}</h1><p class="detalle-def">${esc(seccion.intro || "")}</p>` : "";
+  // En un tema con muchos indicadores: primero los principales, luego los gráficos de análisis y al final el resto.
+  const principalesIds = tema ? [...new Set([tema.serie, ...Object.values(tema.vistas || {}), ...tema.secundarias])] : series.map((s) => s.id);
+  const principales = principalesIds.map(serieDe).filter(Boolean);
+  const otros = series.filter((s) => !principalesIds.includes(s.id));
+  const tarjetas = principales.length ? `<div class="rejilla">${principales.map(htmlTarjetaSerie).join("")}</div>` : "";
+  const masIndicadores = otros.length ? `<h2 class="subtitulo">Más indicadores</h2><div class="rejilla">${otros.map(htmlTarjetaSerie).join("")}</div>` : "";
+  const extra = seccion && seccion.tipo === "revisiones" ? '<section class="bloque" id="revisiones-contenido" aria-live="polite">Cargando…</section>' : "";
+  return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
+}
+
 // ---------- Render ----------
 function rutaActual() {
-  const r = location.hash.replace(/^#\/?/, "");
-  if (r.startsWith("serie/")) {
-    const serie = serieDe(decodeURIComponent(r.slice(6)));
+  const partes = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  if (partes[0] === "serie") {
+    const serie = serieDe(partes[1]);
     if (serie) return { tipo: "serie", serie, tema: serie.tema };
   }
-  if (r === "estado") return { tipo: "estado", tema: null };
-  const tema = estado.indice.temas.some((t) => t.id === r) ? r : "";
-  return { tipo: "tema", tema };
+  if (partes[0] === "estado") return { tipo: "estado", tema: null };
+  if (todasLasPestanas().some((t) => t.id === partes[0])) return { tipo: "tab", tema: partes[0], grafico: partes[1] || null };
+  return { tipo: "home", tema: "" };
 }
 
 async function render() {
@@ -539,21 +797,26 @@ async function render() {
     cuerpo = detalle ? htmlDetalle(ruta.serie, detalle) : `<p class="error">No se pudo cargar esta serie. <a href="#/${esc(ruta.tema)}">Volver</a></p>`;
   } else if (ruta.tipo === "estado") {
     cuerpo = htmlEstado();
-  } else if (ruta.tema === "") {
+  } else if (ruta.tipo === "home") {
     cuerpo = `${htmlLinea()}${htmlSelectorVista()}<div class="rejilla">${estado.indice.temas.map(htmlTarjetaTema).join("")}</div>${htmlComentarios()}`;
   } else {
-    const series = estado.indice.series.filter((s) => s.tema === ruta.tema);
-    cuerpo = `<div class="rejilla">${series.map(htmlTarjetaSerie).join("")}</div>`;
+    cuerpo = htmlPestana(ruta.tema);
   }
   limpiarGraficos();
   document.getElementById("app").innerHTML = `${htmlEncabezado()}
-    <main class="contenedor" id="contenido">${htmlPestanas(ruta.tema)}${cuerpo}</main>${htmlPie()}`;
+    <main class="contenedor" id="contenido">${htmlCinta()}${htmlPestanas(ruta.tema)}${cuerpo}</main>${htmlPie()}`;
   document.title = ruta.tipo === "estado" ? "Estado de los datos · Monitor Chile" : ruta.tipo === "serie"
     ? `${ruta.serie.nombre}: ${fmtValor(ruta.serie, ruta.serie.ultimo.valor)} (${ruta.serie.ultimo.etiqueta}) · Monitor Chile`
     : "Monitor Chile · La economía chilena en datos";
 
   document.querySelectorAll(".mini").forEach((el) => dibujarMini(el, serieDe(el.dataset.serie)));
   if (detalle) activarDetalle(ruta.serie, detalle);
+  if (ruta.tipo === "tab") {
+    // El salto al gráfico pedido se hace cuando ya se dibujaron todos: antes, las alturas aún no estaban fijadas.
+    Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
+      if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
+    });
+  }
   document.getElementById("cambiar-tema").addEventListener("click", cambiarTema);
   activarBuscador();
   document.querySelectorAll(".vistas button").forEach((b) =>
@@ -602,7 +865,7 @@ async function iniciar() {
     if (e.key === "/" && !escribiendo && !e.metaKey && !e.ctrlKey) { e.preventDefault(); document.getElementById("buscar")?.focus(); }
   });
   render();
-  window.addEventListener("hashchange", () => render().then(() => window.scrollTo({ top: 0 })));
+  window.addEventListener("hashchange", () => render().then(() => { if (!/^#\/[^/]+\/[^/]+/.test(location.hash) || location.hash.startsWith("#/serie/")) window.scrollTo({ top: 0 }); }));
   setInterval(revisarDatosNuevos, INTERVALO_REVISION_MS);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) revisarDatosNuevos(); });
 }

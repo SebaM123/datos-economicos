@@ -24,9 +24,13 @@ import pandas as pd
 
 from calendario import calendario_del_mes, hoy_chile
 from comentarios import COMENTARIOS
-from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES, REVISIONES_PATH
+from monitor_graficos import GRAFICOS
+from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES, REVISIONES_PATH, OCDE_PAISES_PATH
 from series_utils import (
+    calcular_anio_movil,
+    calcular_imacec_tendencia,
     calcular_interanual_mensual,
+    resumir_revisiones,
     calcular_ipc_componentes_interanual,
     calcular_masa_salarial_real,
     calcular_total_exportaciones,
@@ -41,9 +45,11 @@ MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "
 # "secundarias" = indicadores que aparecen como filas pequeñas bajo el gráfico.
 TEMAS = [
     {"id": "actividad", "nombre": "Actividad", "icono": "trending-up", "serie": "imacec_interanual",
+     "graficos": ["contribuciones_imacec", "imacec_total_minero", "imacec_sa_niveles", "pib_tendencia"],
      "vistas": {"ytd": "imacec_acumulado_anio", "12m": "imacec_anio_movil"},
      "secundarias": ["imacec_sa_mensual", "imacec_minero_interanual", "imacec_no_minero_interanual"]},
     {"id": "precios", "nombre": "Precios", "icono": "tag", "serie": "ipc_mensual",
+     "graficos": ["ipc_subyacente", "ipc_aperturas", "ipc_vs_deflactor"],
      "vistas": {"ytd": "ipc_acumulado_anio", "12m": "ipc_interanual"},
      "secundarias": ["ipc_interanual", "ipc_subyacente_interanual", "ipp_interanual"]},
     {"id": "dolar", "nombre": "Dólar y mercado", "icono": "dollar", "serie": "tipo_cambio",
@@ -53,12 +59,35 @@ TEMAS = [
      "vistas": {"ytd": "tpm_cambio_anio", "12m": "tpm_cambio_12m"},
      "secundarias": ["eof_inflacion_12m"]},
     {"id": "empleo", "nombre": "Empleo", "icono": "briefcase", "serie": "desempleo",
+     "graficos": ["masa_salarial_aportes", "remuneraciones_inflacion", "desempleo_movil"],
      "vistas": {"ytd": "desempleo_cambio_anio", "12m": "desempleo_cambio_12m"},
      "secundarias": ["remuneraciones_real_interanual", "masa_salarial_real_interanual"]},
     {"id": "comercio", "nombre": "Comercio exterior", "icono": "globe", "serie": "exportaciones_total_interanual",
+     "graficos": ["exportaciones_sectores_anio_movil"],
      "vistas": {"ytd": "exportaciones_acumulado_anio", "12m": "exportaciones_anio_movil"},
      "secundarias": ["exportaciones_mineria_interanual", "exportaciones_industrial_interanual",
                      "exportaciones_agropecuario_interanual"]},
+    {"id": "eeuu", "nombre": "Estados Unidos", "icono": "flag", "serie": "eeuu_desempleo",
+     "graficos": ["pib_pc_chile_eeuu", "pib_estados_eeuu"],
+     "secundarias": ["eeuu_inflacion", "eeuu_ipp", "eeuu_pib_total"]},
+    {"id": "desigualdad", "nombre": "Desigualdad", "icono": "scale", "serie": "chile_gini",
+     "graficos": ["gini_chile_eeuu", "gini_estados_eeuu"], "secundarias": ["eeuu_gini"]},
+]
+
+# Pestañas que no son un tema con tarjetas sino una sección de gráficos/tablas.
+SECCIONES = [
+    {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
+     "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
+              "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "
+              "del Monitor (por ejemplo, el desempleo acá es una estimación armonizada de la OIT, no la tasa del INE)."},
+    {"id": "proyecciones", "nombre": "Proyecciones", "icono": "trending-up",
+     "series": ["eee_pib_actual", "eee_pib_proximo", "eof_inflacion_12m"],
+     "intro": "Proyecciones estadísticas a 6 meses (ARIMA sobre el historial de cada serie, sin otras variables): no son pronósticos oficiales de "
+              "nadie. No se proyectan el dólar (casi un camino aleatorio) ni la TPM (la fija un comité). Para crecimiento esperado, la referencia "
+              "más confiable es la Encuesta de Expectativas Económicas (EEE) del Banco Central, que incorpora criterio de mercado."},
+    {"id": "revisiones", "nombre": "Revisiones", "icono": "tag", "tipo": "revisiones",
+     "intro": "Las fuentes oficiales (Banco Central, INE) revisan cifras de meses anteriores cada vez que publican. Los gráficos del Monitor usan "
+              "siempre el valor revisado (el vigente hoy), pero el valor anterior no se descarta: queda archivado acá con la fecha en que se detectó."},
 ]
 
 
@@ -130,6 +159,34 @@ def _col(df: pd.DataFrame, columna: str) -> pd.DataFrame:
     return df[["fecha", columna]].rename(columns={columna: "valor"}).dropna().reset_index(drop=True)
 
 
+def _escala(df: pd.DataFrame, factor: float) -> pd.DataFrame:
+    out = df.copy()
+    out["valor"] = out["valor"] * factor
+    return out
+
+
+def _variacion_periodos(df: pd.DataFrame, periodos: int) -> pd.DataFrame:
+    out = df.copy()
+    out["valor"] = out["valor"].pct_change(periodos) * 100
+    return out.dropna().reset_index(drop=True)
+
+
+def _tpm_real(h: pd.DataFrame) -> pd.DataFrame:
+    """TPM menos la inflación interanual oficial de cada mes (TPM vigente a fin de ese mes): TPM real ex-post.
+    Positivo = política monetaria restrictiva; negativo = expansiva."""
+    ipc, tpm = _raw(h, "ipc_v12"), _raw(h, "tpm")
+    izq = ipc.assign(fin_mes=ipc["fecha"] + pd.offsets.MonthEnd(0)).sort_values("fin_mes")
+    m = pd.merge_asof(izq, tpm.rename(columns={"fecha": "fecha_tpm", "valor": "tpm"}), left_on="fin_mes", right_on="fecha_tpm")
+    m["valor"] = m["tpm"] - m["valor"]
+    return m[["fecha", "valor"]].dropna().sort_values("fecha").reset_index(drop=True)
+
+
+def _simple(id, nombre, tema, datos, unidad="", frecuencia="M", delta="rel", polaridad="neutral", firmado=False,
+            fuente="Banco Central", definicion="", clave_def=None, **extra):
+    return dict(id=id, nombre=nombre, tema=tema, unidad=unidad, frecuencia=frecuencia, delta=delta, polaridad=polaridad,
+                firmado=firmado, fuente=fuente, definicion=definicion or DEFINICIONES.get(clave_def or id, ""), datos=datos, **extra)
+
+
 # Registro de series del Monitor. `datos(h)` devuelve un DataFrame fecha/valor.
 #   frecuencia: M mensual, T trimestral, D diaria/irregular (se muestra la fecha exacta)
 #   delta: "pp" = diferencia en puntos (series que ya están en %), "rel" = % de cambio (niveles)
@@ -156,7 +213,8 @@ SERIES = [
          datos=lambda h: calcular_interanual_mensual(h, "imacec_no_minero")),
     dict(id="eee_pib_actual", nombre="Expectativa de crecimiento del año", tema="actividad", unidad="%", frecuencia="D",
          delta="pp", polaridad="sube_bueno", firmado=False, fuente="Banco Central (EEE)",
-         definicion=DEFINICIONES.get("eee_pib_actual", ""), datos=lambda h: _raw(h, "eee_pib_actual")),
+         definicion="Crecimiento del PIB esperado para el año en curso: mediana de la Encuesta de Expectativas Económicas (EEE) del Banco Central, "
+                    "es decir el consenso de mercado (bancos, AFPs, consultoras), no un modelo estadístico. Es la referencia más confiable de crecimiento esperado.", datos=lambda h: _raw(h, "eee_pib_actual")),
     # --- Precios
     dict(id="ipc_mensual", nombre="IPC var. mensual", tema="precios", unidad="%", frecuencia="M", delta="pp",
          polaridad="sube_malo", firmado=True, fuente="INE",
@@ -278,16 +336,125 @@ SERIES = [
          datos=lambda h: calcular_interanual_mensual(h, "exportaciones_agropecuario")),
 ]
 
+SERIES += [
+    # --- Actividad
+    _simple("imacec_indice", "IMACEC (índice)", "actividad", lambda h: _raw(h, "imacec"), unidad="índice", polaridad="sube_bueno",
+            decimales=1, clave_def="imacec"),
+    _simple("pib_chile", "PIB nominal trimestral", "actividad", lambda h: _escala(_raw(h, "pib_chile"), 1 / 1000), unidad="$",
+            frecuencia="T", polaridad="sube_bueno", decimales=1, prefijo="$", sufijo=" billones",
+            definicion="Valor de todos los bienes y servicios producidos en Chile en el trimestre, a precios corrientes (no descuenta la "
+                       "inflación), desestacionalizado. En billones de pesos (millones de millones)."),
+    _simple("pib_mineria", "PIB minería (real, mensual)", "actividad", lambda h: _escala(_raw(h, "pib_mineria"), 1 / 1000),
+            unidad="$", polaridad="sube_bueno", decimales=2, prefijo="$", sufijo=" billones",
+            definicion="PIB del sector minero (principalmente cobre) en volumen, desestacionalizado. En billones de pesos de 2018."),
+    _simple("pib_mineria_interanual", "PIB minería interanual", "actividad", lambda h: calcular_interanual_mensual(h, "pib_mineria"),
+            unidad="%", delta="pp", polaridad="sube_bueno", firmado=True, definicion="Variación interanual del PIB minero real."),
+    _simple("pib_no_minero", "PIB no minero (real, trimestral)", "actividad", lambda h: _escala(_raw(h, "pib_no_minero"), 1 / 1000),
+            unidad="$", frecuencia="T", polaridad="sube_bueno", decimales=1, prefijo="$", sufijo=" billones",
+            definicion="PIB sin minería en volumen, desestacionalizado: cómo le va al resto de la economía. En billones de pesos de 2018."),
+    _simple("pib_no_minero_interanual", "PIB no minero interanual", "actividad",
+            lambda h: _variacion_periodos(_raw(h, "pib_no_minero"), 4), unidad="%", frecuencia="T", delta="pp",
+            polaridad="sube_bueno", firmado=True, definicion="Variación interanual (4 trimestres) del PIB no minero real."),
+    _simple("eee_pib_proximo", "Expectativa de crecimiento del año siguiente", "actividad", lambda h: _raw(h, "eee_pib_proximo"),
+            unidad="%", frecuencia="D", delta="pp", polaridad="sube_bueno", fuente="Banco Central (EEE)"),
+    _simple("chile_pib_per_capita_ppa", "PIB per cápita de Chile (PPA)", "actividad", lambda h: _raw(h, "chile_pib_per_capita_ppa"),
+            unidad="US$", frecuencia="A", polaridad="sube_bueno", decimales=0, prefijo="US$", fuente="FMI vía Banco Central",
+            definicion="PIB por persona en dólares ajustados por paridad de poder de compra (FMI-WEO). Las cifras del año en curso y siguientes son proyecciones del FMI."),
+    _simple("chile_poblacion", "Población de Chile", "actividad", lambda h: _escala(_raw(h, "chile_poblacion"), 1e-6), unidad="personas",
+            frecuencia="A", decimales=2, sufijo=" millones", fuente="Banco Mundial",
+            definicion="Población total de Chile (dato anual del Banco Mundial). Se usa para calcular el crecimiento per cápita del IMACEC."),
+    # --- Precios
+    _simple("ipc_sae_mensual", "IPC SAE var. mensual", "precios", lambda h: _raw(h, "ipc_sae_variacion_mensual"), unidad="%",
+            delta="pp", polaridad="sube_malo", firmado=True, fuente="INE", clave_def="ipc_sae_variacion_mensual"),
+    _simple("ipc_bienes_interanual", "IPC bienes sin volátiles interanual", "precios",
+            lambda h: _raw(h, "ipc_bienes_sin_volatiles_v12"), unidad="%", delta="pp", polaridad="sube_malo", firmado=True, meta=3,
+            fuente="INE / Banco Central", definicion="Inflación interanual de los bienes sin volátiles (más ligada al dólar)."),
+    _simple("ipc_servicios_interanual", "IPC servicios sin volátiles interanual", "precios",
+            lambda h: _raw(h, "ipc_servicios_sin_volatiles_v12"), unidad="%", delta="pp", polaridad="sube_malo", firmado=True, meta=3,
+            fuente="INE / Banco Central", definicion="Inflación interanual de los servicios sin volátiles (más ligada a salarios)."),
+    _simple("ipc_volatiles_interanual", "IPC volátiles interanual", "precios", lambda h: _raw(h, "ipc_volatiles_v12"), unidad="%",
+            delta="pp", polaridad="sube_malo", firmado=True, fuente="INE / Banco Central",
+            definicion="Inflación interanual de los componentes de precio más cambiante (alimentos frescos, combustibles, etc.)."),
+    _simple("pib_deflactor", "Deflactor del PIB (índice)", "precios", lambda h: _raw(h, "pib_deflactor"), unidad="índice",
+            frecuencia="T", decimales=1),
+    _simple("inflacion_deflactor_interanual", "Inflación por deflactor del PIB", "precios",
+            lambda h: _variacion_periodos(_raw(h, "pib_deflactor"), 4), unidad="%", frecuencia="T", delta="pp", polaridad="sube_malo",
+            firmado=True, definicion="Variación interanual del deflactor del PIB: inflación de todo lo que produce el país, no solo lo que "
+                                     "consumen los hogares; suele reaccionar más al precio del cobre."),
+    # --- Tasas
+    _simple("tpm_real", "TPM real (ex-post)", "tasas", _tpm_real, unidad="pp", delta="pp", firmado=True, decimales=1,
+            fuente="Banco Central (cálculo propio)",
+            definicion="TPM menos la inflación interanual del mes. Positivo = política monetaria restrictiva; negativo = expansiva."),
+    _simple("eof_tpm_proxima_reunion", "Expectativa de TPM próxima reunión", "tasas", lambda h: _raw(h, "eof_tpm_proxima_reunion"),
+            unidad="%", frecuencia="D", delta="pp", decimales=2, fuente="Banco Central (EOF)"),
+    # --- Dólar y mercado
+    _simple("eof_tipo_cambio_7d", "Expectativa de dólar a 7 días", "dolar", lambda h: _raw(h, "eof_tipo_cambio_7d"), unidad="CLP",
+            frecuencia="D", decimales=0, fuente="Banco Central (EOF)"),
+    _simple("ipsa_indice_real", "IPSA (índice, datos discontinuos)", "dolar", lambda h: _raw(h, "ipsa_indice_real"), unidad="puntos",
+            frecuencia="D", decimales=0, fuente="Yahoo Finance", huecos=45, alerta=False),
+    # --- Empleo
+    _simple("fuerza_trabajo", "Fuerza de trabajo", "empleo", lambda h: _raw(h, "fuerza_trabajo"), unidad="personas", decimales=0,
+            sufijo=" mil", fuente="INE"),
+    _simple("ocupados", "Ocupados", "empleo", lambda h: _raw(h, "ocupados"), unidad="personas", polaridad="sube_bueno", decimales=0,
+            sufijo=" mil", fuente="INE"),
+    _simple("desocupados", "Desocupados", "empleo", lambda h: _raw(h, "desocupados"), unidad="personas", polaridad="sube_malo",
+            decimales=0, sufijo=" mil", fuente="INE"),
+    # --- Comercio exterior
+    _simple("exportaciones_total_mensual", "Exportaciones de bienes (mensual)", "comercio", lambda h: calcular_total_exportaciones(h),
+            unidad="US$", polaridad="sube_bueno", decimales=0, prefijo="US$", sufijo=" MM",
+            definicion="Suma de minería, agropecuario-silvícola-pesquero e industrial, valor FOB mensual, en millones de dólares. No está "
+                       "desestacionalizado: compara contra el mismo mes del año anterior, no contra el mes previo."),
+    _simple("exportaciones_mineria", "Exportaciones mineras (mensual)", "comercio", lambda h: _raw(h, "exportaciones_mineria"),
+            unidad="US$", polaridad="sube_bueno", decimales=0, prefijo="US$", sufijo=" MM"),
+    _simple("exportaciones_agropecuario", "Exportaciones agropecuarias (mensual)", "comercio",
+            lambda h: _raw(h, "exportaciones_agropecuario"), unidad="US$", polaridad="sube_bueno", decimales=0, prefijo="US$", sufijo=" MM"),
+    _simple("exportaciones_industrial", "Exportaciones industriales (mensual)", "comercio", lambda h: _raw(h, "exportaciones_industrial"),
+            unidad="US$", polaridad="sube_bueno", decimales=0, prefijo="US$", sufijo=" MM"),
+    _simple("exportaciones_total_anio_movil", "Exportaciones de bienes, año móvil", "comercio",
+            lambda h: calcular_anio_movil(calcular_total_exportaciones(h)), unidad="US$", polaridad="sube_bueno", decimales=0,
+            prefijo="US$", sufijo=" MM",
+            definicion="Suma de los últimos 12 meses de exportaciones de bienes, recalculada cada mes: quita la estacionalidad."),
+    # --- Estados Unidos
+    _simple("eeuu_desempleo", "EE.UU.: tasa de desempleo", "eeuu", lambda h: _raw(h, "eeuu_desempleo"), unidad="%", delta="pp",
+            polaridad="sube_malo", fuente="Banco Central (BLS)", definicion="Tasa de desempleo de Estados Unidos."),
+    _simple("eeuu_inflacion", "EE.UU.: inflación interanual", "eeuu", lambda h: _raw(h, "eeuu_inflacion"), unidad="%", delta="pp",
+            polaridad="sube_malo", firmado=True, fuente="Banco Central (BLS)", definicion="Variación interanual del IPC de Estados Unidos."),
+    _simple("eeuu_ipp", "EE.UU.: IPP interanual", "eeuu", lambda h: _raw(h, "eeuu_ipp"), unidad="%", delta="pp", polaridad="sube_malo",
+            firmado=True, fuente="Banco Central (BLS)",
+            definicion="Variación en 12 meses del Índice de Precios al Productor de Estados Unidos (todos los commodities)."),
+    _simple("eeuu_pib_total", "EE.UU.: PIB total (nominal)", "eeuu", lambda h: _escala(_raw(h, "eeuu_pib_total"), 1 / 1000), unidad="US$",
+            frecuencia="T", polaridad="sube_bueno", decimales=1, prefijo="US$", sufijo=" billones", fuente="FRED",
+            definicion="PIB de Estados Unidos en dólares corrientes, tasa anual desestacionalizada. En billones de dólares (millones de millones)."),
+    _simple("eeuu_pib_per_capita", "EE.UU.: PIB per cápita (PPA)", "eeuu", lambda h: _escala(_raw(h, "eeuu_pib_per_capita"), 1000),
+            unidad="US$", frecuencia="A", polaridad="sube_bueno", decimales=0, prefijo="US$", fuente="FMI vía Banco Central"),
+    # --- Desigualdad
+    _simple("chile_gini", "Chile: índice de Gini", "desigualdad", lambda h: _raw(h, "chile_gini"), unidad="índice", frecuencia="A",
+            delta="pp", decimales=1, fuente="Banco Mundial"),
+    _simple("eeuu_gini", "EE.UU.: índice de Gini", "desigualdad", lambda h: _raw(h, "eeuu_gini"), unidad="índice", frecuencia="A",
+            delta="pp", decimales=1, fuente="Banco Mundial"),
+]
+
+
 # Antigüedad máxima esperada del último dato (días desde su fecha) antes de considerar la serie "demorada".
 # Se calcula como el peor caso entre dos publicaciones: la fecha de un dato es el día 1 de su mes, y el siguiente
 # se publica cerca de 2 meses después (IPC ~día 8, IPP ~día 24, IMACEC 1er día hábil, ENE ~día 29, etc.) + margen.
+MAX_DIAS_EXACTO = {
+    "eeuu_desempleo": 50, "eeuu_inflacion": 110, "eeuu_ipp": 110, "eeuu_pib_total": 210, "eeuu_pib_per_capita": 800,
+    "eeuu_gini": 1500, "chile_gini": 1500, "chile_poblacion": 800, "chile_pib_per_capita_ppa": 800,
+    "pib_chile": 245, "pib_no_minero": 245, "pib_deflactor": 245, "pib_mineria": 180, "tpm_real": 80,
+    "ipsa_indice_real": 7, "sp500": 7, "tipo_cambio": 7, "tpm": 7,
+}
 MAX_DIAS_POR_SERIE = {
     "imacec": 100, "ipc": 80, "ipp": 92, "eee": 45, "eof": 45, "desempleo": 97, "remuneraciones": 97,
     "masa_salarial": 97, "exportaciones": 80, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "tpm": 7,
+    "pib_tendencia": 100, "inflacion_deflactor": 245, "pib_mineria": 180, "pib_no_minero": 245,
+    "fuerza_trabajo": 97, "ocupados": 97, "desocupados": 97,
 }
 
 
 def _max_dias(spec_id: str) -> int:
+    if spec_id in MAX_DIAS_EXACTO:
+        return MAX_DIAS_EXACTO[spec_id]
     for prefijo, dias in MAX_DIAS_POR_SERIE.items():
         if spec_id.startswith(prefijo):
             return dias
@@ -295,16 +462,24 @@ def _max_dias(spec_id: str) -> int:
 
 
 # Cuántos puntos llevan las mini-series de las tarjetas (≈3 años mensuales, ≈6 meses diarios)
-PUNTOS_MINI = {"M": 36, "T": 16, "D": 130}
+PUNTOS_MINI = {"M": 36, "T": 16, "D": 130, "A": 20}
 
 
 def _redondear(v: float) -> float:
     return round(float(v), 4)
 
 
-def _filas(df: pd.DataFrame) -> list[list]:
+def _filas(df: pd.DataFrame, huecos_dias: int | None = None) -> list[list]:
+    """[fecha, valor]. Con `huecos_dias`, entre dos datos más separados que eso se intercala un null para que el
+    gráfico corte la línea en vez de unir con una recta dos fechas que no tienen datos entre medio."""
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["valor"])
-    return [[f.strftime("%Y-%m-%d"), _redondear(v)] for f, v in zip(df["fecha"], df["valor"])]
+    filas, anterior = [], None
+    for f, v in zip(df["fecha"], df["valor"]):
+        if huecos_dias and anterior is not None and (f - anterior).days > huecos_dias:
+            filas.append([(anterior + (f - anterior) / 2).strftime("%Y-%m-%d"), None])
+        filas.append([f.strftime("%Y-%m-%d"), _redondear(v)])
+        anterior = f
+    return filas
 
 
 def _etiqueta_periodo(fecha: pd.Timestamp, frecuencia: str) -> str:
@@ -312,6 +487,8 @@ def _etiqueta_periodo(fecha: pd.Timestamp, frecuencia: str) -> str:
         return f"{MESES_CORTOS[fecha.month - 1]} {fecha.year}"
     if frecuencia == "T":
         return f"T{(fecha.month - 1) // 3 + 1} {fecha.year}"
+    if frecuencia == "A":
+        return str(fecha.year)
     return fecha.strftime("%d-%m-%Y")
 
 
@@ -351,6 +528,9 @@ def _resumen(spec: dict, df: pd.DataFrame) -> dict:
         "fuente": spec["fuente"],
         "tipo": _tipo_grafico(spec),
         "max_dias": _max_dias(spec["id"]),
+        "alerta": spec.get("alerta", True),
+        "prefijo": spec.get("prefijo", ""),
+        "sufijo": spec.get("sufijo", ""),
         "definicion": spec["definicion"],
         "ultimo": {"fecha": ultimo["fecha"].strftime("%Y-%m-%d"), "valor": _redondear(ultimo["valor"]),
                    "etiqueta": _etiqueta_periodo(ultimo["fecha"], frecuencia)},
@@ -359,7 +539,7 @@ def _resumen(spec: dict, df: pd.DataFrame) -> dict:
             "etiqueta": _etiqueta_periodo(previo["fecha"], frecuencia)},
         "delta": None if delta is None else _redondear(delta),
         "tono": _tono(delta, spec["polaridad"], 0.05),
-        "mini": _filas(df.tail(PUNTOS_MINI.get(frecuencia, 36))),
+        "mini": _filas(df.tail(PUNTOS_MINI.get(frecuencia, 36)), spec.get("huecos")),
     }
 
 
@@ -465,18 +645,44 @@ def generar() -> None:
                 "id": spec["id"], "nombre": spec["nombre"], "tema": spec["tema"], "unidad": spec["unidad"],
                 "frecuencia": spec["frecuencia"], "fuente": spec["fuente"], "definicion": spec["definicion"],
                 "decimales": spec.get("decimales", 1), "firmado": spec["firmado"], "tipo": _tipo_grafico(spec),
-                "meta": spec.get("meta"), "revisiones": _revisiones_de(spec["id"], revisiones),
-                "datos": _filas(df),
+                "prefijo": spec.get("prefijo", ""), "sufijo": spec.get("sufijo", ""), "meta": spec.get("meta"), "revisiones": _revisiones_de(spec["id"], revisiones),
+                "datos": _filas(df, spec.get("huecos")),
             },
         )
 
     disponibles = {r["id"] for r in resumenes}
+
+    graficos = []
+    for g in GRAFICOS:
+        try:
+            carga = g["build"](h)
+        except Exception as error:  # un gráfico que falla no debe tumbar el resto del Monitor
+            print(f"  (gráfico {g['id']} falló: {type(error).__name__}: {error})")
+            carga = None
+        if not carga:
+            print(f"  (sin datos para el gráfico {g['id']}, se omite)")
+            continue
+        cabecera = {k: g[k] for k in ("id", "nombre", "tipo", "definicion", "unidad", "decimales", "frecuencia")}
+        cabecera["meta"] = g.get("meta")
+        _escribir(SALIDA / "graficos" / f"{g['id']}.json", {**cabecera, **carga})
+        graficos.append({**{k: cabecera[k] for k in ("id", "nombre", "tipo", "definicion", "frecuencia")}, "pestana": g["pestana"]})
+    ids_graficos = {g["id"] for g in graficos}
+
     temas = []
     for tema in TEMAS:
         if tema["serie"] not in disponibles:
             continue
-        temas.append({**tema, "secundarias": [s for s in tema["secundarias"] if s in disponibles]})
-    _escribir(SALIDA / "indice.json", {"temas": temas, "series": resumenes})
+        temas.append({**tema, "secundarias": [s for s in tema["secundarias"] if s in disponibles],
+                      "graficos": [g for g in tema.get("graficos", []) if g in ids_graficos]})
+    secciones = []
+    for seccion in SECCIONES:
+        secciones.append({**seccion, "series": [s for s in seccion.get("series", []) if s in disponibles],
+                          "graficos": [g["id"] for g in graficos if g["pestana"] == seccion["id"]]})
+    _escribir(SALIDA / "indice.json", {"temas": temas, "secciones": secciones, "graficos": graficos, "series": resumenes})
+
+    if REVISIONES_PATH.exists():
+        resumen_rev, mayores_rev = resumir_revisiones(pd.read_csv(REVISIONES_PATH), NOMBRES_SERIES)
+        _escribir(SALIDA / "revisiones.json", {"resumen": resumen_rev.to_dict("records"), "mayores": mayores_rev.to_dict("records")})
 
     _escribir(SALIDA / "calendario.json", construir_calendario(h, hoy))
 
