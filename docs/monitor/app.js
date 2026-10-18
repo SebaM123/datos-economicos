@@ -1,6 +1,7 @@
 // Monitor Chile: página estática que dibuja los JSON de data/ (generados por app/exportar_monitor.py).
 // No calcula indicadores: solo formatea y grafica lo que ya viene calculado.
 
+const VISTAS = [["ultimo", "Último dato"], ["ytd", "En lo que va del año"], ["12m", "Últimos 12 meses"]];
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const INTERVALO_REVISION_MS = 5 * 60 * 1000;
 
@@ -33,6 +34,7 @@ function fmtValor(serie, valor) {
   const signo = redondeado < 0 ? "−" : serie.firmado && redondeado > 0 ? "+" : "";
   const txt = signo + numero(Math.abs(redondeado), serie.decimales);
   if (serie.unidad === "%") return txt + "%";
+  if (serie.unidad === "pp") return txt + " p.p.";
   if (serie.unidad === "CLP") return signo + "$" + numero(Math.abs(redondeado), serie.decimales);
   return txt;
 }
@@ -49,7 +51,7 @@ const NOMBRE_TONO = { mejor: "Mejor", peor: "Peor", igual: "Igual" };
 const claseTono = (t) => `tono-${t ?? "null"}`;
 
 // ---------- Estado ----------
-const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, renderId: 0 };
+const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, renderId: 0, vista: "ultimo" };
 
 async function pedirJSON(ruta, version) {
   const resp = await fetch(`data/${ruta}?v=${encodeURIComponent(version || "")}`, { cache: "no-cache" });
@@ -120,14 +122,84 @@ function etiquetaFecha(iso, frecuencia) {
   return `${d}-${m}-${a}`;
 }
 
+// ---------- Estado de los datos y búsqueda ----------
+const norm = (t) => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const diasDesde = (iso) => Math.floor((Date.now() - new Date(iso + "T00:00:00Z").getTime()) / 86400000);
+
+// Las series de las vistas "en el año" / "12 meses" se calculan de otras: contarlas aparte duplicaría los avisos.
+function idsDerivados() {
+  const base = new Set(estado.indice.temas.flatMap((t) => [t.serie, ...t.secundarias]));
+  return new Set(estado.indice.temas.flatMap((t) => Object.values(t.vistas || {})).filter((id) => !base.has(id)));
+}
+const seriesBase = () => { const d = idsDerivados(); return estado.indice.series.filter((s) => !d.has(s.id)); };
+const seriesDemoradas = () => seriesBase().filter((s) => diasDesde(s.ultimo.fecha) > s.max_dias);
+const horasDesdeGenerado = () => (Date.now() - new Date(estado.meta.generado).getTime()) / 3600000;
+const pipelineAtrasado = () => horasDesdeGenerado() > 72;
+
+function buscar(texto) {
+  const tokens = norm(texto).split(/\s+/).filter(Boolean);
+  if (!tokens.length) return [];
+  const temas = Object.fromEntries(estado.indice.temas.map((t) => [t.id, t.nombre]));
+  const resultados = [];
+  for (const s of estado.indice.series) {
+    const nombre = norm(s.nombre);
+    const pajar = `${nombre} ${norm(temas[s.tema] || "")} ${norm(s.fuente)} ${norm(s.definicion || "")}`;
+    if (!tokens.every((t) => pajar.includes(t))) continue;
+    resultados.push({ s, puntaje: tokens.every((t) => nombre.includes(t)) ? 0 : 1 });
+  }
+  return resultados.sort((a, b) => a.puntaje - b.puntaje).slice(0, 8).map((r) => r.s);
+}
+
+function activarBuscador() {
+  const entrada = document.getElementById("buscar"), lista = document.getElementById("resultados");
+  if (!entrada) return;
+  let items = [], activo = -1;
+  const cerrar = () => { lista.hidden = true; entrada.setAttribute("aria-expanded", "false"); activo = -1; };
+  const marcar = (i) => {
+    activo = i;
+    [...lista.children].forEach((li, k) => li.setAttribute("aria-selected", String(k === i)));
+    if (i >= 0) entrada.setAttribute("aria-activedescendant", lista.children[i].id); else entrada.removeAttribute("aria-activedescendant");
+  };
+  const ir = (s) => { cerrar(); entrada.value = ""; location.hash = `#/serie/${s.id}`; entrada.blur(); };
+  const pintar = () => {
+    items = buscar(entrada.value);
+    if (!entrada.value.trim()) return cerrar();
+    const temas = Object.fromEntries(estado.indice.temas.map((t) => [t.id, t.nombre]));
+    lista.innerHTML = items.length
+      ? items.map((s, i) => `<li role="option" id="res-${i}" data-i="${i}" aria-selected="false"><span>${esc(s.nombre)}<small>${esc(temas[s.tema] || "")}</small></span><b class="num">${fmtValor(s, s.ultimo.valor)}</b></li>`).join("")
+      : '<li class="sin-resultados" role="presentation">Sin resultados</li>';
+    lista.hidden = false; entrada.setAttribute("aria-expanded", "true"); activo = -1;
+  };
+  entrada.addEventListener("input", pintar);
+  entrada.addEventListener("focus", pintar);
+  entrada.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" && items.length) { e.preventDefault(); marcar((activo + 1) % items.length); }
+    else if (e.key === "ArrowUp" && items.length) { e.preventDefault(); marcar((activo - 1 + items.length) % items.length); }
+    else if (e.key === "Enter" && items.length) { e.preventDefault(); ir(items[activo >= 0 ? activo : 0]); }
+    else if (e.key === "Escape") { cerrar(); entrada.blur(); }
+  });
+  lista.addEventListener("mousedown", (e) => { const li = e.target.closest("li[data-i]"); if (li) { e.preventDefault(); ir(items[Number(li.dataset.i)]); } });
+  entrada.addEventListener("blur", () => setTimeout(cerrar, 100));
+}
+
 // ---------- Piezas de la página ----------
 const serieDe = (id) => estado.indice.series.find((s) => s.id === id);
 
 function htmlEncabezado() {
   const tema = document.documentElement.getAttribute("data-theme");
+  const n = seriesDemoradas().length;
+  const aviso = pipelineAtrasado()
+    ? `<a class="aviso-demora" href="#/estado">Datos sin actualizar hace ${Math.floor(horasDesdeGenerado() / 24)} días</a>`
+    : n > 0 ? `<a class="aviso-demora" href="#/estado">${n} ${n === 1 ? "serie demorada" : "series demoradas"}</a>` : "";
   return `<header class="contenedor encabezado">
     <a class="marca" href="#/">Monitor Chile<small>La economía chilena en datos</small></a>
+    <div class="buscador" role="search">
+      <input id="buscar" type="search" placeholder="Buscar: inflación, dólar…  ( / )" autocomplete="off" aria-label="Buscar indicador"
+        role="combobox" aria-expanded="false" aria-controls="resultados" aria-autocomplete="list">
+      <ul id="resultados" role="listbox" hidden></ul>
+    </div>
     <nav class="nav-links" aria-label="Enlaces">
+      ${aviso}
       <a class="opcional" href="../">Reporte completo</a>
       <a class="opcional" href="https://datos-economicos-chile.streamlit.app" target="_blank" rel="noopener">Dashboard interactivo ↗</a>
     </nav>
@@ -140,6 +212,12 @@ function htmlPestanas(ruta) {
   return `<nav class="pestanas" aria-label="Temas">${items
     .map((t) => `<a class="pestana" href="#/${t.id}" ${t.id === ruta ? 'aria-current="page"' : ""}>${esc(t.nombre)}</a>`)
     .join("")}</nav>`;
+}
+
+function htmlSelectorVista() {
+  return `<div class="vistas" role="group" aria-label="Período que muestran las tarjetas">${VISTAS.map(
+    ([id, etq]) => `<button type="button" data-vista="${id}" aria-pressed="${estado.vista === id}">${etq}</button>`
+  ).join("")}</div>`;
 }
 
 function htmlLinea() {
@@ -183,8 +261,10 @@ function htmlTono(serie) {
 
 // Tarjeta grande de la portada: un tema, con su indicador principal y los secundarios en filas.
 function htmlTarjetaTema(tema) {
-  const s = serieDe(tema.serie);
+  const idPrincipal = (tema.vistas && tema.vistas[estado.vista]) || tema.serie;
+  const s = serieDe(idPrincipal);
   const filas = tema.secundarias
+    .filter((id) => id !== idPrincipal)
     .map((id) => serieDe(id))
     .filter(Boolean)
     .map((x) => {
@@ -229,8 +309,35 @@ function htmlPie() {
   return `<footer class="contenedor pie">
     Datos: Banco Central de Chile, INE, Yahoo Finance. Actualizado ${esc(hora)} (hora de Chile); la página se refresca sola cuando hay datos nuevos.<br>
     «Mejor» y «peor» comparan contra el período anterior según si que el indicador suba es bueno o malo para la economía; el dólar, la bolsa y la TPM no llevan juicio.
-    Es información de referencia, no una recomendación de inversión. <a href="../">Reporte completo</a> · <a href="https://datos-economicos-chile.streamlit.app" target="_blank" rel="noopener">Dashboard interactivo</a>
+    Es información de referencia, no una recomendación de inversión. <a href="#/estado">Estado de los datos</a> · <a href="../">Reporte completo</a> · <a href="https://datos-economicos-chile.streamlit.app" target="_blank" rel="noopener">Dashboard interactivo</a>
   </footer>`;
+}
+
+// ---------- Página «Estado de los datos» ----------
+function htmlEstado() {
+  const temas = Object.fromEntries(estado.indice.temas.map((t) => [t.id, t.nombre]));
+  const filas = seriesBase().map((s) => {
+    const dias = diasDesde(s.ultimo.fecha);
+    return { s, dias, demorada: dias > s.max_dias };
+  }).sort((a, b) => Number(b.demorada) - Number(a.demorada) || a.s.tema.localeCompare(b.s.tema));
+  const n = filas.filter((f) => f.demorada).length;
+  const hora = new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(estado.meta.generado));
+  const horas = Math.floor(horasDesdeGenerado());
+  return `<div class="migas"><a href="#/">← Monitor</a></div>
+    <h1 class="detalle-titulo">Estado de los datos</h1>
+    <p class="detalle-def">${n === 0 ? "Todas las series están al día." : `${n} ${n === 1 ? "serie está demorada" : "series están demoradas"}.`}
+      Una serie se considera demorada cuando su último dato es más antiguo de lo que corresponde según el calendario de publicación de su fuente.</p>
+    <section class="bloque">
+      <p class="bloque-nota">Última actualización del sitio: ${esc(hora)} (hace ${horas < 1 ? "menos de una hora" : horas + " h"}).${pipelineAtrasado() ? " <strong>El sitio no se actualiza hace más de 3 días: revisar el workflow en GitHub Actions.</strong>" : ""}</p>
+      <div class="tabla-ancha"><table class="tabla-datos izq">
+        <caption class="solo-lectores">Antigüedad del último dato de cada serie</caption>
+        <thead><tr><th scope="col">Indicador</th><th scope="col">Tema</th><th scope="col">Fuente</th><th scope="col">Último dato</th><th scope="col">Antigüedad</th><th scope="col">Límite esperado</th><th scope="col">Estado</th></tr></thead>
+        <tbody>${filas.map(({ s, dias, demorada }) => `<tr>
+          <td><a href="#/serie/${esc(s.id)}">${esc(s.nombre)}</a></td><td>${esc(temas[s.tema] || "")}</td><td>${esc(s.fuente)}</td>
+          <td>${esc(s.ultimo.etiqueta)}</td><td class="num">${dias} d</td><td class="num">${s.max_dias} d</td>
+          <td class="${demorada ? "tono-igual" : "tono-mejor"}"><b>${demorada ? "Demorada" : "Al día"}</b></td></tr>`).join("")}</tbody>
+      </table></div>
+    </section>`;
 }
 
 // ---------- Página de detalle de un indicador ----------
@@ -323,6 +430,20 @@ function htmlTabla(serie, detalle) {
     <thead><tr><th scope="col">Período</th><th scope="col">Valor</th><th scope="col">Cambio vs. anterior</th></tr></thead><tbody>${filas.join("")}</tbody></table>`;
 }
 
+function htmlRevisiones(detalle) {
+  const rev = detalle.revisiones || [];
+  if (!rev.length) return "";
+  const fmt = (r, v) => numero(v, 2) + (r.unidad === "%" ? "%" : "");
+  const fuentes = [...new Set(rev.map((r) => r.serie))].join(", ");
+  return `<section class="bloque" aria-labelledby="t-rev"><h2 id="t-rev">Revisiones de datos</h2>
+    <p class="bloque-nota">Las fuentes oficiales revisan cifras de períodos anteriores. El gráfico usa siempre el valor vigente; acá queda el valor
+      anterior de cada revisión detectada. Valores de «${esc(fuentes)}», la serie original de la que sale este indicador.</p>
+    <div class="tabla-ancha"><table class="tabla-datos izq"><caption class="solo-lectores">Revisiones detectadas</caption>
+      <thead><tr><th scope="col">Serie</th><th scope="col">Período</th><th scope="col">Valor anterior</th><th scope="col">Valor nuevo</th><th scope="col">Detectado</th></tr></thead>
+      <tbody>${rev.map((r) => `<tr><td>${esc(r.serie)}</td><td>${etiquetaFecha(r.fecha, detalle.frecuencia)}</td><td class="num">${fmt(r, r.anterior)}</td><td class="num">${fmt(r, r.nuevo)}</td><td class="num">${r.detectado.split("-").reverse().join("-")}</td></tr>`).join("")}</tbody>
+    </table></div></section>`;
+}
+
 function htmlDetalle(serie, detalle) {
   const tema = estado.indice.temas.find((t) => t.id === serie.tema);
   const url = location.href.split("#")[0] + "#/serie/" + serie.id;
@@ -363,6 +484,7 @@ function htmlDetalle(serie, detalle) {
       <div class="bloque-cabecera"><h2 id="t-tabla">Últimos datos</h2><button class="boton-chico" type="button" id="bajar-csv">Descargar serie completa (CSV)</button></div>
       ${htmlTabla(serie, detalle)}
     </section>
+    ${htmlRevisiones(detalle)}
     ${relacionados.length ? `<section class="bloque" aria-labelledby="t-rel"><h2 id="t-rel">Otros indicadores de ${esc(tema ? tema.nombre : "")}</h2>
       <ul class="relacionados">${relacionados.map((x) => `<li><a href="#/serie/${esc(x.id)}"><span>${esc(x.nombre)}</span><span class="num">${fmtValor(x, x.ultimo.valor)}</span></a></li>`).join("")}</ul></section>` : ""}`;
 }
@@ -398,6 +520,7 @@ function rutaActual() {
     const serie = serieDe(decodeURIComponent(r.slice(6)));
     if (serie) return { tipo: "serie", serie, tema: serie.tema };
   }
+  if (r === "estado") return { tipo: "estado", tema: null };
   const tema = estado.indice.temas.some((t) => t.id === r) ? r : "";
   return { tipo: "tema", tema };
 }
@@ -414,8 +537,10 @@ async function render() {
     }
     if (id !== estado.renderId) return; // el usuario navegó mientras se cargaba
     cuerpo = detalle ? htmlDetalle(ruta.serie, detalle) : `<p class="error">No se pudo cargar esta serie. <a href="#/${esc(ruta.tema)}">Volver</a></p>`;
+  } else if (ruta.tipo === "estado") {
+    cuerpo = htmlEstado();
   } else if (ruta.tema === "") {
-    cuerpo = `${htmlLinea()}<div class="rejilla">${estado.indice.temas.map(htmlTarjetaTema).join("")}</div>${htmlComentarios()}`;
+    cuerpo = `${htmlLinea()}${htmlSelectorVista()}<div class="rejilla">${estado.indice.temas.map(htmlTarjetaTema).join("")}</div>${htmlComentarios()}`;
   } else {
     const series = estado.indice.series.filter((s) => s.tema === ruta.tema);
     cuerpo = `<div class="rejilla">${series.map(htmlTarjetaSerie).join("")}</div>`;
@@ -423,13 +548,21 @@ async function render() {
   limpiarGraficos();
   document.getElementById("app").innerHTML = `${htmlEncabezado()}
     <main class="contenedor" id="contenido">${htmlPestanas(ruta.tema)}${cuerpo}</main>${htmlPie()}`;
-  document.title = ruta.tipo === "serie"
+  document.title = ruta.tipo === "estado" ? "Estado de los datos · Monitor Chile" : ruta.tipo === "serie"
     ? `${ruta.serie.nombre}: ${fmtValor(ruta.serie, ruta.serie.ultimo.valor)} (${ruta.serie.ultimo.etiqueta}) · Monitor Chile`
     : "Monitor Chile · La economía chilena en datos";
 
   document.querySelectorAll(".mini").forEach((el) => dibujarMini(el, serieDe(el.dataset.serie)));
   if (detalle) activarDetalle(ruta.serie, detalle);
   document.getElementById("cambiar-tema").addEventListener("click", cambiarTema);
+  activarBuscador();
+  document.querySelectorAll(".vistas button").forEach((b) =>
+    b.addEventListener("click", () => {
+      estado.vista = b.dataset.vista;
+      try { localStorage.setItem("monitor-vista", estado.vista); } catch (e) { /* solo vale en esta visita */ }
+      render();
+    })
+  );
   const marca = document.getElementById("marca-hoy"), scroll = document.getElementById("linea-scroll");
   if (marca && scroll) scroll.scrollLeft = Math.max(0, marca.offsetLeft - 2 * 168);
 }
@@ -460,6 +593,14 @@ async function iniciar() {
     document.getElementById("app").innerHTML = `<p class="error">No se pudieron cargar los datos (${esc(e.message)}). Intenta recargar la página.</p>`;
     return;
   }
+  try {
+    const v = localStorage.getItem("monitor-vista");
+    if (VISTAS.some(([id]) => id === v)) estado.vista = v;
+  } catch (e) { /* sin almacenamiento */ }
+  document.addEventListener("keydown", (e) => {
+    const escribiendo = /^(input|textarea|select)$/i.test(document.activeElement?.tagName || "");
+    if (e.key === "/" && !escribiendo && !e.metaKey && !e.ctrlKey) { e.preventDefault(); document.getElementById("buscar")?.focus(); }
+  });
   render();
   window.addEventListener("hashchange", () => render().then(() => window.scrollTo({ top: 0 })));
   setInterval(revisarDatosNuevos, INTERVALO_REVISION_MS);

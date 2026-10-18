@@ -24,7 +24,7 @@ import pandas as pd
 
 from calendario import calendario_del_mes, hoy_chile
 from comentarios import COMENTARIOS
-from config import DEFINICIONES, HISTORICO_PATH
+from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES, REVISIONES_PATH
 from series_utils import (
     calcular_interanual_mensual,
     calcular_ipc_componentes_interanual,
@@ -41,16 +41,22 @@ MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "
 # "secundarias" = indicadores que aparecen como filas pequeñas bajo el gráfico.
 TEMAS = [
     {"id": "actividad", "nombre": "Actividad", "icono": "trending-up", "serie": "imacec_interanual",
+     "vistas": {"ytd": "imacec_acumulado_anio", "12m": "imacec_anio_movil"},
      "secundarias": ["imacec_sa_mensual", "imacec_minero_interanual", "imacec_no_minero_interanual"]},
     {"id": "precios", "nombre": "Precios", "icono": "tag", "serie": "ipc_mensual",
+     "vistas": {"ytd": "ipc_acumulado_anio", "12m": "ipc_interanual"},
      "secundarias": ["ipc_interanual", "ipc_subyacente_interanual", "ipp_interanual"]},
     {"id": "dolar", "nombre": "Dólar y mercado", "icono": "dollar", "serie": "tipo_cambio",
+     "vistas": {"ytd": "tipo_cambio_var_anio", "12m": "tipo_cambio_var_12m"},
      "secundarias": ["ipsa", "sp500"]},
     {"id": "tasas", "nombre": "Tasas", "icono": "percent", "serie": "tpm",
+     "vistas": {"ytd": "tpm_cambio_anio", "12m": "tpm_cambio_12m"},
      "secundarias": ["eof_inflacion_12m"]},
     {"id": "empleo", "nombre": "Empleo", "icono": "briefcase", "serie": "desempleo",
+     "vistas": {"ytd": "desempleo_cambio_anio", "12m": "desempleo_cambio_12m"},
      "secundarias": ["remuneraciones_real_interanual", "masa_salarial_real_interanual"]},
     {"id": "comercio", "nombre": "Comercio exterior", "icono": "globe", "serie": "exportaciones_total_interanual",
+     "vistas": {"ytd": "exportaciones_acumulado_anio", "12m": "exportaciones_anio_movil"},
      "secundarias": ["exportaciones_mineria_interanual", "exportaciones_industrial_interanual",
                      "exportaciones_agropecuario_interanual"]},
 ]
@@ -73,6 +79,51 @@ def _interanual_filas(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["valor"] = out["valor"].pct_change(12) * 100
     return out.dropna().reset_index(drop=True)
+
+
+def _acumulado_anio_variaciones(df: pd.DataFrame) -> pd.DataFrame:
+    """Inflación acumulada en el año, componiendo las variaciones mensuales publicadas (con 1 decimal:
+    puede diferir unas décimas del acumulado oficial calculado con el índice)."""
+    out = df.copy()
+    out["valor"] = out.groupby(out["fecha"].dt.year)["valor"].transform(lambda x: ((1 + x / 100).cumprod() - 1) * 100)
+    return out
+
+
+def _acumulado_anio_nivel(df: pd.DataFrame) -> pd.DataFrame:
+    """Flujo mensual acumulado en lo que va del año vs. el mismo período del año anterior (%)."""
+    out = df.copy()
+    out["anio"], out["mes"] = out["fecha"].dt.year, out["fecha"].dt.month
+    out["acum"] = out.groupby("anio")["valor"].cumsum()
+    previo = out[["anio", "mes", "acum"]].rename(columns={"acum": "acum_previo"})
+    previo["anio"] += 1
+    out = out.merge(previo, on=["anio", "mes"], how="left")
+    out["valor"] = (out["acum"] / out["acum_previo"] - 1) * 100
+    return out[["fecha", "valor"]].dropna().reset_index(drop=True)
+
+
+def _anio_movil_variacion(df: pd.DataFrame) -> pd.DataFrame:
+    """Suma de los últimos 12 meses vs. la suma de los 12 meses anteriores (%)."""
+    suma = df.set_index("fecha")["valor"].rolling(12).sum()
+    out = ((suma / suma.shift(12) - 1) * 100).dropna().reset_index()
+    return out.rename(columns={out.columns[1]: "valor"})
+
+
+def _cambio_desde_cierre_anio(df: pd.DataFrame, relativo: bool) -> pd.DataFrame:
+    """Cambio desde el último dato del año anterior (en %, o en puntos si `relativo` es False)."""
+    out = df.copy()
+    anio = out["fecha"].dt.year
+    base = anio.map(out.groupby(anio)["valor"].last().shift(1))
+    out["valor"] = (out["valor"] / base - 1) * 100 if relativo else out["valor"] - base
+    return out[["fecha", "valor"]].dropna().reset_index(drop=True)
+
+
+def _cambio_12m(df: pd.DataFrame, relativo: bool) -> pd.DataFrame:
+    """Cambio contra el dato de hace un año (el último disponible a esa fecha), en % o en puntos."""
+    izq = df.assign(ref=df["fecha"] - pd.DateOffset(years=1)).sort_values("ref")
+    der = df.rename(columns={"fecha": "fecha_ref", "valor": "valor_ref"}).sort_values("fecha_ref")
+    m = pd.merge_asof(izq, der, left_on="ref", right_on="fecha_ref", direction="backward").dropna()
+    m["valor"] = (m["valor"] / m["valor_ref"] - 1) * 100 if relativo else m["valor"] - m["valor_ref"]
+    return m[["fecha", "valor"]].sort_values("fecha").reset_index(drop=True)
 
 
 def _col(df: pd.DataFrame, columna: str) -> pd.DataFrame:
@@ -160,6 +211,53 @@ SERIES = [
          definicion="Aproximación propia, no oficial: índice real de remuneraciones x ocupados asalariados. No captura "
                     "cambios en las horas trabajadas.",
          datos=lambda h: _col(calcular_masa_salarial_real(h), "interanual")),
+    # --- Vistas "en lo que va del año" y "últimos 12 meses" de las tarjetas de la portada
+    dict(id="ipc_acumulado_anio", nombre="IPC acumulado en el año (aprox.)", tema="precios", unidad="%", frecuencia="M",
+         delta="pp", polaridad="sube_malo", firmado=True, fuente="INE (cálculo propio)",
+         definicion="Inflación acumulada desde enero, componiendo las variaciones mensuales publicadas (con un decimal). "
+                    "Puede diferir unas décimas del acumulado oficial, que se calcula con el índice sin redondear.",
+         datos=lambda h: _acumulado_anio_variaciones(_raw(h, "ipc_variacion_mensual"))),
+    dict(id="imacec_acumulado_anio", nombre="IMACEC acumulado en el año", tema="actividad", unidad="%", frecuencia="M",
+         delta="pp", polaridad="sube_bueno", firmado=True, fuente="Banco Central (cálculo propio)",
+         definicion="Crecimiento del IMACEC en lo que va del año: suma de los meses transcurridos vs. los mismos meses "
+                    "del año anterior.",
+         datos=lambda h: _acumulado_anio_nivel(_raw(h, "imacec"))),
+    dict(id="imacec_anio_movil", nombre="IMACEC año móvil (12 meses)", tema="actividad", unidad="%", frecuencia="M",
+         delta="pp", polaridad="sube_bueno", firmado=True, fuente="Banco Central (cálculo propio)",
+         definicion="Crecimiento de los últimos 12 meses del IMACEC vs. los 12 meses anteriores: suaviza el ruido de cada mes.",
+         datos=lambda h: _anio_movil_variacion(_raw(h, "imacec"))),
+    dict(id="tipo_cambio_var_anio", nombre="Dólar: variación en el año", tema="dolar", unidad="%", frecuencia="D",
+         delta="pp", polaridad="neutral", firmado=True, fuente="Yahoo Finance (cálculo propio)",
+         definicion="Variación del dólar desde el último cierre del año anterior.",
+         datos=lambda h: _cambio_desde_cierre_anio(_mercado(h, "tipo_cambio"), relativo=True)),
+    dict(id="tipo_cambio_var_12m", nombre="Dólar: variación en 12 meses", tema="dolar", unidad="%", frecuencia="D",
+         delta="pp", polaridad="neutral", firmado=True, fuente="Yahoo Finance (cálculo propio)",
+         definicion="Variación del dólar contra el valor de hace un año.",
+         datos=lambda h: _cambio_12m(_mercado(h, "tipo_cambio"), relativo=True)),
+    dict(id="tpm_cambio_anio", nombre="TPM: cambio en el año", tema="tasas", unidad="pp", frecuencia="D",
+         delta="pp", polaridad="neutral", firmado=True, decimales=2, fuente="Banco Central (cálculo propio)",
+         definicion="Cambio de la TPM, en puntos porcentuales, desde el último dato del año anterior.",
+         datos=lambda h: _cambio_desde_cierre_anio(_raw(h, "tpm"), relativo=False)),
+    dict(id="tpm_cambio_12m", nombre="TPM: cambio en 12 meses", tema="tasas", unidad="pp", frecuencia="D",
+         delta="pp", polaridad="neutral", firmado=True, decimales=2, fuente="Banco Central (cálculo propio)",
+         definicion="Cambio de la TPM, en puntos porcentuales, respecto de hace un año.",
+         datos=lambda h: _cambio_12m(_raw(h, "tpm"), relativo=False)),
+    dict(id="desempleo_cambio_anio", nombre="Desempleo: cambio en el año", tema="empleo", unidad="pp", frecuencia="M",
+         delta="pp", polaridad="sube_malo", firmado=True, fuente="INE (cálculo propio)",
+         definicion="Cambio de la tasa de desempleo, en puntos porcentuales, desde el último dato del año anterior.",
+         datos=lambda h: _cambio_desde_cierre_anio(_raw(h, "desempleo"), relativo=False)),
+    dict(id="desempleo_cambio_12m", nombre="Desempleo: cambio en 12 meses", tema="empleo", unidad="pp", frecuencia="M",
+         delta="pp", polaridad="sube_malo", firmado=True, fuente="INE (cálculo propio)",
+         definicion="Cambio de la tasa de desempleo, en puntos porcentuales, respecto del mismo trimestre móvil del año anterior.",
+         datos=lambda h: _cambio_12m(_raw(h, "desempleo"), relativo=False)),
+    dict(id="exportaciones_acumulado_anio", nombre="Exportaciones acumuladas en el año", tema="comercio", unidad="%",
+         frecuencia="M", delta="pp", polaridad="sube_bueno", firmado=True, fuente="Banco Central (cálculo propio)",
+         definicion="Exportaciones de bienes en lo que va del año vs. los mismos meses del año anterior (FOB).",
+         datos=lambda h: _acumulado_anio_nivel(calcular_total_exportaciones(h))),
+    dict(id="exportaciones_anio_movil", nombre="Exportaciones año móvil (12 meses)", tema="comercio", unidad="%",
+         frecuencia="M", delta="pp", polaridad="sube_bueno", firmado=True, fuente="Banco Central (cálculo propio)",
+         definicion="Exportaciones de bienes de los últimos 12 meses vs. los 12 meses anteriores (FOB).",
+         datos=lambda h: _anio_movil_variacion(calcular_total_exportaciones(h))),
     # --- Comercio exterior
     dict(id="exportaciones_total_interanual", nombre="Exportaciones de bienes interanual", tema="comercio", unidad="%",
          frecuencia="M", delta="pp", polaridad="sube_bueno", firmado=True, fuente="Banco Central",
@@ -179,6 +277,22 @@ SERIES = [
          definicion="Variación interanual de las exportaciones agropecuario-silvícola-pesqueras (FOB).",
          datos=lambda h: calcular_interanual_mensual(h, "exportaciones_agropecuario")),
 ]
+
+# Antigüedad máxima esperada del último dato (días desde su fecha) antes de considerar la serie "demorada".
+# Se calcula como el peor caso entre dos publicaciones: la fecha de un dato es el día 1 de su mes, y el siguiente
+# se publica cerca de 2 meses después (IPC ~día 8, IPP ~día 24, IMACEC 1er día hábil, ENE ~día 29, etc.) + margen.
+MAX_DIAS_POR_SERIE = {
+    "imacec": 100, "ipc": 80, "ipp": 92, "eee": 45, "eof": 45, "desempleo": 97, "remuneraciones": 97,
+    "masa_salarial": 97, "exportaciones": 80, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "tpm": 7,
+}
+
+
+def _max_dias(spec_id: str) -> int:
+    for prefijo, dias in MAX_DIAS_POR_SERIE.items():
+        if spec_id.startswith(prefijo):
+            return dias
+    return 100
+
 
 # Cuántos puntos llevan las mini-series de las tarjetas (≈3 años mensuales, ≈6 meses diarios)
 PUNTOS_MINI = {"M": 36, "T": 16, "D": 130}
@@ -236,6 +350,8 @@ def _resumen(spec: dict, df: pd.DataFrame) -> dict:
         "polaridad": spec["polaridad"],
         "fuente": spec["fuente"],
         "tipo": _tipo_grafico(spec),
+        "max_dias": _max_dias(spec["id"]),
+        "definicion": spec["definicion"],
         "ultimo": {"fecha": ultimo["fecha"].strftime("%Y-%m-%d"), "valor": _redondear(ultimo["valor"]),
                    "etiqueta": _etiqueta_periodo(ultimo["fecha"], frecuencia)},
         "previo": None if previo is None else {
@@ -245,6 +361,39 @@ def _resumen(spec: dict, df: pd.DataFrame) -> dict:
         "tono": _tono(delta, spec["polaridad"], 0.05),
         "mini": _filas(df.tail(PUNTOS_MINI.get(frecuencia, 36))),
     }
+
+
+# Series del Monitor -> series de historico.csv cuyas revisiones explican cambios en ellas (ver data/revisiones.csv).
+# unidad: cómo mostrar el valor revisado.
+REVISIONES_DE = {
+    "imacec_interanual": [("imacec", "")], "imacec_minero_interanual": [("imacec_minero", "")],
+    "imacec_no_minero_interanual": [("imacec_no_minero", "")], "imacec_sa_mensual": [("imacec_sa", "")],
+    "imacec_acumulado_anio": [("imacec", "")], "imacec_anio_movil": [("imacec", "")],
+    "ipc_mensual": [("ipc_variacion_mensual", "%")], "ipc_acumulado_anio": [("ipc_variacion_mensual", "%")],
+    "ipc_interanual": [("ipc_v12", "%")], "ipc_sin_volatiles_interanual": [("ipc_sin_volatiles_v12", "%")],
+    "ipp_interanual": [("ipp_general", "")], "desempleo": [("desempleo", "%")],
+    "remuneraciones_real_interanual": [("remuneraciones_real", "")],
+    "exportaciones_total_interanual": [("exportaciones_mineria", ""), ("exportaciones_agropecuario", ""), ("exportaciones_industrial", "")],
+    "exportaciones_mineria_interanual": [("exportaciones_mineria", "")],
+    "exportaciones_industrial_interanual": [("exportaciones_industrial", "")],
+    "exportaciones_agropecuario_interanual": [("exportaciones_agropecuario", "")],
+}
+MAX_REVISIONES = 30
+
+
+def _revisiones_de(spec_id: str, revisiones: pd.DataFrame | None) -> list[dict]:
+    """Últimos valores revisados que afectan a esta serie: el valor anterior no se pierde (ver common.py)."""
+    if revisiones is None or revisiones.empty or spec_id not in REVISIONES_DE:
+        return []
+    filas = []
+    for raw, unidad in REVISIONES_DE[spec_id]:
+        sub = revisiones[revisiones["serie"] == raw]
+        for r in sub.itertuples(index=False):
+            filas.append({"serie": NOMBRES_SERIES.get(raw, raw), "unidad": unidad, "fecha": str(r.fecha)[:10],
+                          "anterior": _redondear(r.valor_anterior), "nuevo": _redondear(r.valor_nuevo),
+                          "detectado": str(r.detectado_el)[:10]})
+    filas.sort(key=lambda f: (f["detectado"], f["fecha"]), reverse=True)
+    return filas[:MAX_REVISIONES]
 
 
 def _escribir(ruta: Path, contenido: dict | list) -> None:
@@ -301,6 +450,7 @@ def generar() -> None:
     h = pd.read_csv(HISTORICO_PATH, parse_dates=["fecha"])
     hoy = hoy_chile()
 
+    revisiones = pd.read_csv(REVISIONES_PATH) if REVISIONES_PATH.exists() else None
     resumenes = []
     for spec in SERIES:
         df = spec["datos"](h)
@@ -315,7 +465,8 @@ def generar() -> None:
                 "id": spec["id"], "nombre": spec["nombre"], "tema": spec["tema"], "unidad": spec["unidad"],
                 "frecuencia": spec["frecuencia"], "fuente": spec["fuente"], "definicion": spec["definicion"],
                 "decimales": spec.get("decimales", 1), "firmado": spec["firmado"], "tipo": _tipo_grafico(spec),
-                "meta": spec.get("meta"), "datos": _filas(df),
+                "meta": spec.get("meta"), "revisiones": _revisiones_de(spec["id"], revisiones),
+                "datos": _filas(df),
             },
         )
 
