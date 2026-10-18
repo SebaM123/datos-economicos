@@ -111,15 +111,15 @@ SERIES = [
          polaridad="sube_malo", firmado=True, fuente="INE",
          definicion="Variación mensual del IPC general (total nacional): la inflación oficial del mes.",
          datos=lambda h: _raw(h, "ipc_variacion_mensual")),
-    dict(id="ipc_interanual", nombre="IPC interanual", tema="precios", unidad="%", frecuencia="M", delta="pp",
+    dict(id="ipc_interanual", meta=3, nombre="IPC interanual", tema="precios", unidad="%", frecuencia="M", delta="pp",
          polaridad="sube_malo", firmado=True, fuente="INE / Banco Central",
          definicion="Variación del IPC respecto al mismo mes del año anterior (inflación a 12 meses).",
          datos=lambda h: _raw(h, "ipc_v12")),
-    dict(id="ipc_subyacente_interanual", nombre="IPC subyacente interanual", tema="precios", unidad="%", frecuencia="M",
+    dict(id="ipc_subyacente_interanual", meta=3, nombre="IPC subyacente interanual", tema="precios", unidad="%", frecuencia="M",
          delta="pp", polaridad="sube_malo", firmado=True, fuente="INE / Banco Central",
          definicion="IPC sin alimentos ni energía (SAE), variación interanual: la tendencia de fondo de los precios.",
          datos=lambda h: calcular_ipc_componentes_interanual(h)["IPC subyacente (SAE: sin alimentos ni energía)"]),
-    dict(id="ipc_sin_volatiles_interanual", nombre="IPC sin volátiles interanual", tema="precios", unidad="%",
+    dict(id="ipc_sin_volatiles_interanual", meta=3, nombre="IPC sin volátiles interanual", tema="precios", unidad="%",
          frecuencia="M", delta="pp", polaridad="sube_malo", firmado=True, fuente="INE / Banco Central",
          definicion="IPC sin los componentes de precio más cambiante, variación interanual.",
          datos=lambda h: _raw(h, "ipc_sin_volatiles_v12")),
@@ -143,7 +143,7 @@ SERIES = [
          polaridad="neutral", firmado=False, decimales=2, fuente="Banco Central",
          definicion="Tasa de referencia que fija el Consejo del Banco Central en cada reunión de política monetaria.",
          datos=lambda h: _raw(h, "tpm")),
-    dict(id="eof_inflacion_12m", nombre="Expectativa de inflación a 12 meses", tema="tasas", unidad="%", frecuencia="D",
+    dict(id="eof_inflacion_12m", meta=3, nombre="Expectativa de inflación a 12 meses", tema="tasas", unidad="%", frecuencia="D",
          delta="pp", polaridad="neutral", firmado=False, fuente="Banco Central (EOF)",
          definicion=DEFINICIONES.get("eof_inflacion_12m", ""), datos=lambda h: _raw(h, "eof_inflacion_12m")),
     # --- Empleo
@@ -209,6 +209,12 @@ def _tono(delta: float | None, polaridad: str, umbral: float) -> str | None:
     return "mejor" if (delta > 0) == (polaridad == "sube_bueno") else "peor"
 
 
+def _tipo_grafico(spec: dict) -> str:
+    """Las variaciones de un mes contra el anterior se ven mejor como barras (el signo salta a la
+    vista); los niveles, las tasas, las variaciones interanuales y las series diarias, como línea."""
+    return "barras" if spec["id"].endswith("_mensual") else "linea"
+
+
 def _resumen(spec: dict, df: pd.DataFrame) -> dict:
     frecuencia = spec["frecuencia"]
     ultimo, previo = df.iloc[-1], (df.iloc[-2] if len(df) > 1 else None)
@@ -229,6 +235,7 @@ def _resumen(spec: dict, df: pd.DataFrame) -> dict:
         "decimales": spec.get("decimales", 1),
         "polaridad": spec["polaridad"],
         "fuente": spec["fuente"],
+        "tipo": _tipo_grafico(spec),
         "ultimo": {"fecha": ultimo["fecha"].strftime("%Y-%m-%d"), "valor": _redondear(ultimo["valor"]),
                    "etiqueta": _etiqueta_periodo(ultimo["fecha"], frecuencia)},
         "previo": None if previo is None else {
@@ -307,7 +314,8 @@ def generar() -> None:
             {
                 "id": spec["id"], "nombre": spec["nombre"], "tema": spec["tema"], "unidad": spec["unidad"],
                 "frecuencia": spec["frecuencia"], "fuente": spec["fuente"], "definicion": spec["definicion"],
-                "decimales": spec.get("decimales", 1), "firmado": spec["firmado"], "datos": _filas(df),
+                "decimales": spec.get("decimales", 1), "firmado": spec["firmado"], "tipo": _tipo_grafico(spec),
+                "meta": spec.get("meta"), "datos": _filas(df),
             },
         )
 

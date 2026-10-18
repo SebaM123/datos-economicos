@@ -49,7 +49,7 @@ const NOMBRE_TONO = { mejor: "Mejor", peor: "Peor", igual: "Igual" };
 const claseTono = (t) => `tono-${t ?? "null"}`;
 
 // ---------- Estado ----------
-const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [] };
+const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, renderId: 0 };
 
 async function pedirJSON(ruta, version) {
   const resp = await fetch(`data/${ruta}?v=${encodeURIComponent(version || "")}`, { cache: "no-cache" });
@@ -63,7 +63,12 @@ async function cargarDatos() {
   const [indice, calendario, comentarios] = await Promise.all([
     pedirJSON("indice.json", v), pedirJSON("calendario.json", v), pedirJSON("comentarios.json", v),
   ]);
-  Object.assign(estado, { meta, indice, calendario, comentarios });
+  Object.assign(estado, { meta, indice, calendario, comentarios, detalles: {} });
+}
+
+async function cargarDetalle(id) {
+  if (!estado.detalles[id]) estado.detalles[id] = await pedirJSON(`series/${id}.json`, estado.meta.generado);
+  return estado.detalles[id];
 }
 
 // ---------- Gráficos ----------
@@ -150,7 +155,7 @@ function htmlLinea() {
     const [, m, d] = e.fecha.split("-");
     const serie = e.estado === "cargado" && e.tarjeta ? serieDe(e.tarjeta) : null;
     const dato = serie
-      ? `<div class="dato num">${fmtValor(serie, serie.ultimo.valor)}</div><div class="dato-sub">${esc(serie.nombre)} · ${esc(serie.ultimo.etiqueta)}</div>`
+      ? `<div class="dato num">${fmtValor(serie, serie.ultimo.valor)}</div><div class="dato-sub"><a href="#/serie/${esc(serie.id)}">${esc(serie.nombre)}</a> · ${esc(serie.ultimo.etiqueta)}</div>`
       : "";
     const estadoTxt = e.estado === "cargado" && !serie ? "Publicado" : e.estado === "cargado" ? "" : textoEstado[e.estado];
     return `${previo}<li class="evento ${e.estado}">
@@ -184,12 +189,12 @@ function htmlTarjetaTema(tema) {
     .filter(Boolean)
     .map((x) => {
       const flecha = x.delta === null || Math.abs(x.delta) < 0.05 ? "" : x.delta > 0 ? "▲" : "▼";
-      return `<li><span>${esc(x.nombre)}</span><span class="num">${fmtValor(x, x.ultimo.valor)}<span class="flecha ${claseTono(x.tono)}" aria-label="${x.delta > 0 ? "subió" : "bajó"} respecto al período anterior">${flecha}</span></span></li>`;
+      return `<li><a href="#/serie/${esc(x.id)}">${esc(x.nombre)}</a><span class="num">${fmtValor(x, x.ultimo.valor)}<span class="flecha ${claseTono(x.tono)}" aria-label="${x.delta > 0 ? "subió" : "bajó"} respecto al período anterior">${flecha}</span></span></li>`;
     })
     .join("");
   return `<article class="tarjeta">
     <h2 class="tarjeta-titulo">${icono(tema.icono)}<a href="#/${tema.id}">${esc(tema.nombre)}</a></h2>
-    <div class="indicador">${esc(s.nombre)} · ${esc(s.ultimo.etiqueta)}</div>
+    <div class="indicador"><a class="enlace-tarjeta" href="#/serie/${esc(s.id)}">${esc(s.nombre)}</a> · ${esc(s.ultimo.etiqueta)}</div>
     <div class="valor num">${fmtValor(s, s.ultimo.valor)}</div>
     ${htmlTono(s)}
     <div class="mini" data-serie="${esc(s.id)}" role="img" aria-label="Evolución reciente de ${esc(s.nombre)}"></div>
@@ -201,7 +206,7 @@ function htmlTarjetaTema(tema) {
 // Tarjeta de un indicador, en la página de cada tema.
 function htmlTarjetaSerie(s) {
   return `<article class="tarjeta">
-    <div class="indicador">${esc(s.nombre)} · ${esc(s.ultimo.etiqueta)}</div>
+    <div class="indicador"><a class="enlace-tarjeta" href="#/serie/${esc(s.id)}">${esc(s.nombre)}</a> · ${esc(s.ultimo.etiqueta)}</div>
     <div class="valor num">${fmtValor(s, s.ultimo.valor)}</div>
     ${htmlTono(s)}
     <div class="mini" data-serie="${esc(s.id)}" role="img" aria-label="Evolución reciente de ${esc(s.nombre)}"></div>
@@ -228,26 +233,202 @@ function htmlPie() {
   </footer>`;
 }
 
+// ---------- Página de detalle de un indicador ----------
+const RANGOS = [["1A", 1], ["3A", 3], ["5A", 5], ["Todo", null]];
+
+function recortar(datos, anios) {
+  if (!anios) return datos;
+  const corte = new Date(datos[datos.length - 1][0] + "T00:00:00Z");
+  corte.setUTCFullYear(corte.getUTCFullYear() - anios);
+  const iso = corte.toISOString().slice(0, 10);
+  return datos.filter((p) => p[0] >= iso);
+}
+
+function etiquetaEje(iso, frecuencia) {
+  const [a, m, d] = iso.split("-");
+  if (frecuencia === "D") return `${Number(d)} ${MESES[Number(m) - 1]} ${a.slice(2)}`;
+  return `${MESES[Number(m) - 1]} ${a.slice(2)}`;
+}
+
+function opcionGrande(serie, detalle, anios) {
+  const datos = recortar(detalle.datos, anios);
+  const valores = datos.map((p) => p[1]);
+  const min = Math.min(...valores), max = Math.max(...valores);
+  const decEje = max - min < 10 ? 1 : 0;
+  const acento = css("--accent"), muted = css("--muted");
+  const barras = detalle.tipo === "barras";
+  const lineasRef = [];
+  if (detalle.meta !== null && detalle.meta !== undefined) {
+    lineasRef.push({ yAxis: detalle.meta, label: { formatter: `Meta ${numero(detalle.meta, 0)}%`, color: muted, position: "insideEndTop" } });
+  }
+  if (min < 0 && max > 0) lineasRef.push({ yAxis: 0, label: { show: false } });
+  return {
+    animation: false,
+    grid: { left: 52, right: 22, top: 18, bottom: 30 },
+    tooltip: {
+      trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"),
+      textStyle: { color: css("--text"), fontSize: 13 },
+      axisPointer: { type: barras ? "shadow" : "line", lineStyle: { color: muted, type: "dashed" } },
+      formatter: (p) => `${etiquetaFecha(p[0].axisValue, detalle.frecuencia)}<br><b>${fmtValor(detalle, p[0].value)}</b>`,
+    },
+    xAxis: {
+      type: "category", data: datos.map((p) => p[0]), boundaryGap: barras,
+      axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisTick: { show: false },
+      axisLabel: { color: muted, hideOverlap: true, formatter: (v) => etiquetaEje(v, detalle.frecuencia) },
+    },
+    yAxis: {
+      type: "value", scale: !barras,
+      splitLine: { lineStyle: { color: css("--border") } },
+      axisLabel: { color: muted, formatter: (v) => numero(v, decEje) + (detalle.unidad === "%" ? "%" : "") },
+    },
+    series: [{
+      type: barras ? "bar" : "line",
+      data: barras
+        ? valores.map((v) => ({ value: v, itemStyle: { color: v >= 0 ? acento : css("--igual"), borderRadius: v >= 0 ? [2, 2, 0, 0] : [0, 0, 2, 2] } }))
+        : valores,
+      showSymbol: !barras && datos.length <= 60, symbolSize: 6, lineStyle: { width: 2.2, color: acento }, itemStyle: { color: acento },
+      areaStyle: barras ? undefined : { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: acento + "40" }, { offset: 1, color: acento + "00" }]) },
+      markPoint: barras ? undefined : { silent: true, symbol: "circle", symbolSize: 9, itemStyle: { color: acento }, label: { show: false }, data: [{ coord: [datos.length - 1, valores[valores.length - 1]] }] },
+      markLine: lineasRef.length ? { silent: true, symbol: "none", lineStyle: { color: muted, type: "dashed", opacity: 0.6 }, data: lineasRef } : undefined,
+    }],
+  };
+}
+
+function dibujarGrande(contenedor, serie, detalle, anios) {
+  const grafico = echarts.init(contenedor, null, { renderer: "canvas" });
+  grafico.setOption(opcionGrande(serie, detalle, anios));
+  const observador = new ResizeObserver(() => grafico.resize());
+  observador.observe(contenedor);
+  estado.graficos.push({ grafico, observador });
+  return grafico;
+}
+
+function descargarCSV(detalle) {
+  const filas = ["fecha,valor", ...detalle.datos.map((p) => `${p[0]},${p[1]}`)];
+  const url = URL.createObjectURL(new Blob([filas.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `${detalle.id}.csv` });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function htmlTabla(serie, detalle) {
+  const ultimos = detalle.datos.slice(-13);
+  const filas = [];
+  for (let i = ultimos.length - 1; i >= 1; i--) {
+    const delta = serie.delta_tipo === "pp" ? ultimos[i][1] - ultimos[i - 1][1]
+      : ultimos[i - 1][1] ? (ultimos[i][1] / ultimos[i - 1][1] - 1) * 100 : null;
+    filas.push(`<tr><td>${etiquetaFecha(ultimos[i][0], serie.frecuencia)}</td><td class="num">${fmtValor(serie, ultimos[i][1])}</td><td class="num">${fmtDelta(serie, delta)}</td></tr>`);
+  }
+  return `<table class="tabla-datos"><caption class="solo-lectores">Últimos datos de ${esc(serie.nombre)}</caption>
+    <thead><tr><th scope="col">Período</th><th scope="col">Valor</th><th scope="col">Cambio vs. anterior</th></tr></thead><tbody>${filas.join("")}</tbody></table>`;
+}
+
+function htmlDetalle(serie, detalle) {
+  const tema = estado.indice.temas.find((t) => t.id === serie.tema);
+  const url = location.href.split("#")[0] + "#/serie/" + serie.id;
+  const texto = `${serie.nombre}: ${fmtValor(serie, serie.ultimo.valor)} (${serie.ultimo.etiqueta})`;
+  const enc = encodeURIComponent;
+  const relacionados = estado.indice.series.filter((x) => x.tema === serie.tema && x.id !== serie.id);
+  const porDefecto = serie.frecuencia === "D" ? 1 : 5;
+  return `<div class="migas"><a href="#/${esc(serie.tema)}">← Monitor · ${esc(tema ? tema.nombre : "")}</a></div>
+    <h1 class="detalle-titulo">${esc(serie.nombre)}</h1>
+    <p class="detalle-def">${esc(detalle.definicion)}</p>
+    <div class="detalle-grid">
+      <aside>
+        <div class="tarjeta">
+          <div class="indicador">${esc(serie.nombre)}</div>
+          <div class="valor num">${fmtValor(serie, serie.ultimo.valor)}</div>
+          <div class="indicador">${esc(serie.ultimo.etiqueta)}</div>
+          ${htmlTono(serie)}
+          <div class="mini" data-serie="${esc(serie.id)}" role="img" aria-label="Evolución reciente"></div>
+          <div class="fuente">Fuente: ${esc(serie.fuente)}</div>
+        </div>
+        <div class="compartir" role="group" aria-label="Compartir">
+          <a class="boton-chico" target="_blank" rel="noopener" href="https://wa.me/?text=${enc(texto + " " + url)}">WhatsApp</a>
+          <a class="boton-chico" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${enc(texto)}&url=${enc(url)}">X</a>
+          <a class="boton-chico" target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}">LinkedIn</a>
+          <a class="boton-chico" target="_blank" rel="noopener" href="https://t.me/share/url?url=${enc(url)}&text=${enc(texto)}">Telegram</a>
+          <button class="boton-chico" type="button" id="copiar-enlace">Copiar enlace</button>
+        </div>
+      </aside>
+      <section class="bloque grande" aria-label="Gráfico">
+        <div class="bloque-cabecera">
+          <h2>${esc(serie.nombre)}</h2>
+          <div class="rangos" role="group" aria-label="Rango de tiempo">${RANGOS.map(([etq, a]) => `<button type="button" data-anios="${a ?? ""}" aria-pressed="${a === porDefecto}">${etq}</button>`).join("")}</div>
+        </div>
+        <div class="grande-grafico" id="grafico-grande" role="img" aria-label="Gráfico de ${esc(serie.nombre)}"></div>
+      </section>
+    </div>
+    <section class="bloque" aria-labelledby="t-tabla">
+      <div class="bloque-cabecera"><h2 id="t-tabla">Últimos datos</h2><button class="boton-chico" type="button" id="bajar-csv">Descargar serie completa (CSV)</button></div>
+      ${htmlTabla(serie, detalle)}
+    </section>
+    ${relacionados.length ? `<section class="bloque" aria-labelledby="t-rel"><h2 id="t-rel">Otros indicadores de ${esc(tema ? tema.nombre : "")}</h2>
+      <ul class="relacionados">${relacionados.map((x) => `<li><a href="#/serie/${esc(x.id)}"><span>${esc(x.nombre)}</span><span class="num">${fmtValor(x, x.ultimo.valor)}</span></a></li>`).join("")}</ul></section>` : ""}`;
+}
+
+function activarDetalle(serie, detalle) {
+  const contenedor = document.getElementById("grafico-grande");
+  let anios = serie.frecuencia === "D" ? 1 : 5;
+  const grafico = dibujarGrande(contenedor, serie, detalle, anios);
+  document.querySelectorAll(".rangos button").forEach((b) =>
+    b.addEventListener("click", () => {
+      anios = b.dataset.anios ? Number(b.dataset.anios) : null;
+      document.querySelectorAll(".rangos button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      grafico.setOption(opcionGrande(serie, detalle, anios), true);
+    })
+  );
+  document.getElementById("bajar-csv").addEventListener("click", () => descargarCSV(detalle));
+  const copiar = document.getElementById("copiar-enlace");
+  copiar.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      copiar.textContent = "¡Copiado!";
+    } catch (e) {
+      copiar.textContent = "Copia la URL de la barra";
+    }
+    setTimeout(() => (copiar.textContent = "Copiar enlace"), 2000);
+  });
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const r = location.hash.replace(/^#\/?/, "");
-  return estado.indice.temas.some((t) => t.id === r) ? r : "";
+  if (r.startsWith("serie/")) {
+    const serie = serieDe(decodeURIComponent(r.slice(6)));
+    if (serie) return { tipo: "serie", serie, tema: serie.tema };
+  }
+  const tema = estado.indice.temas.some((t) => t.id === r) ? r : "";
+  return { tipo: "tema", tema };
 }
 
-function render() {
-  limpiarGraficos();
+async function render() {
+  const id = ++estado.renderId;
   const ruta = rutaActual();
-  let cuerpo;
-  if (ruta === "") {
+  let cuerpo, detalle = null;
+  if (ruta.tipo === "serie") {
+    try {
+      detalle = await cargarDetalle(ruta.serie.id);
+    } catch (e) {
+      detalle = null;
+    }
+    if (id !== estado.renderId) return; // el usuario navegó mientras se cargaba
+    cuerpo = detalle ? htmlDetalle(ruta.serie, detalle) : `<p class="error">No se pudo cargar esta serie. <a href="#/${esc(ruta.tema)}">Volver</a></p>`;
+  } else if (ruta.tema === "") {
     cuerpo = `${htmlLinea()}<div class="rejilla">${estado.indice.temas.map(htmlTarjetaTema).join("")}</div>${htmlComentarios()}`;
   } else {
-    const series = estado.indice.series.filter((s) => s.tema === ruta);
+    const series = estado.indice.series.filter((s) => s.tema === ruta.tema);
     cuerpo = `<div class="rejilla">${series.map(htmlTarjetaSerie).join("")}</div>`;
   }
+  limpiarGraficos();
   document.getElementById("app").innerHTML = `${htmlEncabezado()}
-    <main class="contenedor" id="contenido">${htmlPestanas(ruta)}${cuerpo}</main>${htmlPie()}`;
+    <main class="contenedor" id="contenido">${htmlPestanas(ruta.tema)}${cuerpo}</main>${htmlPie()}`;
+  document.title = ruta.tipo === "serie"
+    ? `${ruta.serie.nombre}: ${fmtValor(ruta.serie, ruta.serie.ultimo.valor)} (${ruta.serie.ultimo.etiqueta}) · Monitor Chile`
+    : "Monitor Chile · La economía chilena en datos";
 
   document.querySelectorAll(".mini").forEach((el) => dibujarMini(el, serieDe(el.dataset.serie)));
+  if (detalle) activarDetalle(ruta.serie, detalle);
   document.getElementById("cambiar-tema").addEventListener("click", cambiarTema);
   const marca = document.getElementById("marca-hoy"), scroll = document.getElementById("linea-scroll");
   if (marca && scroll) scroll.scrollLeft = Math.max(0, marca.offsetLeft - 2 * 168);
@@ -280,7 +461,7 @@ async function iniciar() {
     return;
   }
   render();
-  window.addEventListener("hashchange", () => { render(); window.scrollTo({ top: 0 }); });
+  window.addEventListener("hashchange", () => render().then(() => window.scrollTo({ top: 0 })));
   setInterval(revisarDatosNuevos, INTERVALO_REVISION_MS);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) revisarDatosNuevos(); });
 }
