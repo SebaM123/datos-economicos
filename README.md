@@ -22,6 +22,10 @@ Dashboard económico automático para Chile: series oficiales del Banco Central 
    pip install -r requirements.txt
    ```
 
+## Monitor (versión tipo tablero)
+
+`docs/monitor/` es una página estática (sin paso de compilación: HTML + JavaScript + ECharts desde CDN) que dibuja los JSON de `docs/monitor/data/`. Esos JSON los genera `app/exportar_monitor.py` (el cálculo vive en Python, la página solo muestra) y los workflows lo corren después del reporte HTML. Se ve en https://sebam123.github.io/datos-economicos/monitor/. Para probarlo local: `cd docs && python3 -m http.server 8000` y abrir `http://localhost:8000/monitor/`. Para agregar un indicador, sumarlo a `SERIES` (y a `TEMAS` si va en una tarjeta de la portada) en `exportar_monitor.py`.
+
 ## Actualizar con un comando
 
 ```bash
