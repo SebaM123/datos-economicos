@@ -1630,6 +1630,7 @@ fecha,serie,valor
 2026-08-12,eof_inflacion_12m,3.2
 2026-09-03,eof_inflacion_12m,3.3
 2026-09-24,eof_inflacion_12m,3.5
+2026-10-22,eof_inflacion_12m,3.7
 2010-01-15,eof_tipo_cambio_7d,490.0
 2010-01-31,eof_tipo_cambio_7d,505.0
 2010-02-15,eof_tipo_cambio_7d,540.0
@@ -1963,6 +1964,7 @@ fecha,serie,valor
 2026-08-12,eof_tipo_cambio_7d,915.0
 2026-09-03,eof_tipo_cambio_7d,935.0
 2026-09-24,eof_tipo_cambio_7d,945.0
+2026-10-22,eof_tipo_cambio_7d,980.0
 2018-02-19,eof_tpm_proxima_reunion,2.5
 2018-03-14,eof_tpm_proxima_reunion,2.5
 2018-04-06,eof_tpm_proxima_reunion,2.5
@@ -2102,6 +2104,7 @@ fecha,serie,valor
 2026-08-12,eof_tpm_proxima_reunion,4.5
 2026-09-03,eof_tpm_proxima_reunion,4.5
 2026-09-24,eof_tpm_proxima_reunion,4.5
+2026-10-22,eof_tpm_proxima_reunion,4.5
 2010-01-01,exportaciones_agropecuario,532.4733446781
 2010-02-01,exportaciones_agropecuario,449.0704788344
 2010-03-01,exportaciones_agropecuario,601.9873666407
@@ -17765,7 +17768,7 @@ fecha,serie,valor
 2026-10-19,sp500,7690.72998046875
 2026-10-20,sp500,7712.56982421875
 2026-10-21,sp500,7757.169921875
-2026-10-22,sp500,7657.3798828125
+2026-10-22,sp500,7654.9599609375
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -22162,7 +22165,7 @@ fecha,serie,valor
 2026-10-19,tipo_cambio,980.3699951171876
 2026-10-20,tipo_cambio,980.6199951171876
 2026-10-21,tipo_cambio,981.0700073242188
-2026-10-22,tipo_cambio,984.9000244140625
+2026-10-22,tipo_cambio,985.02001953125
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -26349,3 +26352,4 @@ fecha,serie,valor
 2026-10-19,tpm,4.5
 2026-10-20,tpm,4.5
 2026-10-21,tpm,4.5
+2026-10-22,tpm,4.5
