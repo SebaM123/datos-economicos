@@ -24,9 +24,9 @@ SERIES = {
     "eof_inflacion_12m": "F089.EOF.VII.12MS.D",
     "eof_tipo_cambio_7d": "F089.EOF.TC.7DA.D",
     # Desglose del mercado laboral chileno (Fuerza de trabajo = Ocupados + Desocupados).
-    "fuerza_trabajo": "F049.FTR.PMT.INE.10.M",
-    "ocupados": "F049.OCU.PMT.INE.10.M",
-    "desocupados": "F049.DES.PMT.INE.10.M",
+    "fuerza_trabajo": "F049.FTR.PMT.INE9.01.M",  # No ajustada (la que cuadra con la tasa y con los titulares del INE)
+    "ocupados": "F049.OCU.PMT.INE9.01.M",
+    "desocupados": "F049.DES.PMT.INE9.01.M",
     # Datos de EEUU (ya disponibles en el BCCh, sin fuente nueva). No hay tasa de la Fed
     # en esta API — para eso haría falta otra fuente (ej. FRED).
     "eeuu_desempleo": "F019.DES.TAS.10.M",
@@ -45,6 +45,18 @@ SERIES = {
     # interanual, "todos los commodities" — mismo origen que eeuu_desempleo/eeuu_inflacion).
     "ipp_general": "F075.IPP.IND.P0551.2019.Z.M",
     # IPP por sector (mismas aperturas que publica el INE: minería, industria manufacturera, electricidad-gas-agua) y agricultura
+    # PIB real total: original (para el crecimiento interanual) y desestacionalizada (para la variación trimestral)
+    # Índice general del IPC (base 2023=100, empalmado): acumulado del año exacto, sin componer variaciones redondeadas
+    "ipc_indice": "G073.IPC.IND.2023.M",
+    "pib_real": "F032.PIB.FLU.R.CLP.EP18.Z.Z.0.T",
+    "pib_real_sa": "F032.PIB.FLU.R.CLP.EP18.Z.Z.1.T",
+    # Versiones ORIGINALES de minería y no minero: el interanual oficial se calcula sobre la serie sin desestacionalizar
+    "pib_mineria_original": "F032.PIB.FLU.R.CLP.2018.03.Z.0.M",
+    "pib_no_minero_original": "F032.PIB.FLU.R.CLP.EP18.N03.Z.0.T",
+    # Dólar observado oficial (promedio de transacciones interbancarias del día; solo días hábiles)
+    "dolar_observado": "F073.TCO.PRE.Z.D",
+    # Importaciones de bienes FOB (para la balanza comercial)
+    "importaciones_bienes": "F068.B1.FLU.Z.0.D.N.0.T.Z.Z.6.0.M",
     "ipp_mineria": "F075.IPP.IND.P0949.2019.Z.M",
     "ipp_manufactura": "F075.IPP.IND.P0552.2019.Z.M",
     "ipp_ega": "F075.IPP.IND.P0990.2019.Z.M",

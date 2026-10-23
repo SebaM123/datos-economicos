@@ -462,7 +462,7 @@ function dibujarGrande(contenedor, serie, detalle, anios) {
 }
 
 function descargarCSV(detalle) {
-  const filas = ["fecha,valor", ...detalle.datos.map((p) => `${p[0]},${p[1]}`)];
+  const filas = ["fecha,valor", ...detalle.datos.filter((p) => p[1] !== null).map((p) => `${p[0]},${p[1]}`)];
   const url = URL.createObjectURL(new Blob([filas.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
   const a = Object.assign(document.createElement("a"), { href: url, download: `${detalle.id}.csv` });
   document.body.appendChild(a); a.click(); a.remove();
@@ -470,7 +470,7 @@ function descargarCSV(detalle) {
 }
 
 function htmlTabla(serie, detalle) {
-  const ultimos = detalle.datos.slice(-13);
+  const ultimos = detalle.datos.filter((p) => p[1] !== null).slice(-13); // los null marcan tramos sin datos (gráfico cortado)
   const filas = [];
   for (let i = ultimos.length - 1; i >= 1; i--) {
     const delta = serie.delta_tipo === "pp" ? ultimos[i][1] - ultimos[i - 1][1]
