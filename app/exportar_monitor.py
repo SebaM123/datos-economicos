@@ -54,8 +54,9 @@ TEMAS = [
      "vistas": {"ytd": "ipc_acumulado_anio", "12m": "ipc_interanual"},
      "secundarias": ["ipc_interanual", "ipc_subyacente_interanual", "ipp_mensual", "ipp_interanual"]},
     {"id": "dolar", "nombre": "Dólar y mercado", "icono": "dollar", "serie": "tipo_cambio",
+     "graficos": ["cobre_vs_exportaciones"],
      "vistas": {"ytd": "tipo_cambio_var_anio", "12m": "tipo_cambio_var_12m"},
-     "secundarias": ["ipsa", "sp500"]},
+     "secundarias": ["cobre_precio", "ipsa", "sp500"]},
     {"id": "tasas", "nombre": "Tasas", "icono": "percent", "serie": "tpm",
      "vistas": {"ytd": "tpm_cambio_anio", "12m": "tpm_cambio_12m"},
      "secundarias": ["eof_inflacion_12m"]},
@@ -526,6 +527,26 @@ SERIES += [
 ]
 
 
+SERIES += [
+    # --- Precio del cobre (refinado, Bolsa de Metales de Londres): la principal exportación de Chile
+    _simple("cobre_precio", "Precio del cobre", "dolar", lambda h: _raw(h, "cobre_precio"), unidad="US$/lb", frecuencia="D", delta="rel",
+            polaridad="neutral", decimales=2, prefijo="US$", sufijo="/lb", fuente="Banco Central (Bolsa de Metales de Londres)",
+            definicion="Precio del cobre refinado en la Bolsa de Metales de Londres, en dólares por libra: la referencia de lo que cobra Chile por su principal "
+                       "exportación (el cobre es ~53% de las exportaciones de bienes). Datos diarios de días hábiles, con un día de rezago."),
+    _simple("cobre_var_anio", "Cobre: variación en el año", "dolar", lambda h: _cambio_desde_cierre_anio(_raw(h, "cobre_precio"), relativo=True), unidad="%",
+            frecuencia="D", delta="pp", firmado=True, fuente="Banco Central (cálculo propio)", definicion="Variación del precio del cobre desde el último valor del año anterior."),
+    _simple("cobre_var_12m", "Cobre: variación en 12 meses", "dolar", lambda h: _cambio_12m(_raw(h, "cobre_precio"), relativo=True), unidad="%",
+            frecuencia="D", delta="pp", firmado=True, fuente="Banco Central (cálculo propio)", definicion="Variación del precio del cobre contra el valor de hace un año."),
+    _simple("cobre_precio_promedio", "Precio del cobre, promedio mensual (desde 1960)", "dolar", lambda h: _raw(h, "cobre_precio_promedio"), unidad="US$/lb",
+            decimales=2, prefijo="US$", sufijo="/lb", fuente="Banco Central (valores referenciales)",
+            definicion="Promedio mensual del precio del cobre refinado (US$/libra), con historia desde 1960: sirve para ver los grandes ciclos (el «súper ciclo» de "
+                       "2005-2011, la caída de 2015 y el repunte reciente). Valores referenciales, sin deflactar: no descuentan la inflación de EE.UU."),
+    _simple("cobre_precio_interanual", "Precio del cobre interanual (promedio mensual)", "dolar", lambda h: calcular_interanual_mensual(h, "cobre_precio_promedio"),
+            unidad="%", delta="pp", firmado=True, fuente="Banco Central (cálculo propio)",
+            definicion="Variación del precio promedio mensual del cobre contra el mismo mes del año anterior."),
+]
+
+
 # Antigüedad máxima esperada del último dato (días desde su fecha) antes de considerar la serie "demorada".
 # Se calcula como el peor caso entre dos publicaciones: la fecha de un dato es el día 1 de su mes, y el siguiente
 # se publica cerca de 2 meses después (IPC ~día 8, IPP ~día 24, IMACEC 1er día hábil, ENE ~día 29, etc.) + margen.
@@ -537,7 +558,7 @@ MAX_DIAS_EXACTO = {
 }
 MAX_DIAS_POR_SERIE = {
     "imacec": 100, "ipc": 80, "ipp": 92, "eee": 45, "eof": 45, "desempleo": 97, "remuneraciones": 97,
-    "masa_salarial": 97, "exportaciones": 80, "importaciones": 80, "balanza": 80, "pib_real": 245, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "tpm": 7,
+    "masa_salarial": 97, "exportaciones": 80, "importaciones": 80, "balanza": 80, "cobre_precio_promedio": 75, "cobre_precio_interanual": 75, "cobre": 7, "pib_real": 245, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "tpm": 7,
     "pib_tendencia": 100, "inflacion_deflactor": 245, "pib_mineria": 180, "pib_no_minero": 245,
     "fuerza_trabajo": 97, "ocupados": 97, "desocupados": 97,
 }

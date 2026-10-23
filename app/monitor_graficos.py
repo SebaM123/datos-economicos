@@ -139,6 +139,17 @@ def _ipp_sectores(periodos):
     return construir
 
 
+def _cobre_vs_exportaciones(h):
+    """Precio del cobre vs. valor de las exportaciones mineras, ambos como variación interanual."""
+    desde = pd.Timestamp("2011-01-01")
+    precio = calcular_interanual_mensual(h, "cobre_precio_promedio")
+    exportado = calcular_interanual_mensual(h, "exportaciones_mineria")
+    return {"series": [
+        _serie("Precio del cobre (promedio mensual)", precio[precio["fecha"] >= desde]),
+        _serie("Exportaciones mineras (US$)", exportado[exportado["fecha"] >= desde]),
+    ]}
+
+
 # ---------- Empleo ----------
 def _masa_salarial(h):
     masa = calcular_masa_salarial_real(h)
@@ -306,6 +317,11 @@ GRAFICOS = [
          unidad="%", decimales=1, frecuencia="M", build=_ipp_sectores(1),
          definicion="Variación de un mes contra el anterior, que es como el INE titula la publicación. Es mucho más volátil que la "
                     "interanual."),
+    dict(id="cobre_vs_exportaciones", pestana="dolar", tipo="lineas", nombre="Cobre: precio vs. valor exportado (variación interanual)",
+         unidad="%", decimales=0, frecuencia="M", build=_cobre_vs_exportaciones,
+         definicion="Cuánto cambió en 12 meses el precio del cobre y el valor de lo que Chile exporta de minería. Se mueven juntos: gran parte de lo que "
+                    "sube o baja el valor exportado es el precio, no la cantidad (la cantidad se ve en el IMACEC minero). Las exportaciones mineras incluyen cobre, "
+                    "litio, hierro y otros."),
     dict(id="masa_salarial_aportes", pestana="empleo", tipo="barras_apiladas", nombre="Masa salarial real (aprox.): aporte del salario y del empleo",
          unidad="pp", decimales=1, frecuencia="M", build=_masa_salarial,
          definicion="Aproximación propia, no oficial: índice real de remuneraciones (INE, por hora) x ocupados asalariados (ENE). No captura "

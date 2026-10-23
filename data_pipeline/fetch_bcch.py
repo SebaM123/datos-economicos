@@ -46,6 +46,9 @@ SERIES = {
     "ipp_general": "F075.IPP.IND.P0551.2019.Z.M",
     # IPP por sector (mismas aperturas que publica el INE: minería, industria manufacturera, electricidad-gas-agua) y agricultura
     # PIB real total: original (para el crecimiento interanual) y desestacionalizada (para la variación trimestral)
+    # Precio del cobre refinado BML (US$/libra): diario (desde 2012) y promedio mensual (desde 1960, valores referenciales)
+    "cobre_precio": "F019.PPB.PRE.100.D",
+    "cobre_precio_promedio": "F019.PPB.PRE.40.M",
     # Índice general del IPC (base 2023=100, empalmado): acumulado del año exacto, sin componer variaciones redondeadas
     "ipc_indice": "G073.IPC.IND.2023.M",
     "pib_real": "F032.PIB.FLU.R.CLP.EP18.Z.Z.0.T",
