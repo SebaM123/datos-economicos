@@ -176,7 +176,7 @@ function buscar(texto) {
       titulo: g.nombre, sub: `${nombrePestana[g.pestana] || ""} · gráfico`, valor: "", hash: `#/${g.pestana}/${g.id}`,
       pajar: `${norm(g.nombre)} ${norm(nombrePestana[g.pestana] || "")} ${norm(g.definicion || "")}`,
     })),
-    ...todasLasPestanas().map((t) => ({ titulo: t.nombre, sub: "Sección", valor: "", hash: `#/${t.id}`, pajar: norm(t.nombre) })),
+    ...todasLasPestanas().map((t) => ({ titulo: t.nombre, sub: "Sección", valor: "", hash: `#/${t.id}`, pajar: `${norm(t.nombre)} ${norm(t.intro || "")}` })),
   ];
   return candidatos
     .filter((c) => tokens.every((t) => c.pajar.includes(t)))
@@ -708,7 +708,7 @@ function htmlBloquesGraficos(ids) {
       : "";
     return `<section class="bloque" id="g-${esc(g.id)}" aria-labelledby="h-${esc(g.id)}">
       <div class="bloque-cabecera"><h2 id="h-${esc(g.id)}">${esc(g.nombre)}</h2>${rangos}</div>
-      <p class="bloque-nota">${esc(g.definicion)}</p>
+      <p class="bloque-nota">${esc(g.definicion)}${g.enlace ? ` <a class="enlace-bloque" href="${esc(g.enlace.hash)}">${esc(g.enlace.texto)}</a>` : ""}</p>
       <p class="callout" hidden></p>
       <div class="grafico-compuesto" data-g="${esc(g.id)}" role="img" aria-label="${esc(g.nombre)}"></div>
     </section>`;
@@ -767,19 +767,210 @@ function htmlPestana(id) {
   const otros = series.filter((s) => !principalesIds.includes(s.id));
   const tarjetas = principales.length ? `<div class="rejilla">${principales.map(htmlTarjetaSerie).join("")}</div>` : "";
   const masIndicadores = otros.length ? `<h2 class="subtitulo">Más indicadores</h2><div class="rejilla">${otros.map(htmlTarjetaSerie).join("")}</div>` : "";
-  const extra = seccion && seccion.tipo === "revisiones" ? '<section class="bloque" id="revisiones-contenido" aria-live="polite">Cargando…</section>' : "";
+  const extra = seccion && seccion.tipo === "revisiones" ? '<section class="bloque" id="revisiones-contenido" aria-live="polite">Cargando…</section>'
+    : seccion && seccion.tipo === "comparador" ? htmlComparador() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
+}
+
+// ---------- Comparador de países ----------
+const COMP_MAX = 8;
+const COMP_DEFECTO = ["CHL", "OED", "WLD"];
+const COMP_INDICADORES = [["crecimiento_pib", "Crecimiento del PIB"], ["crecimiento_pib_pc", "PIB per cápita"], ["inflacion", "Inflación"], ["desempleo", "Desempleo"]];
+const COMP_RANGOS = [["10 años", 10], ["20 años", 20], ["Desde 1990", null]];
+const COMP_RAPIDOS = ["ARG", "BRA", "PER", "MEX", "COL", "USA", "CHN", "LCN", "EUU", "DEU"];
+const COMP_COLORES = ["#e8c15a", "#5fd38d", "#f08a7a", "#c792ea", "#5ec4c4", "#f0a97c", "#9aa5b8"];
+const comp = { ind: "crecimiento_pib", sel: [...COMP_DEFECTO], anios: 20, entidades: null, datos: {}, grafico: null };
+
+const compColor = (codigo) => (codigo === "CHL" ? css("--accent") : COMP_COLORES[(comp.sel.filter((c) => c !== "CHL").indexOf(codigo)) % COMP_COLORES.length]);
+const compNombre = (codigo) => (comp.entidades.find((e) => e.id === codigo) || { nombre: codigo }).nombre;
+
+function compDesdeQuery(query) {
+  if (!query) return;
+  const p = new URLSearchParams(query);
+  if (COMP_INDICADORES.some(([id]) => id === p.get("i"))) comp.ind = p.get("i");
+  if (p.get("p")) comp.sel = ["CHL", ...p.get("p").split(",").filter((c) => c && c !== "CHL")].slice(0, COMP_MAX);
+  if (p.get("a")) comp.anios = p.get("a") === "todo" ? null : Number(p.get("a")) || 20;
+}
+const compHash = () => `#/comparador?i=${comp.ind}&p=${comp.sel.filter((c) => c !== "CHL").join(",")}&a=${comp.anios ?? "todo"}`;
+
+function htmlComparador() {
+  return `<section class="bloque" id="comparador-bloque" aria-label="Comparador">
+    <div class="comp-controles">
+      <div class="rangos" id="comp-indicador" role="group" aria-label="Indicador">${COMP_INDICADORES.map(([id, etq]) => `<button type="button" data-ind="${id}">${etq}</button>`).join("")}</div>
+      <div class="rangos" id="comp-rango" role="group" aria-label="Período">${COMP_RANGOS.map(([etq, a]) => `<button type="button" data-anios="${a ?? "todo"}">${etq}</button>`).join("")}</div>
+    </div>
+    <ul class="chips" id="comp-chips" aria-label="Países y regiones seleccionados"></ul>
+    <div class="comp-agregar">
+      <input id="comp-buscar" list="comp-lista" type="text" placeholder="Agregar país o región (ej. Argentina, Zona del Euro)…" autocomplete="off" aria-label="Agregar país o región">
+      <datalist id="comp-lista"></datalist>
+      <button class="boton-chico" type="button" id="comp-reset">Chile vs. OCDE y mundo</button>
+    </div>
+    <div class="comp-rapidos" id="comp-rapidos" aria-label="Agregar rápido"></div>
+    <p class="callout" id="comp-resumen" hidden></p>
+    <div class="grafico-compuesto" id="comp-grafico" style="height:420px" role="img" aria-label="Comparación entre países"></div>
+    <div class="bloque-cabecera" style="margin-top:18px"><h2>Promedios</h2><button class="boton-chico" type="button" id="comp-csv">Descargar CSV</button></div>
+    <div class="tabla-ancha" id="comp-tabla"></div>
+    <p class="bloque-nota" id="comp-nota"></p>
+  </section>`;
+}
+
+async function cargarComparador(ind) {
+  const v = estado.meta.generado;
+  if (!comp.entidades) comp.entidades = await pedirJSON("comparador/entidades.json", v);
+  if (!comp.datos[ind]) comp.datos[ind] = await pedirJSON(`comparador/${ind}.json`, v);
+  return comp.datos[ind];
+}
+
+const compSerie = (d, codigo) => d.datos[codigo] || null;
+const compFmt = (d, v) => (v === null || v === undefined ? "—" : fmtGen({ unidad: d.unidad, decimales: d.decimales }, v));
+
+function compPromedio(d, codigo, n) {
+  const serie = compSerie(d, codigo);
+  if (!serie) return null;
+  const ultimo = d.anios.length - 1;
+  const desde = n === null ? 0 : Math.max(0, ultimo - n + 1);
+  const vals = serie.slice(desde).filter((v) => v !== null);
+  return vals.length >= (n === null ? 3 : Math.ceil(n / 2)) ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+function compResumen(d) {
+  const ultimo = d.anios.length - 1, anio = d.anios[ultimo];
+  const chile = compSerie(d, "CHL");
+  if (!chile || chile[ultimo] === null) return "";
+  const v = chile[ultimo];
+  const paises = comp.entidades.filter((e) => e.tipo === "pais" && d.datos[e.id] && d.datos[e.id][ultimo] !== null);
+  const puesto = paises.filter((e) => d.datos[e.id][ultimo] > v).length + 1;
+  const ref = (cod, nombre) => (compSerie(d, cod) && compSerie(d, cod)[ultimo] !== null ? { nombre, v: compSerie(d, cod)[ultimo] } : null);
+  const refs = [ref("OED", "la OCDE"), ref("WLD", "el mundo")].filter(Boolean);
+  const verbo = d.id.startsWith("crecimiento") ? "creció" : d.id === "inflacion" ? "tuvo una inflación de" : "tuvo un desempleo de";
+  const comparaciones = refs.map((r) => {
+    const mas = d.id.startsWith("crecimiento") ? "más que" : "más que";
+    return `${v > r.v ? mas : v < r.v ? "menos que" : "igual que"} ${r.nombre} (${compFmt(d, r.v)})`;
+  });
+  const frase = `En ${anio} Chile ${verbo} ${compFmt(d, v)}${comparaciones.length ? ": " + comparaciones.join(" y ") : ""}.`;
+  return `${frase} Entre ${paises.length} países con dato ocupa el lugar ${puesto} (ordenados de mayor a menor).`;
+}
+
+function compPintar() {
+  const d = comp.datos[comp.ind];
+  if (!d) return;
+  const cont = document.getElementById("comp-grafico");
+  if (!cont) return;
+  // controles
+  document.querySelectorAll("#comp-indicador button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ind === comp.ind)));
+  document.querySelectorAll("#comp-rango button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.anios === "todo" ? null : Number(b.dataset.anios)) === comp.anios)));
+  // chips
+  document.getElementById("comp-chips").innerHTML = comp.sel.map((c) => `<li class="chip" style="--color:${compColor(c)}"><span class="punto-color"></span>${esc(compNombre(c))}${c === "CHL" ? "" : `<button type="button" data-quitar="${esc(c)}" aria-label="Quitar ${esc(compNombre(c))}">×</button>`}</li>`).join("");
+  // atajos
+  const rapidos = COMP_RAPIDOS.filter((c) => !comp.sel.includes(c) && comp.entidades.some((e) => e.id === c));
+  document.getElementById("comp-rapidos").innerHTML = rapidos.length ? `<span>Agregar:</span> ${rapidos.map((c) => `<button type="button" class="boton-chico" data-agregar="${esc(c)}">+ ${esc(compNombre(c))}</button>`).join("")}` : "";
+  // resumen
+  const resumen = document.getElementById("comp-resumen");
+  resumen.textContent = compResumen(d); resumen.hidden = !resumen.textContent;
+  // gráfico
+  const n = comp.anios;
+  const desde = n === null ? 0 : Math.max(0, d.anios.length - n);
+  const anios = d.anios.slice(desde);
+  const series = comp.sel.map((c) => ({ c, datos: (compSerie(d, c) || []).slice(desde) })).filter((s) => s.datos.length);
+  const todos = series.flatMap((s) => s.datos).filter((v) => v !== null);
+  const cruza = todos.length && Math.min(...todos) < 0 && Math.max(...todos) > 0;
+  if (!comp.grafico) {
+    comp.grafico = echarts.init(cont, null, { renderer: "canvas" });
+    const obs = new ResizeObserver(() => comp.grafico.resize());
+    obs.observe(cont);
+    estado.graficos.push({ grafico: comp.grafico, observador: obs });
+  }
+  const g = { unidad: d.unidad, decimales: d.decimales, frecuencia: "A" };
+  comp.grafico.setOption({
+    animation: false, grid: { left: 52, right: 22, top: 40, bottom: 30 },
+    legend: { top: 0, left: 0, textStyle: { color: css("--muted") }, icon: "roundRect", itemWidth: 12, itemHeight: 6 },
+    tooltip: {
+      trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      axisPointer: { type: "line", lineStyle: { color: css("--muted"), type: "dashed" } },
+      formatter: (ps) => `${ps[0].axisValue}<br>${[...ps].filter((p) => p.value !== null && p.value !== undefined).sort((a, b) => b.value - a.value)
+        .map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${fmtGen(g, p.value)}</b>`).join("<br>")}`,
+    },
+    xAxis: { type: "category", data: anios.map(String), boundaryGap: false, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisTick: { show: false }, axisLabel: { color: css("--muted"), hideOverlap: true } },
+    yAxis: { type: "value", scale: true, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => fmtGen({ unidad: d.unidad, decimales: Math.abs(v) < 10 && !Number.isInteger(v) ? 1 : 0 }, v) } },
+    series: series.map((s, i) => ({
+      name: compNombre(s.c), type: "line", data: s.datos, connectNulls: false, showSymbol: anios.length <= 25, symbolSize: s.c === "CHL" ? 7 : 5,
+      lineStyle: { width: s.c === "CHL" ? 3.6 : 2, color: compColor(s.c) }, itemStyle: { color: compColor(s.c) }, z: s.c === "CHL" ? 5 : 2,
+      markLine: i === 0 && cruza ? { silent: true, symbol: "none", label: { show: false }, lineStyle: { color: css("--muted"), type: "dashed", opacity: 0.6 }, data: [{ yAxis: 0 }] } : undefined,
+    })),
+  }, true);
+  // tabla de promedios
+  const ultimoAnio = d.anios[d.anios.length - 1];
+  const cols = [[5, `5 años (${ultimoAnio - 4}-${ultimoAnio})`], [10, `10 años (${ultimoAnio - 9}-${ultimoAnio})`], [20, `20 años (${ultimoAnio - 19}-${ultimoAnio})`], [null, `Desde ${d.anios[0]}`]];
+  document.getElementById("comp-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Promedios de ${esc(d.nombre)}</caption>
+    <thead><tr><th scope="col">País o región</th><th scope="col">${ultimoAnio}</th>${cols.map(([, etq]) => `<th scope="col">Promedio ${esc(etq)}</th>`).join("")}</tr></thead>
+    <tbody>${comp.sel.map((c) => { const ser = compSerie(d, c); return `<tr class="${c === "CHL" ? "fila-chile" : ""}"><td><span class="punto-color" style="--color:${compColor(c)}"></span> ${esc(compNombre(c))}</td>
+      <td class="num">${compFmt(d, ser ? ser[ser.length - 1] : null)}</td>${cols.map(([n2]) => `<td class="num">${compFmt(d, compPromedio(d, c, n2))}</td>`).join("")}</tr>`; }).join("")}</tbody></table>`;
+  document.getElementById("comp-nota").textContent = `${d.descripcion} Fuente: ${d.fuente}. Los promedios son el promedio simple de las tasas anuales de cada período (no la tasa compuesta). `
+    + "Las cifras pueden diferir un poco de las oficiales de cada país porque el Banco Mundial las armoniza para que sean comparables. Un guion (—) significa que no hay dato.";
+  history.replaceState(null, "", compHash());
+}
+
+function compAgregar(codigo) {
+  if (comp.sel.includes(codigo)) return;
+  const nota = document.getElementById("comp-nota");
+  if (comp.sel.length >= COMP_MAX) { nota.textContent = `Máximo ${COMP_MAX} a la vez: quita alguno para agregar otro.`; return; }
+  comp.sel.push(codigo);
+  compPintar();
+}
+
+async function activarComparador(idRender, query) {
+  compDesdeQuery(query);
+  let d;
+  try { d = await cargarComparador(comp.ind); } catch (e) { const c = document.getElementById("comparador-bloque"); if (c) c.textContent = "No se pudieron cargar los datos del comparador."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("comp-grafico")) return;
+  comp.grafico = null;
+  document.getElementById("comp-lista").innerHTML = [...comp.entidades].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+    .map((e) => `<option value="${esc(e.nombre)}">${e.tipo === "agregado" ? "Región o grupo" : esc(e.region)}</option>`).join("");
+  const buscarEntidad = (texto) => {
+    const t = norm(texto).trim();
+    if (!t) return null;
+    return comp.entidades.find((e) => norm(e.nombre) === t) || (comp.entidades.filter((e) => norm(e.nombre).startsWith(t)).length === 1 ? comp.entidades.find((e) => norm(e.nombre).startsWith(t)) : null);
+  };
+  const entrada = document.getElementById("comp-buscar");
+  const intentar = () => { const e = buscarEntidad(entrada.value); if (e) { entrada.value = ""; compAgregar(e.id); } };
+  entrada.addEventListener("change", intentar);
+  entrada.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); intentar(); } });
+  document.getElementById("comp-chips").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-quitar]");
+    if (b) { comp.sel = comp.sel.filter((c) => c !== b.dataset.quitar); compPintar(); }
+  });
+  document.getElementById("comp-rapidos").addEventListener("click", (ev) => { const b = ev.target.closest("[data-agregar]"); if (b) compAgregar(b.dataset.agregar); });
+  document.getElementById("comp-reset").addEventListener("click", () => { comp.sel = [...COMP_DEFECTO]; compPintar(); });
+  document.getElementById("comp-rango").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-anios]");
+    if (b) { comp.anios = b.dataset.anios === "todo" ? null : Number(b.dataset.anios); compPintar(); }
+  });
+  document.getElementById("comp-indicador").addEventListener("click", async (ev) => {
+    const b = ev.target.closest("[data-ind]");
+    if (!b || b.dataset.ind === comp.ind) return;
+    try { await cargarComparador(b.dataset.ind); } catch (e) { return; }
+    comp.ind = b.dataset.ind; compPintar();
+  });
+  document.getElementById("comp-csv").addEventListener("click", () => {
+    const dd = comp.datos[comp.ind];
+    const filas = [["año", ...comp.sel.map(compNombre)].join(","), ...dd.anios.map((a, i) => [a, ...comp.sel.map((c) => { const s = compSerie(dd, c); return s && s[i] !== null ? s[i] : ""; })].join(","))];
+    const url = URL.createObjectURL(new Blob([filas.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `comparador_${comp.ind}.csv` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  compPintar();
 }
 
 // ---------- Render ----------
 function rutaActual() {
-  const partes = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
+  const partes = camino.split("/").map(decodeURIComponent);
   if (partes[0] === "serie") {
     const serie = serieDe(partes[1]);
     if (serie) return { tipo: "serie", serie, tema: serie.tema };
   }
   if (partes[0] === "estado") return { tipo: "estado", tema: null };
-  if (todasLasPestanas().some((t) => t.id === partes[0])) return { tipo: "tab", tema: partes[0], grafico: partes[1] || null };
+  if (todasLasPestanas().some((t) => t.id === partes[0])) return { tipo: "tab", tema: partes[0], grafico: partes[1] || null, query: query || "" };
   return { tipo: "home", tema: "" };
 }
 
@@ -813,6 +1004,7 @@ async function render() {
   if (detalle) activarDetalle(ruta.serie, detalle);
   if (ruta.tipo === "tab") {
     // El salto al gráfico pedido se hace cuando ya se dibujaron todos: antes, las alturas aún no estaban fijadas.
+    if (ruta.tema === "comparador") activarComparador(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });

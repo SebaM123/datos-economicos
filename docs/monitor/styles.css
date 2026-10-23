@@ -224,3 +224,18 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .cinta-sube { color: var(--mejor); } .cinta-baja { color: var(--peor); }
 @keyframes cinta { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .cinta { white-space: normal; } .cinta-pista { animation: none; flex-wrap: wrap; } .cinta-item:nth-child(n+5) { display: none; } }
+
+/* ---------- Comparador ---------- */
+.comp-controles { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 16px 0 10px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; background: var(--card-2); border: 1px solid var(--border-fuerte); border-radius: 999px; padding: 5px 6px 5px 12px; font-size: 0.9rem; }
+.chip button { background: none; border: 0; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 6px; border-radius: 50%; }
+.chip button:hover { color: var(--text); background: var(--accent-suave); }
+.chip:has(button) { padding-right: 6px; } .chip:not(:has(button)) { padding-right: 14px; }
+.punto-color { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--color, var(--accent)); flex: none; }
+.comp-agregar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.comp-agregar input { flex: 1 1 280px; max-width: 460px; background: var(--card); border: 1px solid var(--border); color: var(--text); font: inherit; font-size: 0.9rem; padding: 8px 14px; border-radius: 10px; }
+.comp-agregar input:focus { outline: none; border-color: var(--accent); }
+.comp-rapidos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 0.82rem; }
+.fila-chile td { font-weight: 600; background: var(--accent-suave); }
+.enlace-bloque { color: var(--accent); white-space: nowrap; }

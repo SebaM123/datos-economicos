@@ -13,6 +13,7 @@ usa el dashboard de Streamlit.
 """
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -35,6 +36,9 @@ from series_utils import (
     estado_mas_parecido_a_chile,
     obtener_serie,
 )
+
+
+COMPARADOR_DIR = Path(__file__).resolve().parent.parent / "docs" / "monitor" / "data" / "comparador"
 
 
 def _pares(df: pd.DataFrame) -> list[list]:
@@ -89,6 +93,21 @@ def _pib_tendencia(h):
         _serie("Año móvil 12 meses, per cápita", calcular_imacec_tendencia(h, 12, per_capita=True)),
         _serie("Tendencia 48 meses, per cápita", calcular_imacec_tendencia(h, 48, per_capita=True)),
     ]}
+
+
+def _crecimiento_chile_ocde_mundo(h):
+    """Crecimiento anual del PIB de Chile, la OCDE y el mundo (Banco Mundial, ver data_pipeline/fetch_comparador.py)."""
+    ruta = COMPARADOR_DIR / "crecimiento_pib.json"
+    if not ruta.exists():
+        return None
+    d = json.loads(ruta.read_text(encoding="utf-8"))
+    series = []
+    for codigo, nombre in (("CHL", "Chile"), ("OED", "OCDE"), ("WLD", "Mundo")):
+        valores = d["datos"].get(codigo)
+        if not valores:
+            return None
+        series.append({"nombre": nombre, "datos": [[f"{a}-01-01", v] for a, v in zip(d["anios"], valores) if v is not None]})
+    return {"series": series}
 
 
 # ---------- Precios ----------
@@ -231,6 +250,11 @@ def _nota_monitor(nota: str) -> str:
 
 # Catálogo. `pestana` es el id del tema o sección donde se muestra (ver exportar_monitor.TEMAS / SECCIONES).
 GRAFICOS = [
+    dict(id="crecimiento_chile_ocde_mundo", pestana="actividad", tipo="lineas", nombre="Crecimiento del PIB: Chile vs. OCDE y el mundo",
+         unidad="%", decimales=1, frecuencia="A", build=_crecimiento_chile_ocde_mundo,
+         enlace={"texto": "Comparar con otros países en el Comparador →", "hash": "#/comparador"},
+         definicion="Variación anual del PIB real, datos anuales del Banco Mundial (pueden diferir un poco de las cifras del Banco Central, "
+                    "porque están armonizados entre países). «OCDE» y «Mundo» son los agregados de esa misma fuente."),
     dict(id="contribuciones_imacec", pestana="actividad", tipo="barras_apiladas", nombre="Qué sector explica el crecimiento del IMACEC",
          unidad="pp", decimales=1, frecuencia="M", build=_contribuciones_imacec,
          definicion="Cuánto aportó (o restó) cada sector, en puntos porcentuales, a la variación interanual del IMACEC; la línea es "

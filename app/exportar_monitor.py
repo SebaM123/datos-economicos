@@ -45,7 +45,7 @@ MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "
 # "secundarias" = indicadores que aparecen como filas pequeñas bajo el gráfico.
 TEMAS = [
     {"id": "actividad", "nombre": "Actividad", "icono": "trending-up", "serie": "imacec_interanual",
-     "graficos": ["contribuciones_imacec", "imacec_total_minero", "imacec_sa_niveles", "pib_tendencia"],
+     "graficos": ["crecimiento_chile_ocde_mundo", "contribuciones_imacec", "imacec_total_minero", "imacec_sa_niveles", "pib_tendencia"],
      "vistas": {"ytd": "imacec_acumulado_anio", "12m": "imacec_anio_movil"},
      "secundarias": ["imacec_sa_mensual", "imacec_minero_interanual", "imacec_no_minero_interanual"]},
     {"id": "precios", "nombre": "Precios", "icono": "tag", "serie": "ipc_mensual",
@@ -76,6 +76,10 @@ TEMAS = [
 
 # Pestañas que no son un tema con tarjetas sino una sección de gráficos/tablas.
 SECCIONES = [
+    {"id": "comparador", "nombre": "Comparador", "icono": "globe", "tipo": "comparador",
+     "intro": "Compara a Chile con el mundo, la OCDE, otras regiones y cualquier país: crecimiento del PIB (total y per cápita), inflación y "
+              "desempleo, desde 1990. Por defecto aparece Chile contra la OCDE y el mundo; agrega o saca las comparaciones que quieras y "
+              "el enlace de la página guarda tu selección."},
     {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
      "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
               "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "
@@ -664,8 +668,9 @@ def generar() -> None:
             continue
         cabecera = {k: g[k] for k in ("id", "nombre", "tipo", "definicion", "unidad", "decimales", "frecuencia")}
         cabecera["meta"] = g.get("meta")
+        cabecera["enlace"] = g.get("enlace")
         _escribir(SALIDA / "graficos" / f"{g['id']}.json", {**cabecera, **carga})
-        graficos.append({**{k: cabecera[k] for k in ("id", "nombre", "tipo", "definicion", "frecuencia")}, "pestana": g["pestana"]})
+        graficos.append({**{k: cabecera[k] for k in ("id", "nombre", "tipo", "definicion", "frecuencia", "enlace")}, "pestana": g["pestana"]})
     ids_graficos = {g["id"] for g in graficos}
 
     temas = []

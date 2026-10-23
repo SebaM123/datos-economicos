@@ -83,6 +83,12 @@ jobs:
         run: python fetch_worldbank.py
         working-directory: data_pipeline
 
+      - name: Traer datos del Comparador de países (Banco Mundial)
+        if: needs.decidir.outputs.completa == 'true'
+        continue-on-error: true
+        run: python fetch_comparador.py
+        working-directory: data_pipeline
+
       - name: Traer índice de Gini por estado (Census Bureau)
         if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true
