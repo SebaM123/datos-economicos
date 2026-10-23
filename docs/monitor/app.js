@@ -716,7 +716,7 @@ function htmlBloquesGraficos(ids) {
 }
 
 async function activarCompuestos(idRender) {
-  const contenedores = [...document.querySelectorAll(".grafico-compuesto")];
+  const contenedores = [...document.querySelectorAll(".grafico-compuesto[data-g]")];
   await Promise.all(contenedores.map(async (el) => {
     let g;
     try { g = await cargarCompuesto(el.dataset.g); } catch (e) { el.textContent = "No se pudo cargar este gráfico."; return; }
