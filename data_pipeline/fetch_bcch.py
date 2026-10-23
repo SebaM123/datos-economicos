@@ -44,6 +44,11 @@ SERIES = {
     # Índice de precios al productor: Chile (índice, base 2019=100) y EEUU (variación
     # interanual, "todos los commodities" — mismo origen que eeuu_desempleo/eeuu_inflacion).
     "ipp_general": "F075.IPP.IND.P0551.2019.Z.M",
+    # IPP por sector (mismas aperturas que publica el INE: minería, industria manufacturera, electricidad-gas-agua) y agricultura
+    "ipp_mineria": "F075.IPP.IND.P0949.2019.Z.M",
+    "ipp_manufactura": "F075.IPP.IND.P0552.2019.Z.M",
+    "ipp_ega": "F075.IPP.IND.P0990.2019.Z.M",
+    "ipp_agricultura": "F075.IPP.IND.P1007.2019.Z.M",
     "eeuu_ipp": "F019.IPP.V12.10.M",
     # PIB por sector: minería (mensual) y no minero (trimestral, series empalmadas), ambos
     # en volumen (términos reales) y desestacionalizados, para ver si la actividad depende

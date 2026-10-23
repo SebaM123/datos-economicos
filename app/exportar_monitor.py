@@ -50,9 +50,9 @@ TEMAS = [
      "vistas": {"ytd": "imacec_acumulado_anio", "12m": "imacec_anio_movil"},
      "secundarias": ["imacec_sa_mensual", "imacec_minero_interanual", "imacec_no_minero_interanual"]},
     {"id": "precios", "nombre": "Precios", "icono": "tag", "serie": "ipc_mensual",
-     "graficos": ["ipc_subyacente", "ipc_aperturas", "ipc_vs_deflactor"],
+     "graficos": ["ipc_subyacente", "ipc_aperturas", "ipc_vs_deflactor", "ipp_sectores_interanual", "ipp_sectores_mensual"],
      "vistas": {"ytd": "ipc_acumulado_anio", "12m": "ipc_interanual"},
-     "secundarias": ["ipc_interanual", "ipc_subyacente_interanual", "ipp_interanual"]},
+     "secundarias": ["ipc_interanual", "ipc_subyacente_interanual", "ipp_mensual", "ipp_interanual"]},
     {"id": "dolar", "nombre": "Dólar y mercado", "icono": "dollar", "serie": "tipo_cambio",
      "vistas": {"ytd": "tipo_cambio_var_anio", "12m": "tipo_cambio_var_12m"},
      "secundarias": ["ipsa", "sp500"]},
@@ -240,7 +240,7 @@ SERIES = [
          frecuencia="M", delta="pp", polaridad="sube_malo", firmado=True, fuente="INE / Banco Central",
          definicion="IPC sin los componentes de precio más cambiante, variación interanual.",
          datos=lambda h: _raw(h, "ipc_sin_volatiles_v12")),
-    dict(id="ipp_interanual", nombre="IPP interanual", tema="precios", unidad="%", frecuencia="M", delta="pp",
+    dict(id="ipp_interanual", nombre="IPP interanual (12 meses)", tema="precios", unidad="%", frecuencia="M", delta="pp",
          polaridad="sube_malo", firmado=True, fuente="INE",
          definicion="Índice de precios al productor (general), variación interanual.",
          datos=lambda h: calcular_interanual_mensual(h, "ipp_general")),
@@ -443,6 +443,38 @@ SERIES += [
 ]
 
 
+SERIES += [
+    # --- IPP: el INE lo titula con la variación mensual; acá las tres lecturas (mensual, acumulada en el año, interanual)
+    _simple("ipp_mensual", "IPP var. mensual", "precios", lambda h: _variacion_periodos(_raw(h, "ipp_general"), 1), unidad="%", delta="pp",
+            polaridad="sube_malo", firmado=True, fuente="INE",
+            definicion="Variación mensual del IPP general de industrias (minería, industria manufacturera y electricidad, gas y agua): "
+                       "es el dato con que el INE titula cada publicación. Se calcula sobre el índice con dos decimales, así que puede "
+                       "diferir una décima de la cifra oficial."),
+    _simple("ipp_acumulado_anio", "IPP acumulado en el año", "precios",
+            lambda h: _cambio_desde_cierre_anio(_raw(h, "ipp_general"), relativo=True), unidad="%", delta="pp", polaridad="sube_malo",
+            firmado=True, fuente="INE (cálculo propio)", definicion="Variación del IPP general desde diciembre del año anterior."),
+    _simple("ipp_mineria_mensual", "IPP minería var. mensual", "precios", lambda h: _variacion_periodos(_raw(h, "ipp_mineria"), 1), unidad="%",
+            delta="pp", polaridad="sube_malo", firmado=True, fuente="INE",
+            definicion="Variación mensual del IPP de la minería (muy ligado al precio del cobre)."),
+    _simple("ipp_manufactura_mensual", "IPP manufactura var. mensual", "precios", lambda h: _variacion_periodos(_raw(h, "ipp_manufactura"), 1),
+            unidad="%", delta="pp", polaridad="sube_malo", firmado=True, fuente="INE",
+            definicion="Variación mensual del IPP de la industria manufacturera."),
+    _simple("ipp_ega_mensual", "IPP electricidad, gas y agua var. mensual", "precios", lambda h: _variacion_periodos(_raw(h, "ipp_ega"), 1),
+            unidad="%", delta="pp", polaridad="sube_malo", firmado=True, fuente="INE",
+            definicion="Variación mensual del IPP de electricidad, gas y agua."),
+    # --- Remuneraciones: el INE reporta la variación mensual y la de 12 meses, nominal y real
+    _simple("remuneraciones_real_mensual", "Remuneración real var. mensual", "empleo",
+            lambda h: _variacion_periodos(_raw(h, "remuneraciones_real"), 1), unidad="%", delta="pp", polaridad="sube_bueno", firmado=True,
+            fuente="INE", definicion="Variación mensual del índice real de remuneraciones por hora (descontada la inflación)."),
+    _simple("remuneraciones_nominal_mensual", "Remuneración nominal var. mensual", "empleo",
+            lambda h: _variacion_periodos(_raw(h, "remuneraciones_nominal"), 1), unidad="%", delta="pp", polaridad="sube_bueno", firmado=True,
+            fuente="INE", definicion="Variación mensual del índice nominal de remuneraciones por hora."),
+    _simple("remuneraciones_nominal_interanual", "Remuneración nominal interanual", "empleo",
+            lambda h: calcular_interanual_mensual(h, "remuneraciones_nominal"), unidad="%", delta="pp", polaridad="sube_bueno", firmado=True,
+            fuente="INE", definicion="Variación interanual del índice nominal de remuneraciones por hora."),
+]
+
+
 # Antigüedad máxima esperada del último dato (días desde su fecha) antes de considerar la serie "demorada".
 # Se calcula como el peor caso entre dos publicaciones: la fecha de un dato es el día 1 de su mes, y el siguiente
 # se publica cerca de 2 meses después (IPC ~día 8, IPP ~día 24, IMACEC 1er día hábil, ENE ~día 29, etc.) + margen.
@@ -559,7 +591,10 @@ REVISIONES_DE = {
     "imacec_acumulado_anio": [("imacec", "")], "imacec_anio_movil": [("imacec", "")],
     "ipc_mensual": [("ipc_variacion_mensual", "%")], "ipc_acumulado_anio": [("ipc_variacion_mensual", "%")],
     "ipc_interanual": [("ipc_v12", "%")], "ipc_sin_volatiles_interanual": [("ipc_sin_volatiles_v12", "%")],
-    "ipp_interanual": [("ipp_general", "")], "desempleo": [("desempleo", "%")],
+    "ipp_interanual": [("ipp_general", "")], "ipp_mensual": [("ipp_general", "")], "ipp_acumulado_anio": [("ipp_general", "")],
+    "ipp_mineria_mensual": [("ipp_mineria", "")], "ipp_manufactura_mensual": [("ipp_manufactura", "")], "ipp_ega_mensual": [("ipp_ega", "")],
+    "remuneraciones_real_mensual": [("remuneraciones_real", "")], "remuneraciones_nominal_mensual": [("remuneraciones_nominal", "")],
+    "remuneraciones_nominal_interanual": [("remuneraciones_nominal", "")], "desempleo": [("desempleo", "%")],
     "remuneraciones_real_interanual": [("remuneraciones_real", "")],
     "exportaciones_total_interanual": [("exportaciones_mineria", ""), ("exportaciones_agropecuario", ""), ("exportaciones_industrial", "")],
     "exportaciones_mineria_interanual": [("exportaciones_mineria", "")],
@@ -595,7 +630,7 @@ TARJETA_DE_EVENTO = {
     "desempleo": "desempleo",
     "imacec": "imacec_interanual",
     "tpm": "tpm",
-    "ipp_general": "ipp_interanual",
+    "ipp_general": "ipp_mensual",
 }
 
 

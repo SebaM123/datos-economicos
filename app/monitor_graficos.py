@@ -127,6 +127,18 @@ def _ipc_vs_deflactor(h):
     return {"series": [_serie("IPC (mensual)", _raw(h, "ipc_v12")), _serie("Deflactor del PIB (trimestral)", deflactor.dropna())]}
 
 
+def _ipp_sectores(periodos):
+    def construir(h):
+        series = []
+        for nombre, clave in (("General industrias", "ipp_general"), ("Minería", "ipp_mineria"),
+                              ("Industria manufacturera", "ipp_manufactura"), ("Electricidad, gas y agua", "ipp_ega")):
+            df = _raw(h, clave)
+            df["valor"] = df["valor"].pct_change(periodos) * 100
+            series.append(_serie(nombre, df.dropna()))
+        return {"series": series}
+    return construir
+
+
 # ---------- Empleo ----------
 def _masa_salarial(h):
     masa = calcular_masa_salarial_real(h)
@@ -286,6 +298,14 @@ GRAFICOS = [
          unidad="%", decimales=1, frecuencia="M", build=_ipc_vs_deflactor,
          definicion="El deflactor cubre TODO lo que produce el país (incluye bienes de inversión y exportaciones), no solo lo que compran "
                     "los hogares, y suele reaccionar más al precio del cobre. El IPC es mensual; el deflactor, trimestral."),
+    dict(id="ipp_sectores_interanual", pestana="precios", tipo="lineas", nombre="IPP por sector (variación interanual)",
+         unidad="%", decimales=1, frecuencia="M", build=_ipp_sectores(12),
+         definicion="Cuánto suben en 12 meses los precios que reciben los productores, en total y por sector. La minería (cobre) es la que "
+                    "más mueve el índice general."),
+    dict(id="ipp_sectores_mensual", pestana="precios", tipo="lineas", nombre="IPP por sector (variación mensual)",
+         unidad="%", decimales=1, frecuencia="M", build=_ipp_sectores(1),
+         definicion="Variación de un mes contra el anterior, que es como el INE titula la publicación. Es mucho más volátil que la "
+                    "interanual."),
     dict(id="masa_salarial_aportes", pestana="empleo", tipo="barras_apiladas", nombre="Masa salarial real (aprox.): aporte del salario y del empleo",
          unidad="pp", decimales=1, frecuencia="M", build=_masa_salarial,
          definicion="Aproximación propia, no oficial: índice real de remuneraciones (INE, por hora) x ocupados asalariados (ENE). No captura "
