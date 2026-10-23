@@ -239,3 +239,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .comp-rapidos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 0.82rem; }
 .fila-chile td { font-weight: 600; background: var(--accent-suave); }
 .enlace-bloque { color: var(--accent); white-space: nowrap; }
+.comp-controles .rangos { flex-wrap: wrap; max-width: 100%; }
+.comp-controles .rangos button { white-space: nowrap; }
+.bloque { min-width: 0; }

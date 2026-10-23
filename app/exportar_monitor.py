@@ -443,7 +443,7 @@ SERIES += [
 # Se calcula como el peor caso entre dos publicaciones: la fecha de un dato es el día 1 de su mes, y el siguiente
 # se publica cerca de 2 meses después (IPC ~día 8, IPP ~día 24, IMACEC 1er día hábil, ENE ~día 29, etc.) + margen.
 MAX_DIAS_EXACTO = {
-    "eeuu_desempleo": 50, "eeuu_inflacion": 110, "eeuu_ipp": 110, "eeuu_pib_total": 210, "eeuu_pib_per_capita": 800,
+    "eeuu_desempleo": 75, "eeuu_inflacion": 110, "eeuu_ipp": 110, "eeuu_pib_total": 210, "eeuu_pib_per_capita": 800,
     "eeuu_gini": 1500, "chile_gini": 1500, "chile_poblacion": 800, "chile_pib_per_capita_ppa": 800,
     "pib_chile": 245, "pib_no_minero": 245, "pib_deflactor": 245, "pib_mineria": 180, "tpm_real": 80,
     "ipsa_indice_real": 7, "sp500": 7, "tipo_cambio": 7, "tpm": 7,
