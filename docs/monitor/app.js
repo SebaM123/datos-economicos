@@ -768,7 +768,8 @@ function htmlPestana(id) {
   const tarjetas = principales.length ? `<div class="rejilla">${principales.map(htmlTarjetaSerie).join("")}</div>` : "";
   const masIndicadores = otros.length ? `<h2 class="subtitulo">Más indicadores</h2><div class="rejilla">${otros.map(htmlTarjetaSerie).join("")}</div>` : "";
   const extra = seccion && seccion.tipo === "revisiones" ? '<section class="bloque" id="revisiones-contenido" aria-live="polite">Cargando…</section>'
-    : seccion && seccion.tipo === "comparador" ? htmlComparador() : "";
+    : seccion && seccion.tipo === "comparador" ? htmlComparador()
+    : seccion && seccion.tipo === "composicion" ? htmlComposicion() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -961,6 +962,218 @@ async function activarComparador(idRender, query) {
   compPintar();
 }
 
+// ---------- Composición del PIB (explorador) ----------
+const CMP_VISTAS = [["gasto", "PIB por gasto"], ["actividad", "PIB por actividad"], ["exportaciones", "Exportaciones por producto"]];
+const CMP_COLORES = ["#7c8ff0", "#e8c15a", "#5fd38d", "#f08a7a", "#c792ea", "#5ec4c4", "#f0a97c", "#9aa5b8", "#e07a9d", "#8fd19e", "#d4b483", "#6c8cf0", "#b0b86a", "#d98cc0"];
+const CMP_RANGOS = [["10 años", 10], ["20 años", 20], ["Todo", null]];
+const cmp = { vista: "gasto", nodo: null, base: "raiz", anios: 20, arboles: {}, g1: null, g2: null };
+
+async function cargarArbol(v) {
+  if (!cmp.arboles[v]) cmp.arboles[v] = await pedirJSON(`composicion/${v}.json`, estado.meta.generado);
+  return cmp.arboles[v];
+}
+
+function cmpDesdeQuery(query) {
+  if (!query) return;
+  const p = new URLSearchParams(query);
+  if (CMP_VISTAS.some(([id]) => id === p.get("v"))) { if (p.get("v") !== cmp.vista) cmp.nodo = null; cmp.vista = p.get("v"); }
+  if (p.get("n")) cmp.nodo = p.get("n");
+  if (["raiz", "padre", "monto"].includes(p.get("b"))) cmp.base = p.get("b");
+  if (p.get("a")) cmp.anios = p.get("a") === "todo" ? null : Number(p.get("a")) || 20;
+}
+const cmpHash = () => `#/composicion?v=${cmp.vista}&n=${cmp.nodo}&b=${cmp.base}&a=${cmp.anios ?? "todo"}`;
+
+function htmlComposicion() {
+  return `<section class="bloque" id="composicion-bloque" aria-label="Explorador de la composición del PIB">
+    <div class="comp-controles">
+      <div class="rangos" id="cmp-vistas" role="group" aria-label="Qué desglosar">${CMP_VISTAS.map(([id, etq]) => `<button type="button" data-vista="${id}">${etq}</button>`).join("")}</div>
+      <div class="rangos" id="cmp-rango" role="group" aria-label="Período">${CMP_RANGOS.map(([etq, a]) => `<button type="button" data-anios="${a ?? "todo"}">${etq}</button>`).join("")}</div>
+    </div>
+    <nav class="migas-comp" id="cmp-migas" aria-label="Ruta de desglose"></nav>
+    <div class="comp-controles" style="margin-top:12px">
+      <div class="rangos" id="cmp-base" role="group" aria-label="Cómo medirlo"></div>
+    </div>
+    <p class="callout" id="cmp-resumen" hidden></p>
+    <div class="grafico-compuesto" id="cmp-grafico" style="height:400px" role="img" aria-label="Evolución de los componentes"></div>
+    <div id="cmp-hijos" class="comp-rapidos"></div>
+    <div id="cmp-linea-bloque" hidden>
+      <h2 class="subtitulo" id="cmp-linea-titulo" style="margin-top:22px"></h2>
+      <div class="grafico-compuesto" id="cmp-linea" style="height:200px" role="img" aria-label="Peso del componente en el total"></div>
+    </div>
+    <div class="bloque-cabecera" style="margin-top:18px"><h2>Detalle</h2><button class="boton-chico" type="button" id="cmp-csv">Descargar CSV</button></div>
+    <div class="tabla-ancha" id="cmp-tabla"></div>
+    <p class="bloque-nota" id="cmp-nota"></p>
+  </section>`;
+}
+
+function cmpEtiqueta(arbol, iso) {
+  const [a, m] = iso.split("-");
+  return arbol.frecuencia === "T" ? `T${Math.floor((Number(m) - 1) / 3) + 1} ${a}` : `${MESES[Number(m) - 1]} ${a}`;
+}
+
+function cmpRuta(arbol, id) {
+  const ruta = [];
+  for (let i = id; i; i = arbol.nodos[i].p) ruta.unshift(i);
+  return ruta;
+}
+
+// Valor de un nodo en la posición k según la base elegida: % de la raíz, % de su padre, o monto.
+function cmpValor(arbol, id, k, base) {
+  const n = arbol.nodos[id], v = n.v[k];
+  if (v === null || v === undefined) return null;
+  if (base === "monto") return v;
+  const ref = base === "raiz" ? arbol.nodos[arbol.raiz].v[k] : arbol.nodos[n.p || id].v[k];
+  return ref ? (v / ref) * 100 : null;
+}
+const cmpFmt = (arbol, base, v, signo = false) => {
+  if (v === null || v === undefined) return "—";
+  const s = v < 0 ? "−" : signo && v > 0 ? "+" : "";
+  return base === "monto" ? `${s}${numero(Math.abs(v), 0)}` : `${s}${numero(Math.abs(v), 1)}%`;
+};
+
+function cmpEtiquetasBase(arbol) {
+  const esExp = arbol.id === "exportaciones", raiz = arbol.nodos[arbol.raiz].n;
+  return [["raiz", esExp ? "% del total exportado" : "% del PIB"], ["padre", "% del componente superior"], ["monto", esExp ? "Monto (US$ millones)" : "Monto (miles de millones de $)"]];
+}
+
+function cmpPintar() {
+  const arbol = cmp.arboles[cmp.vista];
+  if (!arbol || !document.getElementById("cmp-grafico")) return;
+  if (!cmp.nodo || !arbol.nodos[cmp.nodo]) cmp.nodo = arbol.raiz;
+  const nodo = arbol.nodos[cmp.nodo], ruta = cmpRuta(arbol, cmp.nodo), esRaiz = cmp.nodo === arbol.raiz;
+  if (esRaiz && cmp.base === "padre") cmp.base = "raiz";
+  const N = arbol.fechas.length, ultimo = N - 1;
+  const paso = arbol.frecuencia === "T" ? 4 : 12;
+  const desde = cmp.anios === null ? 0 : Math.max(0, N - cmp.anios * paso - 1);
+  const idx = Array.from({ length: N - desde }, (_, i) => desde + i);
+  const comp = nodo.h.length ? nodo.h : [cmp.nodo];
+
+  // controles
+  document.querySelectorAll("#cmp-vistas button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vista === cmp.vista)));
+  document.querySelectorAll("#cmp-rango button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.anios === "todo" ? null : Number(b.dataset.anios)) === cmp.anios)));
+  document.getElementById("cmp-base").innerHTML = cmpEtiquetasBase(arbol).filter(([id]) => !(esRaiz && id === "padre"))
+    .map(([id, etq]) => `<button type="button" data-base="${id}" aria-pressed="${id === cmp.base}">${etq}</button>`).join("");
+  document.getElementById("cmp-migas").innerHTML = ruta.map((id, i) => i === ruta.length - 1
+    ? `<strong>${esc(arbol.nodos[id].n)}</strong>` : `<button type="button" data-nodo="${esc(id)}">${esc(arbol.nodos[id].n)}</button>`).join('<span class="sep">›</span>');
+
+  // resumen
+  const fechaTxt = cmpEtiqueta(arbol, arbol.fechas[ultimo]);
+  const k10 = Math.max(0, ultimo - 10 * paso), vRaiz = cmpValor(arbol, cmp.nodo, ultimo, "raiz"), vRaiz10 = cmpValor(arbol, cmp.nodo, k10, "raiz");
+  const refNombre = arbol.id === "exportaciones" ? "del total exportado" : "del PIB";
+  let texto;
+  if (esRaiz) {
+    texto = `${arbol.nombre}: ${numero(arbol.nodos[arbol.raiz].v[ultimo], 0)} ${arbol.id === "exportaciones" ? "millones de US$" : "mil millones de $"} en el año móvil a ${fechaTxt}.`;
+  } else {
+    const esExport = cmp.nodo.startsWith("xb_");
+    const cambio10 = vRaiz !== null && vRaiz10 !== null ? ` (${cmpFmt(arbol, "raiz", vRaiz - vRaiz10, true).replace("%", " pp")})` : "";
+    texto = esExport
+      ? `${nodo.n}: lo que se exporta equivale a ${cmpFmt(arbol, "raiz", vRaiz)} del PIB (año móvil a ${fechaTxt}); hace 10 años era ${cmpFmt(arbol, "raiz", vRaiz10)}${cambio10}. `
+        + "Es valor exportado (bruto), no el aporte al PIB: este último es el valor agregado, que se ve en «PIB por actividad»."
+      : `${nodo.n}: ${cmpFmt(arbol, "raiz", vRaiz)} ${refNombre} (año móvil a ${fechaTxt}); hace 10 años era ${cmpFmt(arbol, "raiz", vRaiz10)}${cambio10}.`;
+    const vPadre = cmpValor(arbol, cmp.nodo, ultimo, "padre");
+    if (vPadre !== null && nodo.p !== arbol.raiz) texto += ` Dentro de «${arbol.nodos[nodo.p].n}» pesa ${cmpFmt(arbol, "padre", vPadre)}.`;
+  }
+  const resumen = document.getElementById("cmp-resumen");
+  resumen.textContent = texto; resumen.hidden = false;
+
+  // gráfico apilado de los componentes
+  const g = { unidad: cmp.base === "monto" ? "" : "%", decimales: cmp.base === "monto" ? 0 : 1 };
+  const apilar = comp.length > 1 || comp[0] !== cmp.nodo;
+  const series = comp.map((id, i) => ({
+    name: arbol.nodos[id].n, type: "line", stack: apilar ? "t" : undefined, symbol: "none", connectNulls: true,
+    lineStyle: { width: apilar ? 0.8 : 2.4, color: CMP_COLORES[i % CMP_COLORES.length] }, itemStyle: { color: CMP_COLORES[i % CMP_COLORES.length] },
+    areaStyle: { color: CMP_COLORES[i % CMP_COLORES.length], opacity: apilar ? 0.78 : 0.18 },
+    data: idx.map((k) => cmpValor(arbol, id, k, cmp.base)),
+  }));
+  if (!cmp.g1) {
+    cmp.g1 = echarts.init(document.getElementById("cmp-grafico"), null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => cmp.g1.resize()); o.observe(document.getElementById("cmp-grafico"));
+    estado.graficos.push({ grafico: cmp.g1, observador: o });
+  }
+  const fmtEje = (v) => (cmp.base === "monto" ? numero(v, 0) : `${numero(v, 0)}%`);
+  cmp.g1.setOption({
+    animation: false, grid: { left: 58, right: 20, top: 16, bottom: 32 },
+    legend: undefined,
+    tooltip: {
+      trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      axisPointer: { type: "line", lineStyle: { color: css("--muted"), type: "dashed" } },
+      formatter: (ps) => `${ps[0].axisValue}<br>${[...ps].filter((p) => p.value !== null && p.value !== undefined).sort((a, b) => b.value - a.value)
+        .map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${cmpFmt(arbol, cmp.base, p.value)}</b>`).join("<br>")}`,
+    },
+    xAxis: { type: "category", data: idx.map((k) => cmpEtiqueta(arbol, arbol.fechas[k])), boundaryGap: false, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisTick: { show: false }, axisLabel: { color: css("--muted"), hideOverlap: true } },
+    yAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: fmtEje } },
+    series,
+  }, true);
+
+  // leyenda propia: cada componente con su color; los que tienen desglose se pueden abrir
+  document.getElementById("cmp-hijos").innerHTML = comp.map((id, i) => {
+    const n = arbol.nodos[id], abre = n.h.length && id !== cmp.nodo;
+    const chip = `<span class="punto-color" style="--color:${CMP_COLORES[i % CMP_COLORES.length]}"></span>${esc(n.n)}${abre ? " ▸" : ""}`;
+    return abre ? `<button type="button" class="boton-chico" data-nodo="${esc(id)}" title="Ver su desglose">${chip}</button>` : `<span class="chip-simple">${chip}</span>`;
+  }).join("");
+
+  // peso del componente actual en el total (línea)
+  const bloqueLinea = document.getElementById("cmp-linea-bloque");
+  bloqueLinea.hidden = esRaiz;
+  if (!esRaiz) {
+    document.getElementById("cmp-linea-titulo").textContent = `Peso de «${nodo.n}» ${refNombre}`;
+    if (!cmp.g2) {
+      cmp.g2 = echarts.init(document.getElementById("cmp-linea"), null, { renderer: "canvas" });
+      const o = new ResizeObserver(() => cmp.g2.resize()); o.observe(document.getElementById("cmp-linea"));
+      estado.graficos.push({ grafico: cmp.g2, observador: o });
+    }
+    const datosLinea = idx.map((k) => cmpValor(arbol, cmp.nodo, k, "raiz"));
+    cmp.g2.setOption({
+      animation: false, grid: { left: 58, right: 20, top: 10, bottom: 28 },
+      tooltip: { trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+        formatter: (ps) => `${ps[0].axisValue}<br><b>${cmpFmt(arbol, "raiz", ps[0].value)}</b>` },
+      xAxis: { type: "category", data: idx.map((k) => cmpEtiqueta(arbol, arbol.fechas[k])), boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } },
+      yAxis: { type: "value", scale: true, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${numero(v, 1)}%` } },
+      series: [{ type: "line", data: datosLinea, symbol: "none", lineStyle: { width: 2.4, color: css("--accent") }, areaStyle: { color: css("--accent"), opacity: 0.15 } }],
+    }, true);
+  }
+
+  // tabla
+  const k5 = Math.max(0, ultimo - 5 * paso);
+  const cambioTxt = (a, b) => (a === null || b === null ? "—" : cmp.base === "monto" ? (b ? `${a / b - 1 >= 0 ? "+" : "−"}${numero(Math.abs((a / b - 1) * 100), 0)}%` : "—") : cmpFmt(arbol, cmp.base, a - b, true).replace("%", " pp"));
+  document.getElementById("cmp-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Componentes de ${esc(nodo.n)}</caption>
+    <thead><tr><th scope="col">Componente</th><th scope="col">${fechaTxt}</th><th scope="col">Hace 5 años</th><th scope="col">Hace 10 años</th><th scope="col">Cambio en 10 años</th></tr></thead>
+    <tbody>${comp.map((id, i) => { const n = arbol.nodos[id], v = cmpValor(arbol, id, ultimo, cmp.base), v5 = cmpValor(arbol, id, k5, cmp.base), v10 = cmpValor(arbol, id, k10, cmp.base);
+      const nombre = n.h.length && id !== cmp.nodo ? `<button type="button" class="enlace-boton" data-nodo="${esc(id)}">${esc(n.n)} ▸</button>` : esc(n.n);
+      return `<tr><td><span class="punto-color" style="--color:${CMP_COLORES[i % CMP_COLORES.length]}"></span> ${nombre}${n.e ? ' <em class="aprox">estimado</em>' : ""}</td>
+        <td class="num">${cmpFmt(arbol, cmp.base, v)}</td><td class="num">${cmpFmt(arbol, cmp.base, v5)}</td><td class="num">${cmpFmt(arbol, cmp.base, v10)}</td><td class="num">${cambioTxt(v, v10)}</td></tr>`; }).join("")}</tbody></table>`;
+  const hayEstimado = comp.some((id) => arbol.nodos[id].e);
+  document.getElementById("cmp-nota").textContent = `${arbol.descripcion} Datos hasta ${fechaTxt}. `
+    + (hayEstimado ? "«Estimado» = diferencia entre el componente y la suma de sus partes publicadas. " : "")
+    + "Cada punto es un año móvil, así que no hay estacionalidad. Fuente: Banco Central de Chile (cuentas nacionales y balanza de pagos); cálculo propio.";
+  history.replaceState(null, "", cmpHash());
+}
+
+async function activarComposicion(idRender, query) {
+  cmpDesdeQuery(query);
+  try { await cargarArbol(cmp.vista); } catch (e) { const c = document.getElementById("composicion-bloque"); if (c) c.textContent = "No se pudieron cargar los datos de composición."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("cmp-grafico")) return;
+  cmp.g1 = null; cmp.g2 = null;
+  const cont = document.getElementById("composicion-bloque");
+  cont.addEventListener("click", async (ev) => {
+    const nodoBtn = ev.target.closest("[data-nodo]"), vista = ev.target.closest("[data-vista]"), base = ev.target.closest("[data-base]"), rango = ev.target.closest("#cmp-rango [data-anios]");
+    if (nodoBtn) { cmp.nodo = nodoBtn.dataset.nodo; cmpPintar(); }
+    else if (vista && vista.dataset.vista !== cmp.vista) {
+      try { await cargarArbol(vista.dataset.vista); } catch (e) { return; }
+      cmp.vista = vista.dataset.vista; cmp.nodo = null; cmp.base = "raiz"; cmpPintar();
+    } else if (base) { cmp.base = base.dataset.base; cmpPintar(); }
+    else if (rango) { cmp.anios = rango.dataset.anios === "todo" ? null : Number(rango.dataset.anios); cmpPintar(); }
+  });
+  document.getElementById("cmp-csv").addEventListener("click", () => {
+    const arbol = cmp.arboles[cmp.vista], nodo = arbol.nodos[cmp.nodo], comp = nodo.h.length ? nodo.h : [cmp.nodo];
+    const filas = [["fecha", ...comp.map((id) => arbol.nodos[id].n)].join(","), ...arbol.fechas.map((f, k) => [f, ...comp.map((id) => { const v = cmpValor(arbol, id, k, cmp.base); return v === null ? "" : Number(v.toFixed(3)); })].join(","))];
+    const url = URL.createObjectURL(new Blob([filas.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `composicion_${cmp.vista}_${cmp.nodo}.csv` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  cmpPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -1005,6 +1218,7 @@ async function render() {
   if (ruta.tipo === "tab") {
     // El salto al gráfico pedido se hace cuando ya se dibujaron todos: antes, las alturas aún no estaban fijadas.
     if (ruta.tema === "comparador") activarComparador(id, ruta.query);
+    if (ruta.tema === "composicion") activarComposicion(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });

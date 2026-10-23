@@ -24,6 +24,7 @@ import pandas as pd
 
 from calendario import calendario_del_mes, hoy_chile
 from comentarios import COMENTARIOS
+from composicion import construir_composicion
 from monitor_graficos import GRAFICOS
 from config import DEFINICIONES, HISTORICO_PATH, NOMBRES_SERIES, REVISIONES_PATH, OCDE_PAISES_PATH
 from series_utils import (
@@ -80,6 +81,9 @@ SECCIONES = [
      "intro": "Compara a Chile con el mundo, la OCDE, otras regiones y cualquier país: crecimiento del PIB (total y per cápita), inflación y "
               "desempleo, desde 1990. Por defecto aparece Chile contra la OCDE y el mundo; agrega o saca las comparaciones que quieras y "
               "el enlace de la página guarda tu selección."},
+    {"id": "composicion", "nombre": "Composición del PIB", "icono": "scale", "tipo": "composicion",
+     "intro": "De qué está hecho el PIB de Chile y cómo ha cambiado. Parte del total y baja paso a paso: por ejemplo PIB → exportaciones → bienes → "
+              "minería → cobre. Para cada componente ves su peso (% del PIB o % de lo que lo contiene) y su evolución en el tiempo."},
     {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
      "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
               "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "
@@ -684,6 +688,12 @@ def generar() -> None:
         secciones.append({**seccion, "series": [s for s in seccion.get("series", []) if s in disponibles],
                           "graficos": [g["id"] for g in graficos if g["pestana"] == seccion["id"]]})
     _escribir(SALIDA / "indice.json", {"temas": temas, "secciones": secciones, "graficos": graficos, "series": resumenes})
+
+    try:
+        for aviso in construir_composicion():
+            print(f"  (composición: {aviso})")
+    except Exception as error:  # la composición es una pestaña aparte: si falla no debe tumbar el resto del Monitor
+        print(f"  (composición falló: {type(error).__name__}: {error})")
 
     if REVISIONES_PATH.exists():
         resumen_rev, mayores_rev = resumir_revisiones(pd.read_csv(REVISIONES_PATH), NOMBRES_SERIES)

@@ -242,3 +242,13 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .comp-controles .rangos { flex-wrap: wrap; max-width: 100%; }
 .comp-controles .rangos button { white-space: nowrap; }
 .bloque { min-width: 0; }
+
+/* ---------- Explorador de composición ---------- */
+.migas-comp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; font-size: 0.95rem; }
+.migas-comp button, .enlace-boton { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 2px 4px; border-radius: 6px; text-decoration: underline; text-underline-offset: 3px; }
+.migas-comp button:hover, .enlace-boton:hover { background: var(--accent-suave); }
+.migas-comp .sep { color: var(--muted); }
+.chip-simple { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--text); font-size: 0.82rem; }
+#cmp-hijos { margin-top: 12px; gap: 8px; }
+#cmp-hijos .boton-chico { display: inline-flex; align-items: center; gap: 8px; }
+.aprox { color: var(--muted); font-size: 0.75rem; }

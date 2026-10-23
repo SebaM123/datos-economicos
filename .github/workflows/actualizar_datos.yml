@@ -83,6 +83,15 @@ jobs:
         run: python fetch_worldbank.py
         working-directory: data_pipeline
 
+      - name: Traer composición del PIB (Banco Central)
+        if: needs.decidir.outputs.completa == 'true'
+        continue-on-error: true
+        env:
+          BCCH_USER: ${{ secrets.BCCH_USER }}
+          BCCH_PASSWORD: ${{ secrets.BCCH_PASSWORD }}
+        run: python fetch_composicion.py
+        working-directory: data_pipeline
+
       - name: Traer datos del Comparador de países (Banco Mundial)
         if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true
@@ -109,6 +118,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/historico.csv data/revisiones.csv data/pib_por_estado_eeuu.json data/gini_por_estado_eeuu.json docs/index.html docs/monitor/data
+          git add data/historico.csv data/revisiones.csv data/composicion.csv data/pib_por_estado_eeuu.json data/gini_por_estado_eeuu.json docs/index.html docs/monitor/data
           git diff --cached --quiet && echo "Sin cambios" || git commit -m "Actualizar datos económicos"
           git push
