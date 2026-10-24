@@ -87,6 +87,40 @@ def obtener_pib_total_eeuu(desde: str) -> list[dict]:
     return filas
 
 
+# Indicadores de EE.UU. para el calendario y las tarjetas del Monitor. FRED los trae el mismo día de la publicación (los de la API del
+# Banco Central llegan con semanas de rezago). Se guardan los índices/niveles originales; las variaciones se calculan al exportar.
+# (id en historico.csv, código FRED, desde)
+INDICADORES_EEUU = [
+    ("eeuu_fed_limite_superior", "DFEDTARU", "2015-01-01"),  # tasa objetivo de la Fed, límite superior (diaria)
+    ("eeuu_fed_limite_inferior", "DFEDTARL", "2015-01-01"),
+    ("eeuu_ipc_indice", "CPIAUCNS", "2010-01-01"),  # IPC sin desestacionalizar: con él se calcula la variación a 12 meses que titula el BLS
+    ("eeuu_empleo_no_agricola_nivel", "PAYEMS", "2010-01-01"),  # miles de empleos
+    ("eeuu_ipp_demanda_final_indice", "PPIFID", "2010-01-01"),  # IPP de demanda final, el titular del BLS
+    ("eeuu_pce_indice", "PCEPI", "2010-01-01"),  # índice de precios del gasto de consumo (el que mira la Fed)
+    ("eeuu_pib_real_anualizado", "A191RL1Q225SBEA", "2010-01-01"),  # PIB real, variación trimestral anualizada (%)
+]
+
+
+def obtener_indicadores_eeuu() -> list[dict]:
+    api_key = _obtener_cliente()
+    filas = []
+    for serie, codigo, desde in INDICADORES_EEUU:
+        respuesta = requests.get(
+            BASE_URL,
+            params={"series_id": codigo, "api_key": api_key, "file_type": "json", "observation_start": desde},
+            timeout=30,
+        )
+        respuesta.raise_for_status()
+        nuevas = [
+            {"fecha": o["date"], "serie": serie, "valor": float(o["value"])}
+            for o in respuesta.json().get("observations", [])
+            if o["value"] != "."
+        ]
+        print(f"  {serie}: {len(nuevas)} observaciones")
+        filas.extend(nuevas)
+    return filas
+
+
 def obtener_pib_per_capita_por_estado() -> dict:
     api_key = _obtener_cliente()
     resultado = {}
@@ -110,6 +144,13 @@ def obtener_pib_per_capita_por_estado() -> dict:
 
 
 def main() -> None:
+    print("Trayendo indicadores de EEUU (Fed, IPC, empleo, IPP, PCE, PIB)...")
+    try:
+        agregadas = append_historico(obtener_indicadores_eeuu(), registrar_revisiones=True)
+        print(f"  {agregadas} filas nuevas agregadas a historico.csv")
+    except Exception as error:  # que falle esto no debe impedir traer el PIB por estado
+        print(f"  no se pudieron traer los indicadores de EEUU ({type(error).__name__}: {error})")
+
     print("Trayendo PIB total de EEUU...")
     filas = obtener_pib_total_eeuu(desde="2010-01-01")
     print(f"  {len(filas)} observaciones")

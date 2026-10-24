@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from calendario import calendario_del_mes, hoy_chile
+from calendario_eeuu import eventos_eeuu
 from comentarios import COMENTARIOS
 from composicion import construir_composicion
 from monitor_graficos import GRAFICOS
@@ -71,7 +72,7 @@ TEMAS = [
                      "exportaciones_agropecuario_interanual"]},
     {"id": "eeuu", "nombre": "Estados Unidos", "icono": "flag", "serie": "eeuu_desempleo",
      "graficos": ["pib_pc_chile_eeuu", "pib_estados_eeuu"],
-     "secundarias": ["eeuu_inflacion", "eeuu_ipp", "eeuu_pib_total"]},
+     "secundarias": ["eeuu_inflacion", "eeuu_fed_limite_superior", "eeuu_empleo_no_agricola", "eeuu_ipp_demanda_final"]},
     {"id": "desigualdad", "nombre": "Desigualdad", "icono": "scale", "serie": "chile_gini",
      "graficos": ["gini_chile_eeuu", "gini_estados_eeuu"], "secundarias": ["eeuu_gini"]},
 ]
@@ -162,6 +163,24 @@ def _cambio_12m(df: pd.DataFrame, relativo: bool) -> pd.DataFrame:
     m = pd.merge_asof(izq, der, left_on="ref", right_on="fecha_ref", direction="backward").dropna()
     m["valor"] = (m["valor"] / m["valor_ref"] - 1) * 100 if relativo else m["valor"] - m["valor_ref"]
     return m[["fecha", "valor"]].sort_values("fecha").reset_index(drop=True)
+
+
+def _yoy_fecha(df: pd.DataFrame) -> pd.DataFrame:
+    """Variación % contra el MISMO mes del año anterior, emparejando por fecha y no por posición: si falta un mes (como octubre de
+    2025 en EE.UU., por el cierre del gobierno) contar "12 filas atrás" se desfasa y da cifras erradas (el IPC de septiembre salía
+    4,0% en vez de 3,7%)."""
+    s = df.set_index("fecha")["valor"]
+    previo = s.reindex(s.index - pd.DateOffset(years=1))
+    out = pd.DataFrame({"fecha": s.index, "valor": (s.values / previo.values - 1) * 100})
+    return out.dropna().reset_index(drop=True)
+
+
+def _cambio_mensual_abs(df: pd.DataFrame) -> pd.DataFrame:
+    """Cambio contra el mes anterior (por fecha) en las unidades de la serie."""
+    s = df.set_index("fecha")["valor"]
+    previo = s.reindex(s.index - pd.DateOffset(months=1))
+    out = pd.DataFrame({"fecha": s.index, "valor": s.values - previo.values})
+    return out.dropna().reset_index(drop=True)
 
 
 def _col(df: pd.DataFrame, columna: str) -> pd.DataFrame:
@@ -429,8 +448,10 @@ SERIES += [
     # --- Estados Unidos
     _simple("eeuu_desempleo", "EE.UU.: tasa de desempleo", "eeuu", lambda h: _raw(h, "eeuu_desempleo"), unidad="%", delta="pp",
             polaridad="sube_malo", fuente="Banco Central (BLS)", definicion="Tasa de desempleo de Estados Unidos."),
-    _simple("eeuu_inflacion", "EE.UU.: inflación interanual", "eeuu", lambda h: _raw(h, "eeuu_inflacion"), unidad="%", delta="pp",
-            polaridad="sube_malo", firmado=True, fuente="Banco Central (BLS)", definicion="Variación interanual del IPC de Estados Unidos."),
+    _simple("eeuu_inflacion", "EE.UU.: inflación interanual (IPC)", "eeuu",
+            lambda h: (_yoy_fecha(_raw(h, "eeuu_ipc_indice")) if not _raw(h, "eeuu_ipc_indice").empty else _raw(h, "eeuu_inflacion")), unidad="%",
+            delta="pp", polaridad="sube_malo", firmado=True, fuente="BLS (vía FRED)",
+            definicion="Variación del IPC de Estados Unidos contra el mismo mes del año anterior (índice sin desestacionalizar, el que titula el BLS)."),
     _simple("eeuu_ipp", "EE.UU.: IPP (todos los commodities) interanual", "eeuu", lambda h: _raw(h, "eeuu_ipp"), unidad="%", delta="pp", polaridad="sube_malo",
             firmado=True, fuente="Banco Central (BLS)",
             definicion="Variación en 12 meses del Índice de Precios al Productor de Estados Unidos, serie «todos los commodities» que publica el Banco Central. "
@@ -547,11 +568,34 @@ SERIES += [
 ]
 
 
+SERIES += [
+    # --- EE.UU. desde FRED: llegan el mismo día de la publicación (las del Banco Central, con semanas de rezago)
+    _simple("eeuu_fed_limite_superior", "Fed: tasa objetivo (límite superior)", "eeuu", lambda h: _raw(h, "eeuu_fed_limite_superior"), unidad="%",
+            frecuencia="D", delta="pp", decimales=2, fuente="Reserva Federal (vía FRED)",
+            definicion="Límite superior del rango objetivo de la tasa de fondos federales que fija la Fed en cada reunión del FOMC. El rango mide 0,25 puntos: "
+                       "el límite inferior es 0,25 puntos menos. Es la tasa de política más influyente del mundo y mueve al dólar y al cobre."),
+    _simple("eeuu_empleo_no_agricola", "EE.UU.: empleos creados en el mes (nómina no agrícola)", "eeuu",
+            lambda h: _cambio_mensual_abs(_raw(h, "eeuu_empleo_no_agricola_nivel")), unidad="miles", delta="abs", polaridad="sube_bueno", firmado=True,
+            decimales=0, sufijo=" mil", fuente="BLS (vía FRED)",
+            definicion="Variación mensual del empleo no agrícola de Estados Unidos, en miles de puestos: el titular del reporte de empleo. Se revisa en los meses siguientes."),
+    _simple("eeuu_ipp_demanda_final", "EE.UU.: IPP de demanda final interanual", "eeuu",
+            lambda h: _yoy_fecha(_raw(h, "eeuu_ipp_demanda_final_indice")), unidad="%", delta="pp", polaridad="sube_malo", firmado=True,
+            fuente="BLS (vía FRED)", definicion="Variación a 12 meses del índice de precios al productor de demanda final: el IPP que titulan los medios."),
+    _simple("eeuu_pce_interanual", "EE.UU.: inflación PCE interanual", "eeuu", lambda h: _yoy_fecha(_raw(h, "eeuu_pce_indice")), unidad="%", delta="pp",
+            polaridad="sube_malo", firmado=True, fuente="BEA (vía FRED)",
+            definicion="Variación a 12 meses del índice de precios del gasto de consumo personal (PCE): la medida de inflación en que se basa la meta de 2% de la Fed."),
+    _simple("eeuu_pib_trimestral", "EE.UU.: PIB real var. trimestral anualizada", "eeuu", lambda h: _raw(h, "eeuu_pib_real_anualizado"), unidad="%",
+            frecuencia="T", delta="pp", polaridad="sube_bueno", firmado=True, fuente="BEA (vía FRED)",
+            definicion="Crecimiento del PIB real de Estados Unidos contra el trimestre anterior, expresado a tasa anual (como lo reporta el BEA). Ojo: no es "
+                       "comparable directo con el interanual de Chile."),
+]
+
+
 # Antigüedad máxima esperada del último dato (días desde su fecha) antes de considerar la serie "demorada".
 # Se calcula como el peor caso entre dos publicaciones: la fecha de un dato es el día 1 de su mes, y el siguiente
 # se publica cerca de 2 meses después (IPC ~día 8, IPP ~día 24, IMACEC 1er día hábil, ENE ~día 29, etc.) + margen.
 MAX_DIAS_EXACTO = {
-    "eeuu_desempleo": 75, "eeuu_inflacion": 110, "eeuu_ipp": 110, "eeuu_pib_total": 210, "eeuu_pib_per_capita": 800,
+    "eeuu_desempleo": 75, "eeuu_inflacion": 80, "eeuu_fed_limite_superior": 7, "eeuu_empleo_no_agricola": 75, "eeuu_ipp_demanda_final": 80, "eeuu_pce_interanual": 100, "eeuu_pib_trimestral": 210, "eeuu_ipp": 110, "eeuu_pib_total": 210, "eeuu_pib_per_capita": 800,
     "eeuu_gini": 1500, "chile_gini": 1500, "chile_poblacion": 800, "chile_pib_per_capita_ppa": 800,
     "pib_chile": 245, "pib_real": 245, "pib_no_minero": 245, "pib_deflactor": 245, "pib_mineria": 180, "tpm_real": 80,
     "ipsa_indice_real": 7, "sp500": 7, "tipo_cambio": 7, "tpm": 7,
@@ -623,7 +667,7 @@ def _resumen(spec: dict, df: pd.DataFrame) -> dict:
     ultimo, previo = df.iloc[-1], (df.iloc[-2] if len(df) > 1 else None)
     delta = None
     if previo is not None:
-        if spec["delta"] == "pp":
+        if spec["delta"] in ("pp", "abs"):
             delta = float(ultimo["valor"] - previo["valor"])
         elif previo["valor"] != 0:
             delta = float((ultimo["valor"] / previo["valor"] - 1) * 100)
@@ -716,33 +760,65 @@ def _mes_desplazado(anio: int, mes: int, delta: int) -> tuple[int, int]:
     return indice // 12, indice % 12 + 1
 
 
-def construir_calendario(h: pd.DataFrame, hoy: date) -> dict:
-    """Últimas publicaciones y próximas, mezclando mes anterior, actual y siguiente."""
-    eventos = []
-    for desplazamiento in (-1, 0, 1):
-        anio, mes = _mes_desplazado(hoy.year, hoy.month, desplazamiento)
-        eventos.extend(calendario_del_mes(anio, mes, h, hoy))
-    eventos.sort(key=lambda e: e["fecha"])
+def _texto_fed(h: pd.DataFrame, fecha: date) -> str | None:
+    """Rango objetivo de la Fed después de la reunión y si cambió, ej. «3,75%–4,00% (+0,25 pp)»."""
+    sup, inf = _raw(h, "eeuu_fed_limite_superior"), _raw(h, "eeuu_fed_limite_inferior")
+    corte = pd.Timestamp(fecha)
+    despues_s, despues_i = sup[sup["fecha"] > corte].head(1), inf[inf["fecha"] > corte].head(1)
+    antes_s = sup[sup["fecha"] <= corte].tail(1)
+    if despues_s.empty or despues_i.empty:
+        return None
+    fmt = lambda v: f"{v:.2f}".replace(".", ",") + "%"  # noqa: E731
+    rango = f"{fmt(despues_i['valor'].iloc[0])}–{fmt(despues_s['valor'].iloc[0])}"
+    if antes_s.empty:
+        return rango
+    cambio = despues_s["valor"].iloc[0] - antes_s["valor"].iloc[0]
+    if abs(cambio) < 1e-9:
+        return f"{rango} (sin cambios)"
+    return f"{rango} ({'+' if cambio > 0 else '−'}{abs(cambio):.2f} pp)".replace(".", ",")
 
-    def estado(e: dict) -> str:
-        if e["cargado"]:
-            return "cargado"
-        if e["fecha"] > hoy:
-            return "pendiente"
-        return "hoy" if e["fecha"] == hoy else "sin_cargar"
+
+def construir_calendario(h: pd.DataFrame, hoy: date, resumenes: list[dict]) -> dict:
+    """Últimas publicaciones y próximas de Chile y EE.UU., mezclando mes anterior, actual y siguiente. El valor que se muestra es el
+    del PERÍODO de cada evento (no el último disponible de la serie): si no, un evento viejo mostraría el dato de un mes posterior."""
+    meses = tuple(_mes_desplazado(hoy.year, hoy.month, d) for d in (-1, 0, 1))
+    eventos = []
+    for anio, mes in meses:
+        for e in calendario_del_mes(anio, mes, h, hoy):
+            estado = "cargado" if e["cargado"] else "pendiente" if e["fecha"] > hoy else "hoy" if e["fecha"] == hoy else "sin_cargar"
+            eventos.append({
+                "fecha": e["fecha"], "indicador": e["indicador"], "aproximado": e["aproximado"], "estado": estado,
+                "tarjeta": TARJETA_DE_EVENTO.get(e["serie_dato"]), "periodo": e["periodo"], "pais": "CL", "tipo": e["serie_dato"],
+            })
+    eventos += eventos_eeuu(h, hoy, meses)
+    eventos.sort(key=lambda e: (e["fecha"], e["pais"]))
+
+    por_id = {r["id"]: r for r in resumenes}
+
+    def valor_del_evento(e: dict) -> dict:
+        resumen = por_id.get(e["tarjeta"])
+        if e["estado"] != "cargado" or resumen is None:
+            return {}
+        if e.get("tipo") == "fomc":
+            texto = _texto_fed(h, e["fecha"])
+            return {"texto_valor": texto, "etiqueta": None} if texto else {}
+        mini = resumen["mini"]
+        if e["periodo"] is not None:
+            clave = e["periodo"] if isinstance(e["periodo"], str) else e["periodo"].isoformat()
+            punto = next(((f, v) for f, v in mini if f == clave and v is not None), None)
+        else:  # series diarias (TPM): el primer dato desde la fecha del evento
+            punto = next(((f, v) for f, v in mini if f >= e["fecha"].isoformat() and v is not None), None)
+        if punto is None:
+            return {}
+        return {"valor": punto[1], "etiqueta": _etiqueta_periodo(pd.Timestamp(punto[0]), resumen["frecuencia"])}
 
     salida = [
-        {
-            "fecha": e["fecha"].isoformat(),
-            "indicador": e["indicador"],
-            "aproximado": e["aproximado"],
-            "estado": estado(e),
-            "tarjeta": TARJETA_DE_EVENTO.get(e["serie_dato"]),
-        }
+        {"fecha": e["fecha"].isoformat(), "indicador": e["indicador"], "aproximado": e["aproximado"], "estado": e["estado"],
+         "tarjeta": e["tarjeta"], "pais": e["pais"], **valor_del_evento(e)}
         for e in eventos
     ]
-    pasados = [e for e in salida if e["fecha"] <= hoy.isoformat()][-4:]
-    futuros = [e for e in salida if e["fecha"] > hoy.isoformat()][:8]
+    pasados = [e for e in salida if e["fecha"] <= hoy.isoformat()][-14:]
+    futuros = [e for e in salida if e["fecha"] > hoy.isoformat()][:18]
     return {"hoy": hoy.isoformat(), "eventos": pasados + futuros}
 
 
@@ -811,7 +887,7 @@ def generar() -> None:
         resumen_rev, mayores_rev = resumir_revisiones(pd.read_csv(REVISIONES_PATH), NOMBRES_SERIES)
         _escribir(SALIDA / "revisiones.json", {"resumen": resumen_rev.to_dict("records"), "mayores": mayores_rev.to_dict("records")})
 
-    _escribir(SALIDA / "calendario.json", construir_calendario(h, hoy))
+    _escribir(SALIDA / "calendario.json", construir_calendario(h, hoy, resumenes))
 
     comentarios = []
     for _clave, (titulo, funcion, _serie) in COMENTARIOS.items():

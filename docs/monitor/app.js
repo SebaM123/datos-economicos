@@ -1,6 +1,7 @@
 // Monitor Chile: página estática que dibuja los JSON de data/ (generados por app/exportar_monitor.py).
 // No calcula indicadores: solo formatea y grafica lo que ya viene calculado.
 
+const FILTROS_CAL = [["todos", "Todos"], ["CL", "Chile"], ["US", "EE.UU."]];
 const VISTAS = [["ultimo", "Último dato"], ["ytd", "En lo que va del año"], ["12m", "Últimos 12 meses"]];
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const INTERVALO_REVISION_MS = 5 * 60 * 1000;
@@ -54,6 +55,10 @@ function fmtGen(g, v) {
 
 function fmtDelta(serie, delta) {
   if (delta === null || delta === undefined) return "";
+  if (serie.delta_tipo === "abs") {
+    const r = Number(delta.toFixed(serie.decimales));
+    return `${r < 0 ? "−" : r > 0 ? "+" : ""}${numero(Math.abs(r), serie.decimales)}${serie.sufijo || ""}`;
+  }
   const d = serie.delta_tipo === "pp" ? 1 : 2;
   const redondeado = Number(delta.toFixed(d));
   const txt = (redondeado < 0 ? "−" : redondeado > 0 ? "+" : "") + numero(Math.abs(redondeado), d);
@@ -64,7 +69,7 @@ const NOMBRE_TONO = { mejor: "Mejor", peor: "Peor", igual: "Igual" };
 const claseTono = (t) => `tono-${t ?? "null"}`;
 
 // ---------- Estado ----------
-const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, compuestos: {}, revisiones: null, renderId: 0, vista: "ultimo" };
+const estado = { meta: null, indice: null, calendario: null, comentarios: null, graficos: [], detalles: {}, compuestos: {}, revisiones: null, renderId: 0, vista: "ultimo", filtroCal: "todos" };
 
 async function pedirJSON(ruta, version) {
   const resp = await fetch(`data/${ruta}?v=${encodeURIComponent(version || "")}`, { cache: "no-cache" });
@@ -270,8 +275,11 @@ function htmlSelectorVista() {
 }
 
 function htmlLinea() {
-  const { hoy, eventos } = estado.calendario;
+  const { hoy } = estado.calendario;
   const textoEstado = { pendiente: "Pendiente", hoy: "Se publica hoy", sin_cargar: "Publicado, cargando…" };
+  // el filtro se aplica sobre el calendario completo: se muestran los últimos 4 eventos pasados y los próximos 8 del país elegido
+  const todos = estado.calendario.eventos.filter((e) => estado.filtroCal === "todos" || e.pais === estado.filtroCal);
+  const eventos = [...todos.filter((e) => e.fecha <= hoy).slice(-4), ...todos.filter((e) => e.fecha > hoy).slice(0, estado.filtroCal === "todos" ? 10 : 8)];
   let divisor = false;
   const piezas = eventos.map((e) => {
     let previo = "";
@@ -281,22 +289,28 @@ function htmlLinea() {
     }
     const [, m, d] = e.fecha.split("-");
     const serie = e.estado === "cargado" && e.tarjeta ? serieDe(e.tarjeta) : null;
-    const dato = serie
-      ? `<div class="dato num">${fmtValor(serie, serie.ultimo.valor)}</div><div class="dato-sub"><a href="#/serie/${esc(serie.id)}">${esc(serie.nombre)}</a> · ${esc(serie.ultimo.etiqueta)}</div>`
-      : "";
-    const estadoTxt = e.estado === "cargado" && !serie ? "Publicado" : e.estado === "cargado" ? "" : textoEstado[e.estado];
+    let dato = "";
+    if (e.texto_valor) {
+      dato = `<div class="dato num">${esc(e.texto_valor)}</div><div class="dato-sub">${serie ? `<a href="#/serie/${esc(serie.id)}">Rango objetivo</a>` : "Rango objetivo"}</div>`;
+    } else if (serie && e.valor !== undefined && e.valor !== null) {
+      dato = `<div class="dato num">${fmtValor(serie, e.valor)}</div><div class="dato-sub"><a href="#/serie/${esc(serie.id)}">${esc(serie.nombre)}</a> · ${esc(e.etiqueta || serie.ultimo.etiqueta)}</div>`;
+    }
+    const estadoTxt = e.estado === "cargado" ? (dato ? "" : "Publicado") : textoEstado[e.estado];
+    const pais = e.pais === "US" ? '<span class="pais pais-us">EE.UU.</span>' : '<span class="pais pais-cl">Chile</span>';
     return `${previo}<li class="evento ${e.estado}">
-      <div class="fecha">${Number(d)} ${MESES[Number(m) - 1]}</div>
+      <div class="fecha">${Number(d)} ${MESES[Number(m) - 1]} ${pais}</div>
       <div class="punto"></div>
       <div class="nombre">${esc(e.indicador)}${e.aproximado ? '<span class="aprox" title="Fecha aproximada: el Banco Central no publica una lista fija">aprox.</span>' : ""}</div>
       ${dato}
       ${estadoTxt ? `<div class="estado">${estadoTxt}</div>` : ""}
     </li>`;
   });
+  const filtros = `<div class="rangos" id="filtro-cal" role="group" aria-label="País del calendario">${FILTROS_CAL.map(([id, etq]) => `<button type="button" data-cal="${id}" aria-pressed="${estado.filtroCal === id}">${etq}</button>`).join("")}</div>`;
   return `<section class="bloque" aria-labelledby="t-linea">
-    <div class="bloque-cabecera"><h2 id="t-linea">Últimos datos y lo que viene</h2></div>
+    <div class="bloque-cabecera"><h2 id="t-linea">Últimos datos y lo que viene</h2>${filtros}</div>
     <div class="linea-scroll" id="linea-scroll"><ol class="linea">${piezas.join("")}</ol></div>
-    <p class="bloque-nota">Fechas oficiales del INE y del Banco Central (TPM); IMACEC y PIB trimestral son aproximadas.</p>
+    <p class="bloque-nota">Fechas oficiales de Chile (INE, Banco Central: TPM) y de EE.UU. (Reserva Federal, BLS, BEA). IMACEC y PIB trimestral de Chile son aproximadas.
+      Las fechas de EE.UU. de 2026 se copian de los calendarios oficiales y pueden correrse. Cada dato muestra el valor de su período (no el último disponible).</p>
   </section>`;
 }
 
@@ -1225,6 +1239,13 @@ async function render() {
   }
   document.getElementById("cambiar-tema").addEventListener("click", cambiarTema);
   activarBuscador();
+  document.querySelectorAll("#filtro-cal button").forEach((b) =>
+    b.addEventListener("click", () => {
+      estado.filtroCal = b.dataset.cal;
+      try { localStorage.setItem("monitor-cal", estado.filtroCal); } catch (e) { /* solo vale en esta visita */ }
+      render();
+    })
+  );
   document.querySelectorAll(".vistas button").forEach((b) =>
     b.addEventListener("click", () => {
       estado.vista = b.dataset.vista;
@@ -1233,7 +1254,7 @@ async function render() {
     })
   );
   const marca = document.getElementById("marca-hoy"), scroll = document.getElementById("linea-scroll");
-  if (marca && scroll) scroll.scrollLeft = Math.max(0, marca.offsetLeft - 2 * 168);
+  if (marca && scroll) scroll.scrollLeft = Math.max(0, marca.offsetLeft - 2 * 176);
 }
 
 function cambiarTema() {
@@ -1265,6 +1286,8 @@ async function iniciar() {
   try {
     const v = localStorage.getItem("monitor-vista");
     if (VISTAS.some(([id]) => id === v)) estado.vista = v;
+    const cal = localStorage.getItem("monitor-cal");
+    if (FILTROS_CAL.some(([id]) => id === cal)) estado.filtroCal = cal;
   } catch (e) { /* sin almacenamiento */ }
   document.addEventListener("keydown", (e) => {
     const escribiendo = /^(input|textarea|select)$/i.test(document.activeElement?.tagName || "");

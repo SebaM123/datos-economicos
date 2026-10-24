@@ -252,3 +252,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 #cmp-hijos { margin-top: 12px; gap: 8px; }
 #cmp-hijos .boton-chico { display: inline-flex; align-items: center; gap: 8px; }
 .aprox { color: var(--muted); font-size: 0.75rem; }
+
+/* ---------- País en el calendario ---------- */
+.pais { display: inline-block; margin-left: 6px; font-size: 0.66rem; line-height: 1; padding: 3px 6px; border-radius: 6px; font-weight: 600; letter-spacing: 0.02em; vertical-align: 1px; }
+.pais-cl { background: var(--accent-suave); color: var(--accent); }
+.pais-us { background: rgba(232, 193, 90, 0.16); color: var(--igual); }
+.evento { width: 176px; }
