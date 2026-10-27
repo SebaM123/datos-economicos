@@ -13758,6 +13758,7 @@ fecha,serie,valor
 2026-10-24,eeuu_fed_limite_inferior,3.75
 2026-10-25,eeuu_fed_limite_inferior,3.75
 2026-10-26,eeuu_fed_limite_inferior,3.75
+2026-10-27,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18075,6 +18076,7 @@ fecha,serie,valor
 2026-10-24,eeuu_fed_limite_superior,4.0
 2026-10-25,eeuu_fed_limite_superior,4.0
 2026-10-26,eeuu_fed_limite_superior,4.0
+2026-10-27,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -36902,7 +36904,7 @@ fecha,serie,valor
 2026-10-24,sp500,7623.68017578125
 2026-10-25,sp500,7623.68017578125
 2026-10-26,sp500,7676.77001953125
-2026-10-27,sp500,7717.18994140625
+2026-10-27,sp500,7716.669921875
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
