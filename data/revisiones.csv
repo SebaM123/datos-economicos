@@ -1,4 +1,6 @@
 serie,fecha,valor_anterior,valor_nuevo,detectado_el
+eeuu_pce_indice,2026-07-01,131.172,131.187,2026-10-29
+eeuu_pce_indice,2026-08-01,131.579,131.611,2026-10-29
 eeuu_ipp,2026-02-01,3.8,3.9,2026-10-16
 eeuu_ipp,2026-05-01,12.1,12.2,2026-10-16
 eeuu_ipp,2026-03-01,6.7,6.8,2026-10-07

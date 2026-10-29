@@ -13766,6 +13766,7 @@ fecha,serie,valor
 2026-10-26,eeuu_fed_limite_inferior,3.75
 2026-10-27,eeuu_fed_limite_inferior,3.75
 2026-10-28,eeuu_fed_limite_inferior,3.75
+2026-10-29,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18085,6 +18086,7 @@ fecha,serie,valor
 2026-10-26,eeuu_fed_limite_superior,4.0
 2026-10-27,eeuu_fed_limite_superior,4.0
 2026-10-28,eeuu_fed_limite_superior,4.0
+2026-10-29,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -19146,8 +19148,9 @@ fecha,serie,valor
 2026-04-01,eeuu_pce_indice,130.672
 2026-05-01,eeuu_pce_indice,131.241
 2026-06-01,eeuu_pce_indice,131.106
-2026-07-01,eeuu_pce_indice,131.172
-2026-08-01,eeuu_pce_indice,131.579
+2026-07-01,eeuu_pce_indice,131.187
+2026-08-01,eeuu_pce_indice,131.611
+2026-09-01,eeuu_pce_indice,132.257
 2010-01-01,eeuu_pib_per_capita,48.586288
 2011-01-01,eeuu_pib_per_capita,50.008108
 2012-01-01,eeuu_pib_per_capita,51.736738
@@ -19230,6 +19233,7 @@ fecha,serie,valor
 2025-10-01,eeuu_pib_real_anualizado,0.2
 2026-01-01,eeuu_pib_real_anualizado,2.5
 2026-04-01,eeuu_pib_real_anualizado,2.2
+2026-07-01,eeuu_pib_real_anualizado,3.4
 2010-01-01,eeuu_pib_total,14764.61
 2010-04-01,eeuu_pib_total,14980.193
 2010-07-01,eeuu_pib_total,15141.607
@@ -19296,6 +19300,7 @@ fecha,serie,valor
 2025-10-01,eeuu_pib_total,31462.523
 2026-01-01,eeuu_pib_total,31906.274
 2026-04-01,eeuu_pib_total,32563.03
+2026-07-01,eeuu_pib_total,33010.036
 2010-01-15,eof_inflacion_12m,2.1
 2010-01-31,eof_inflacion_12m,2.15
 2010-02-15,eof_inflacion_12m,2.6
@@ -36919,7 +36924,7 @@ fecha,serie,valor
 2026-10-26,sp500,7676.77001953125
 2026-10-27,sp500,7722.60009765625
 2026-10-28,sp500,7743.97998046875
-2026-10-29,sp500,7695.85009765625
+2026-10-29,sp500,7700.16015625
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -41323,7 +41328,7 @@ fecha,serie,valor
 2026-10-26,tipo_cambio,988.5
 2026-10-27,tipo_cambio,983.77001953125
 2026-10-28,tipo_cambio,987.4000244140625
-2026-10-29,tipo_cambio,990.4500122070312
+2026-10-29,tipo_cambio,990.510009765625
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
