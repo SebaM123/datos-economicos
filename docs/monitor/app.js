@@ -248,7 +248,7 @@ function htmlEncabezado() {
 
 // Cinta de mercado (como la del reporte completo): último dato de las series de mercado con su variación.
 function htmlCinta() {
-  const items = [["tipo_cambio", "Dólar"], ["cobre_precio", "Cobre"], ["ipsa", "IPSA"], ["sp500", "S&P 500"], ["tpm", "TPM"]]
+  const items = [["tipo_cambio", "Dólar"], ["cobre_precio", "Cobre"], ["ipsa", "IPSA"], ["sp500", "S&P 500"], ["vix", "VIX"], ["tpm", "TPM"]]
     .map(([id, etq]) => ({ s: serieDe(id), etq })).filter((x) => x.s);
   if (!items.length) return "";
   const una = items.map(({ s, etq }) => {

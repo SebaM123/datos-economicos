@@ -18,6 +18,8 @@ TICKERS = {
     "ipsa_etf": "CFMITNIPSA.SN",
     "tipo_cambio": "USDCLP=X",
     "sp500": "^GSPC",
+    # Índice de volatilidad del S&P 500 (CBOE): la volatilidad que el mercado espera a 30 días
+    "vix": "^VIX",
 }
 
 # Yahoo Finance a veces entrega ticks puntuales claramente erróneos (ej. el
@@ -28,6 +30,7 @@ RANGOS_VALIDOS = {
     "ipsa_indice_real": (1000, 30000),
     "ipsa_etf": (500, 20000),
     "sp500": (500, 20000),
+    "vix": (5, 150),
 }
 
 

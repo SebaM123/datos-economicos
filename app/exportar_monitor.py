@@ -57,7 +57,7 @@ TEMAS = [
     {"id": "dolar", "nombre": "Dólar y mercado", "icono": "dollar", "serie": "tipo_cambio",
      "graficos": ["cobre_vs_exportaciones"],
      "vistas": {"ytd": "tipo_cambio_var_anio", "12m": "tipo_cambio_var_12m"},
-     "secundarias": ["cobre_precio", "ipsa", "sp500"]},
+     "secundarias": ["cobre_precio", "ipsa", "sp500", "vix"]},
     {"id": "tasas", "nombre": "Tasas", "icono": "percent", "serie": "tpm",
      "vistas": {"ytd": "tpm_cambio_anio", "12m": "tpm_cambio_12m"},
      "secundarias": ["eof_inflacion_12m"]},
@@ -277,6 +277,12 @@ SERIES = [
     dict(id="sp500", nombre="S&P 500", tema="dolar", unidad="puntos", frecuencia="D", delta="rel",
          polaridad="neutral", firmado=False, decimales=0, fuente="Yahoo Finance",
          definicion="Índice bursátil de las 500 mayores empresas de EE.UU.", datos=lambda h: _mercado(h, "sp500")),
+    dict(id="vix", nombre="VIX (volatilidad del S&P 500)", tema="dolar", unidad="puntos", frecuencia="D", delta="abs",
+         polaridad="neutral", firmado=False, decimales=1, fuente="Yahoo Finance (CBOE)",
+         definicion="Índice de volatilidad del S&P 500: la variación que el mercado espera para el S&P 500 en los próximos 30 días, calculada con "
+                    "precios de opciones. Se le llama «índice del miedo»: bajo 15 hay calma, entre 15 y 30 incertidumbre normal y sobre 30 estrés "
+                    "(en marzo de 2020 llegó a 83). Sube fuerte cuando las bolsas caen.",
+         datos=lambda h: _mercado(h, "vix")),
     # --- Tasas
     dict(id="tpm", nombre="Tasa de política monetaria", tema="tasas", unidad="%", frecuencia="D", delta="pp",
          polaridad="neutral", firmado=False, decimales=2, fuente="Banco Central",
@@ -598,11 +604,11 @@ MAX_DIAS_EXACTO = {
     "eeuu_desempleo": 75, "eeuu_inflacion": 80, "eeuu_fed_limite_superior": 7, "eeuu_empleo_no_agricola": 75, "eeuu_ipp_demanda_final": 80, "eeuu_pce_interanual": 100, "eeuu_pib_trimestral": 210, "eeuu_ipp": 110, "eeuu_pib_total": 210, "eeuu_pib_per_capita": 800,
     "eeuu_gini": 1500, "chile_gini": 1500, "chile_poblacion": 800, "chile_pib_per_capita_ppa": 800,
     "pib_chile": 245, "pib_real": 245, "pib_no_minero": 245, "pib_deflactor": 245, "pib_mineria": 180, "tpm_real": 80,
-    "ipsa_indice_real": 7, "sp500": 7, "tipo_cambio": 7, "tpm": 7,
+    "ipsa_indice_real": 7, "sp500": 7, "vix": 7, "tipo_cambio": 7, "tpm": 7,
 }
 MAX_DIAS_POR_SERIE = {
     "imacec": 100, "ipc": 80, "ipp": 92, "eee": 45, "eof": 45, "desempleo": 97, "remuneraciones": 97,
-    "masa_salarial": 97, "exportaciones": 80, "importaciones": 80, "balanza": 80, "cobre_precio_promedio": 75, "cobre_precio_interanual": 75, "cobre": 7, "pib_real": 245, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "tpm": 7,
+    "masa_salarial": 97, "exportaciones": 80, "importaciones": 80, "balanza": 80, "cobre_precio_promedio": 75, "cobre_precio_interanual": 75, "cobre": 7, "pib_real": 245, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "vix": 7, "tpm": 7,
     "pib_tendencia": 100, "inflacion_deflactor": 245, "pib_mineria": 180, "pib_no_minero": 245,
     "fuerza_trabajo": 97, "ocupados": 97, "desocupados": 97,
 }
