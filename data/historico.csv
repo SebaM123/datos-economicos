@@ -3598,6 +3598,7 @@ fecha,serie,valor
 2026-10-27,cobre_precio,6.5644
 2026-10-28,cobre_precio,6.5838
 2026-10-29,cobre_precio,6.6544
+2026-10-30,cobre_precio,6.6598
 1960-01-01,cobre_precio_promedio,0.325
 1960-02-01,cobre_precio_promedio,0.33
 1960-03-01,cobre_precio_promedio,0.317
@@ -8990,6 +8991,7 @@ fecha,serie,valor
 2026-10-27,dolar_observado,994.29
 2026-10-28,dolar_observado,985.14
 2026-10-29,dolar_observado,981.08
+2026-10-30,dolar_observado,993.22
 2024-01-01,eee_pib_actual,2.4
 2024-02-01,eee_pib_actual,2.2
 2024-03-01,eee_pib_actual,2.2
@@ -13767,6 +13769,7 @@ fecha,serie,valor
 2026-10-27,eeuu_fed_limite_inferior,3.75
 2026-10-28,eeuu_fed_limite_inferior,3.75
 2026-10-29,eeuu_fed_limite_inferior,3.75
+2026-10-30,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18087,6 +18090,7 @@ fecha,serie,valor
 2026-10-27,eeuu_fed_limite_superior,4.0
 2026-10-28,eeuu_fed_limite_superior,4.0
 2026-10-29,eeuu_fed_limite_superior,4.0
+2026-10-30,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -36926,7 +36930,7 @@ fecha,serie,valor
 2026-10-27,sp500,7722.60009765625
 2026-10-28,sp500,7743.97998046875
 2026-10-29,sp500,7720.39013671875
-2026-10-30,sp500,7542.7001953125
+2026-10-30,sp500,7542.5
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -41331,7 +41335,7 @@ fecha,serie,valor
 2026-10-27,tipo_cambio,983.77001953125
 2026-10-28,tipo_cambio,987.4000244140625
 2026-10-29,tipo_cambio,985.0700073242188
-2026-10-30,tipo_cambio,991.1699829101562
+2026-10-30,tipo_cambio,991.0499877929688
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -45524,3 +45528,4 @@ fecha,serie,valor
 2026-10-27,tpm,4.5
 2026-10-28,tpm,4.5
 2026-10-29,tpm,4.5
+2026-10-30,tpm,4.5
