@@ -3600,6 +3600,7 @@ fecha,serie,valor
 2026-10-29,cobre_precio,6.6544
 2026-10-30,cobre_precio,6.6598
 2026-11-02,cobre_precio,6.6131
+2026-11-03,cobre_precio,6.4998
 1960-01-01,cobre_precio_promedio,0.325
 1960-02-01,cobre_precio_promedio,0.33
 1960-03-01,cobre_precio_promedio,0.317
@@ -8994,6 +8995,7 @@ fecha,serie,valor
 2026-10-29,dolar_observado,981.08
 2026-10-30,dolar_observado,993.22
 2026-11-02,dolar_observado,992.66
+2026-11-03,dolar_observado,981.82
 2024-01-01,eee_pib_actual,2.4
 2024-02-01,eee_pib_actual,2.2
 2024-03-01,eee_pib_actual,2.2
@@ -13775,6 +13777,7 @@ fecha,serie,valor
 2026-10-31,eeuu_fed_limite_inferior,3.75
 2026-11-01,eeuu_fed_limite_inferior,3.75
 2026-11-02,eeuu_fed_limite_inferior,3.75
+2026-11-03,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18099,6 +18102,7 @@ fecha,serie,valor
 2026-10-31,eeuu_fed_limite_superior,4.0
 2026-11-01,eeuu_fed_limite_superior,4.0
 2026-11-02,eeuu_fed_limite_superior,4.0
+2026-11-03,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -36958,7 +36962,7 @@ fecha,serie,valor
 2026-10-31,sp500,7580.06982421875
 2026-11-01,sp500,7580.06982421875
 2026-11-02,sp500,7541.39990234375
-2026-11-03,sp500,7561.60986328125
+2026-11-03,sp500,7562.740234375
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -41367,7 +41371,7 @@ fecha,serie,valor
 2026-10-31,tipo_cambio,987.8699951171875
 2026-11-01,tipo_cambio,987.8699951171875
 2026-11-02,tipo_cambio,976.8499755859375
-2026-11-03,tipo_cambio,979.7100219726562
+2026-11-03,tipo_cambio,980.2100219726562
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -45562,6 +45566,7 @@ fecha,serie,valor
 2026-10-29,tpm,4.5
 2026-10-30,tpm,4.5
 2026-11-02,tpm,4.5
+2026-11-03,tpm,4.5
 2010-01-04,vix,20.040000915527344
 2010-01-05,vix,19.350000381469727
 2010-01-06,vix,19.15999984741211
@@ -49800,4 +49805,4 @@ fecha,serie,valor
 2026-10-31,vix,19.420000076293945
 2026-11-01,vix,19.420000076293945
 2026-11-02,vix,21.149999618530273
-2026-11-03,vix,20.770000457763672
+2026-11-03,vix,20.75
