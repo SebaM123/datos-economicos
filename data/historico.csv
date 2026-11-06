@@ -3603,6 +3603,7 @@ fecha,serie,valor
 2026-11-03,cobre_precio,6.4998
 2026-11-04,cobre_precio,6.5761
 2026-11-05,cobre_precio,6.4203
+2026-11-06,cobre_precio,6.4034
 1960-01-01,cobre_precio_promedio,0.325
 1960-02-01,cobre_precio_promedio,0.33
 1960-03-01,cobre_precio_promedio,0.317
@@ -9001,6 +9002,7 @@ fecha,serie,valor
 2026-11-03,dolar_observado,981.82
 2026-11-04,dolar_observado,980.59
 2026-11-05,dolar_observado,970.95
+2026-11-06,dolar_observado,970.94
 2024-01-01,eee_pib_actual,2.4
 2024-02-01,eee_pib_actual,2.2
 2024-03-01,eee_pib_actual,2.2
@@ -13785,6 +13787,7 @@ fecha,serie,valor
 2026-11-03,eeuu_fed_limite_inferior,3.75
 2026-11-04,eeuu_fed_limite_inferior,3.75
 2026-11-05,eeuu_fed_limite_inferior,3.75
+2026-11-06,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18112,6 +18115,7 @@ fecha,serie,valor
 2026-11-03,eeuu_fed_limite_superior,4.0
 2026-11-04,eeuu_fed_limite_superior,4.0
 2026-11-05,eeuu_fed_limite_superior,4.0
+2026-11-06,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -23462,6 +23466,7 @@ fecha,serie,valor
 2026-07-01,ipc_bienes_sin_volatiles_v12,1.72144947737884
 2026-08-01,ipc_bienes_sin_volatiles_v12,1.92505121764086
 2026-09-01,ipc_bienes_sin_volatiles_v12,1.66647741527323
+2026-10-01,ipc_bienes_sin_volatiles_v12,2.03908449398398
 2010-01-01,ipc_indice,58.26611009
 2010-02-01,ipc_indice,58.42983636
 2010-03-01,ipc_indice,58.47896616
@@ -23663,6 +23668,7 @@ fecha,serie,valor
 2026-07-01,ipc_indice,112.4476618
 2026-08-01,ipc_indice,113.1467207
 2026-09-01,ipc_indice,113.5851118
+2026-10-01,ipc_indice,114.1275768
 2010-01-01,ipc_sae_indice,63.48
 2010-02-01,ipc_sae_indice,63.61
 2010-03-01,ipc_sae_indice,63.55
@@ -23864,6 +23870,7 @@ fecha,serie,valor
 2026-07-01,ipc_sae_indice,110.19
 2026-08-01,ipc_sae_indice,110.62
 2026-09-01,ipc_sae_indice,110.74
+2026-10-01,ipc_sae_indice,110.69
 2010-01-01,ipc_sae_variacion_mensual,0.8
 2010-02-01,ipc_sae_variacion_mensual,0.2
 2010-03-01,ipc_sae_variacion_mensual,-0.1
@@ -24065,6 +24072,7 @@ fecha,serie,valor
 2026-07-01,ipc_sae_variacion_mensual,0.4
 2026-08-01,ipc_sae_variacion_mensual,0.4
 2026-09-01,ipc_sae_variacion_mensual,0.1
+2026-10-01,ipc_sae_variacion_mensual,0.0
 2010-01-01,ipc_servicios_sin_volatiles_v12,2.087431421
 2010-02-01,ipc_servicios_sin_volatiles_v12,2.591310632
 2010-03-01,ipc_servicios_sin_volatiles_v12,2.237513063
@@ -24266,6 +24274,7 @@ fecha,serie,valor
 2026-07-01,ipc_servicios_sin_volatiles_v12,4.30087651215791
 2026-08-01,ipc_servicios_sin_volatiles_v12,4.293444409125
 2026-09-01,ipc_servicios_sin_volatiles_v12,4.30675622080355
+2026-10-01,ipc_servicios_sin_volatiles_v12,4.19473849484572
 2010-01-01,ipc_sin_volatiles_v12,0.42407838
 2010-02-01,ipc_sin_volatiles_v12,0.56774308
 2010-03-01,ipc_sin_volatiles_v12,0.300572721
@@ -24467,6 +24476,7 @@ fecha,serie,valor
 2026-07-01,ipc_sin_volatiles_v12,3.2115004310816
 2026-08-01,ipc_sin_volatiles_v12,3.29597727537248
 2026-09-01,ipc_sin_volatiles_v12,3.1924263464074
+2026-10-01,ipc_sin_volatiles_v12,3.28719187596541
 2010-01-01,ipc_v12,-1.320588228
 2010-02-01,ipc_v12,0.258670818
 2010-03-01,ipc_v12,0.303468392
@@ -24668,6 +24678,7 @@ fecha,serie,valor
 2026-07-01,ipc_v12,3.52112990427294
 2026-08-01,ipc_v12,4.12746701097232
 2026-09-01,ipc_v12,4.06987177520521
+2026-10-01,ipc_v12,4.52297514281983
 2010-01-01,ipc_variacion_mensual,0.5
 2010-02-01,ipc_variacion_mensual,0.3
 2010-03-01,ipc_variacion_mensual,0.1
@@ -24869,6 +24880,7 @@ fecha,serie,valor
 2026-07-01,ipc_variacion_mensual,0.1
 2026-08-01,ipc_variacion_mensual,0.6
 2026-09-01,ipc_variacion_mensual,0.4
+2026-10-01,ipc_variacion_mensual,0.5
 2010-01-01,ipc_volatiles_v12,-3.843198366
 2010-02-01,ipc_volatiles_v12,-0.204078676
 2010-03-01,ipc_volatiles_v12,0.30788082
@@ -25070,6 +25082,7 @@ fecha,serie,valor
 2026-07-01,ipc_volatiles_v12,4.02242792209097
 2026-08-01,ipc_volatiles_v12,5.47257163099879
 2026-09-01,ipc_volatiles_v12,5.48757680557983
+2026-10-01,ipc_volatiles_v12,6.51371893205332
 2019-01-01,ipp_agricultura,96.13
 2019-02-01,ipp_agricultura,94.46
 2019-03-01,ipp_agricultura,96.19
@@ -28835,7 +28848,7 @@ fecha,serie,valor
 2026-11-03,ipsa_etf,4849.0
 2026-11-04,ipsa_etf,4860.0
 2026-11-05,ipsa_etf,4815.60009765625
-2026-11-06,ipsa_etf,4815.60009765625
+2026-11-06,ipsa_etf,4860.10009765625
 2010-01-04,ipsa_indice_real,3620.699951171875
 2010-01-05,ipsa_indice_real,3624.10009765625
 2010-01-06,ipsa_indice_real,3639.9599609375
@@ -41391,7 +41404,7 @@ fecha,serie,valor
 2026-11-03,tipo_cambio,980.2100219726562
 2026-11-04,tipo_cambio,965.6900024414062
 2026-11-05,tipo_cambio,977.9400024414062
-2026-11-06,tipo_cambio,964.9299926757812
+2026-11-06,tipo_cambio,979.72998046875
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
@@ -45589,6 +45602,7 @@ fecha,serie,valor
 2026-11-03,tpm,4.5
 2026-11-04,tpm,4.5
 2026-11-05,tpm,4.5
+2026-11-06,tpm,4.5
 2010-01-04,vix,20.040000915527344
 2010-01-05,vix,19.350000381469727
 2010-01-06,vix,19.15999984741211
@@ -49830,4 +49844,4 @@ fecha,serie,valor
 2026-11-03,vix,20.75
 2026-11-04,vix,16.84000015258789
 2026-11-05,vix,26.010000228881836
-2026-11-06,vix,28.18000030517578
+2026-11-06,vix,27.420000076293945
