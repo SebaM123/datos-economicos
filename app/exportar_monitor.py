@@ -452,8 +452,9 @@ SERIES += [
             prefijo="US$", sufijo=" MM",
             definicion="Suma de los últimos 12 meses de exportaciones de bienes, recalculada cada mes: quita la estacionalidad."),
     # --- Estados Unidos
-    _simple("eeuu_desempleo", "EE.UU.: tasa de desempleo", "eeuu", lambda h: _raw(h, "eeuu_desempleo"), unidad="%", delta="pp",
-            polaridad="sube_malo", fuente="Banco Central (BLS)", definicion="Tasa de desempleo de Estados Unidos."),
+    _simple("eeuu_desempleo", "EE.UU.: tasa de desempleo", "eeuu",
+            lambda h: (_raw(h, "eeuu_desempleo_fred") if not _raw(h, "eeuu_desempleo_fred").empty else _raw(h, "eeuu_desempleo")), unidad="%", delta="pp",
+            polaridad="sube_malo", fuente="BLS (vía FRED)", definicion="Tasa de desempleo de Estados Unidos."),
     _simple("eeuu_inflacion", "EE.UU.: inflación interanual (IPC)", "eeuu",
             lambda h: (_yoy_fecha(_raw(h, "eeuu_ipc_indice")) if not _raw(h, "eeuu_ipc_indice").empty else _raw(h, "eeuu_inflacion")), unidad="%",
             delta="pp", polaridad="sube_malo", firmado=True, fuente="BLS (vía FRED)",

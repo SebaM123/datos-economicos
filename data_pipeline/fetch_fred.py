@@ -95,6 +95,7 @@ INDICADORES_EEUU = [
     ("eeuu_fed_limite_inferior", "DFEDTARL", "2015-01-01"),
     ("eeuu_ipc_indice", "CPIAUCNS", "2010-01-01"),  # IPC sin desestacionalizar: con él se calcula la variación a 12 meses que titula el BLS
     ("eeuu_empleo_no_agricola_nivel", "PAYEMS", "2010-01-01"),  # miles de empleos
+    ("eeuu_desempleo_fred", "UNRATE", "2010-01-01"),  # tasa de desempleo (%), sale el mismo día que el empleo; la copia del Banco Central llega con días de atraso
     ("eeuu_ipp_demanda_final_indice", "PPIFID", "2010-01-01"),  # IPP de demanda final, el titular del BLS
     ("eeuu_pce_indice", "PCEPI", "2010-01-01"),  # índice de precios del gasto de consumo (el que mira la Fed)
     ("eeuu_pib_real_anualizado", "A191RL1Q225SBEA", "2010-01-01"),  # PIB real, variación trimestral anualizada (%)
