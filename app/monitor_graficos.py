@@ -177,6 +177,36 @@ def _desempleo_movil(h):
     return {"series": [_serie("Tasa mensual (trimestre móvil)", d), _serie("Promedio móvil 12 meses", calcular_anio_movil(d, operacion="mean"))]}
 
 
+def _cambio_anual_miles(df: pd.DataFrame) -> pd.DataFrame:
+    """Cambio contra el mismo mes del año anterior (por fecha, no por posición), en las mismas unidades que la serie."""
+    previo = df.assign(fecha=df["fecha"] + pd.DateOffset(years=1)).rename(columns={"valor": "previo"})
+    out = df.merge(previo, on="fecha")
+    out["valor"] = out["valor"] - out["previo"]
+    return out[["fecha", "valor"]]
+
+
+def _fuerza_trabajo_estructura(h):
+    return {"series": [_serie("Fuerza de trabajo", _raw(h, "fuerza_trabajo")), _serie("Ocupados", _raw(h, "ocupados")),
+                       _serie("Desocupados", _raw(h, "desocupados"))]}
+
+
+def _cambio_fuerza_trabajo(h):
+    ocupados, desocupados, fuerza = (_cambio_anual_miles(_raw(h, s)) for s in ("ocupados", "desocupados", "fuerza_trabajo"))
+    if fuerza.empty:
+        return None
+    return {
+        "series": [_serie("Más ocupados", ocupados, color="#3fb68b"), _serie("Más desocupados", desocupados, color="#e5645f")],
+        "total": _serie("Cambio de la fuerza de trabajo", fuerza),
+    }
+
+
+def _ocupados_por_tipo(h):
+    ocupados, asalariados = _raw(h, "ocupados"), _raw(h, "ocupados_asalariados")
+    resto = ocupados.merge(asalariados, on="fecha", suffixes=("", "_asal"))
+    resto["valor"] = resto["valor"] - resto["valor_asal"]
+    return {"series": [_serie("Asalariados", asalariados), _serie("No asalariados (cuenta propia, empleadores, otros)", resto[["fecha", "valor"]])]}
+
+
 # ---------- Comercio exterior ----------
 def _exportaciones_anio_movil(h):
     sectores = [("Minería", "exportaciones_mineria"), ("Agropecuario-silvícola-pesquero", "exportaciones_agropecuario"),
@@ -333,6 +363,18 @@ GRAFICOS = [
          unidad="%", decimales=1, frecuencia="M", build=_desempleo_movil,
          definicion="El promedio de los últimos 12 meses suaviza el ruido mes a mes para ver la tendencia de fondo (acá se promedia, "
                     "no se suma: sumar una tasa no tiene interpretación)."),
+    dict(id="fuerza_trabajo_estructura", pestana="empleo", tipo="lineas", nombre="Fuerza de trabajo, ocupados y desocupados (miles de personas)",
+         unidad="miles", decimales=0, frecuencia="M", build=_fuerza_trabajo_estructura,
+         definicion="Fuerza de trabajo = ocupados + desocupados: las personas en edad de trabajar que tienen empleo o lo buscan activamente. "
+                    "Serie original del INE (Encuesta Nacional de Empleo), trimestre móvil, en miles de personas."),
+    dict(id="cambio_fuerza_trabajo", pestana="empleo", tipo="barras_apiladas", nombre="De dónde viene el cambio de la fuerza de trabajo (miles, interanual)",
+         unidad="miles", decimales=0, frecuencia="M", build=_cambio_fuerza_trabajo,
+         definicion="Cuánto más (o menos) hay de ocupados y de desocupados que hace un año. La suma de ambos es el cambio de la fuerza de trabajo: "
+                    "si crece la fuerza y los ocupados no la acompañan, sube el desempleo."),
+    dict(id="ocupados_por_tipo", pestana="empleo", tipo="lineas", nombre="Ocupados: asalariados y no asalariados (miles de personas)",
+         unidad="miles", decimales=0, frecuencia="M", build=_ocupados_por_tipo,
+         definicion="Los asalariados trabajan para un empleador con contrato o acuerdo de pago; los no asalariados incluyen a los trabajadores "
+                    "por cuenta propia, los empleadores y el servicio doméstico y familiar no remunerado. Serie original del INE."),
     dict(id="exportaciones_sectores_anio_movil", pestana="comercio", tipo="lineas", nombre="Exportaciones por sector, año móvil (millones de US$)",
          unidad="US$ MM", decimales=0, frecuencia="M", build=_exportaciones_anio_movil,
          definicion="Suma de los últimos 12 meses, recalculada cada mes: quita la estacionalidad (por ejemplo, la fruta se exporta sobre todo "

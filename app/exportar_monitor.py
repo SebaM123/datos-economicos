@@ -62,9 +62,10 @@ TEMAS = [
      "vistas": {"ytd": "tpm_cambio_anio", "12m": "tpm_cambio_12m"},
      "secundarias": ["eof_inflacion_12m"]},
     {"id": "empleo", "nombre": "Empleo", "icono": "briefcase", "serie": "desempleo",
-     "graficos": ["masa_salarial_aportes", "remuneraciones_inflacion", "desempleo_movil"],
+     "graficos": ["fuerza_trabajo_estructura", "cambio_fuerza_trabajo", "ocupados_por_tipo", "masa_salarial_aportes", "remuneraciones_inflacion", "desempleo_movil"],
      "vistas": {"ytd": "desempleo_cambio_anio", "12m": "desempleo_cambio_12m"},
-     "secundarias": ["remuneraciones_real_interanual", "masa_salarial_real_interanual"]},
+     "secundarias": ["fuerza_trabajo", "ocupados", "desocupados", "ocupados_asalariados", "ocupados_no_asalariados", "ocupados_interanual",
+                     "remuneraciones_real_interanual", "masa_salarial_real_interanual"]},
     {"id": "comercio", "nombre": "Comercio exterior", "icono": "globe", "serie": "exportaciones_total_interanual",
      "graficos": ["exportaciones_sectores_anio_movil"],
      "vistas": {"ytd": "exportaciones_acumulado_anio", "12m": "exportaciones_anio_movil"},
@@ -111,6 +112,12 @@ def _mercado(h: pd.DataFrame, serie: str) -> pd.DataFrame:
     df = _raw(h, serie)
     df = df[df["fecha"].dt.weekday < 5]
     return df[df["valor"].diff().fillna(1.0) != 0].reset_index(drop=True)
+
+
+def _no_asalariados(h: pd.DataFrame) -> pd.DataFrame:
+    m = _raw(h, "ocupados").merge(_raw(h, "ocupados_asalariados"), on="fecha", suffixes=("", "_asal"))
+    m["valor"] = m["valor"] - m["valor_asal"]
+    return m[["fecha", "valor"]]
 
 
 def _interanual_filas(df: pd.DataFrame) -> pd.DataFrame:
@@ -436,6 +443,10 @@ SERIES += [
             sufijo=" mil", fuente="INE"),
     _simple("desocupados", "Desocupados", "empleo", lambda h: _raw(h, "desocupados"), unidad="personas", polaridad="sube_malo",
             decimales=0, sufijo=" mil", fuente="INE"),
+    _simple("ocupados_asalariados", "Ocupados asalariados", "empleo", lambda h: _raw(h, "ocupados_asalariados"), unidad="personas", polaridad="sube_bueno",
+            decimales=0, sufijo=" mil", fuente="INE", definicion="Ocupados que trabajan para un empleador (ENE, serie original, trimestre móvil)."),
+    _simple("ocupados_no_asalariados", "Ocupados no asalariados", "empleo", lambda h: _no_asalariados(h), unidad="personas", decimales=0, sufijo=" mil",
+            fuente="INE (cálculo propio)", definicion="Ocupados menos asalariados: trabajadores por cuenta propia, empleadores, servicio doméstico y familiares no remunerados."),
     # --- Comercio exterior
     _simple("exportaciones_total_mensual", "Exportaciones de bienes (mensual)", "comercio", lambda h: calcular_total_exportaciones(h),
             unidad="US$", polaridad="sube_bueno", decimales=0, prefijo="US$", sufijo=" MM",
@@ -611,7 +622,7 @@ MAX_DIAS_POR_SERIE = {
     "imacec": 100, "ipc": 80, "ipp": 92, "eee": 45, "eof": 45, "desempleo": 97, "remuneraciones": 97,
     "masa_salarial": 97, "exportaciones": 80, "importaciones": 80, "balanza": 80, "cobre_precio_promedio": 75, "cobre_precio_interanual": 75, "cobre": 7, "pib_real": 245, "tipo_cambio": 7, "ipsa": 7, "sp500": 7, "vix": 7, "tpm": 7,
     "pib_tendencia": 100, "inflacion_deflactor": 245, "pib_mineria": 180, "pib_no_minero": 245,
-    "fuerza_trabajo": 97, "ocupados": 97, "desocupados": 97,
+    "fuerza_trabajo": 97, "ocupados": 97, "desocupados": 97, "ocupados_asalariados": 97, "ocupados_no_asalariados": 97,
 }
 
 
