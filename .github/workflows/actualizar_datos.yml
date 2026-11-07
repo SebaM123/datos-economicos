@@ -98,6 +98,12 @@ jobs:
         run: python fetch_comparador.py
         working-directory: data_pipeline
 
+      - name: Traer población por edad (Banco Mundial / ONU)
+        if: needs.decidir.outputs.completa == 'true'
+        continue-on-error: true
+        run: python fetch_poblacion.py
+        working-directory: data_pipeline
+
       - name: Traer índice de Gini por estado (Census Bureau)
         if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true

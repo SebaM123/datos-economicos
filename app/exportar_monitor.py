@@ -87,6 +87,10 @@ SECCIONES = [
     {"id": "composicion", "nombre": "Composición del PIB", "icono": "scale", "tipo": "composicion",
      "intro": "De qué está hecho el PIB de Chile y cómo ha cambiado. Parte del total y baja paso a paso: por ejemplo PIB → exportaciones → bienes → "
               "minería → cobre. Para cada componente ves su peso (% del PIB o % de lo que lo contiene) y su evolución en el tiempo."},
+    {"id": "poblacion", "nombre": "Población", "icono": "users", "tipo": "poblacion",
+     "intro": "Cuántos somos y cómo nos repartimos por edad: la pirámide de población año a año desde 1960 hasta 2050, el peso de niños, "
+              "adultos y mayores, y qué tan rápido envejece Chile. Los datos son estimaciones y proyecciones de la ONU; el Censo 2024 contó "
+              "menos personas que ellas, pero la distribución por edad es parecida."},
     {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
      "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
               "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "

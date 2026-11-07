@@ -14,6 +14,7 @@ const ICONOS = {
   briefcase: '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
   globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
@@ -783,7 +784,8 @@ function htmlPestana(id) {
   const masIndicadores = otros.length ? `<h2 class="subtitulo">Más indicadores</h2><div class="rejilla">${otros.map(htmlTarjetaSerie).join("")}</div>` : "";
   const extra = seccion && seccion.tipo === "revisiones" ? '<section class="bloque" id="revisiones-contenido" aria-live="polite">Cargando…</section>'
     : seccion && seccion.tipo === "comparador" ? htmlComparador()
-    : seccion && seccion.tipo === "composicion" ? htmlComposicion() : "";
+    : seccion && seccion.tipo === "composicion" ? htmlComposicion()
+    : seccion && seccion.tipo === "poblacion" ? htmlPoblacion() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -1188,6 +1190,202 @@ async function activarComposicion(idRender, query) {
   cmpPintar();
 }
 
+// ---------- Población por edad ----------
+const POB_TRAMOS = [["0–14", 0, 3], ["15–29", 3, 6], ["30–44", 6, 9], ["45–64", 9, 13], ["65–79", 13, 16], ["80 y más", 16, 17]];
+const POB_COLORES = ["#5ec4c4", "#5fd38d", "#e8c15a", "#f0a97c", "#c792ea", "#e07a9d"];
+const POB_COMPARAR = [["Sin comparar", null], ["1960", 1960], ["1990", 1990], ["2010", 2010], ["2050", 2050]];
+const pob = { datos: null, anio: null, comparar: null, modo: "pct", g: {} };
+
+const pobGrupos = (i) => pob.datos.hombres[i].map((h, k) => h + pob.datos.mujeres[i][k]);
+const pobSuma = (g, a, b) => g.slice(a, b).reduce((s, v) => s + v, 0);
+function pobMetricas(i) {
+  const g = pobGrupos(i), t = pobSuma(g, 0, 17), jov = pobSuma(g, 0, 3), act = pobSuma(g, 3, 13), may = pobSuma(g, 13, 17);
+  let acum = 0, mediana = null;
+  for (let k = 0; k < 17 && mediana === null; k++) {
+    if (acum + g[k] >= t / 2) mediana = k * 5 + ((t / 2 - acum) / g[k]) * 5;
+    acum += g[k];
+  }
+  return { t, jov, act, may, pj: (jov / t) * 100, pa: (act / t) * 100, pm: (may / t) * 100, mediana,
+    dependencia: ((jov + may) / act) * 100, envejecimiento: (may / jov) * 100 };
+}
+
+function pobDesdeQuery(query) {
+  if (!query) return;
+  const p = new URLSearchParams(query), anios = pob.datos.anios;
+  if (anios.includes(Number(p.get("a")))) pob.anio = Number(p.get("a"));
+  if (p.has("c")) pob.comparar = anios.includes(Number(p.get("c"))) ? Number(p.get("c")) : null;
+  if (["pct", "abs"].includes(p.get("m"))) pob.modo = p.get("m");
+}
+const pobHash = () => `#/poblacion?a=${pob.anio}${pob.comparar ? `&c=${pob.comparar}` : ""}&m=${pob.modo}`;
+
+function htmlPoblacion() {
+  return `<div class="rejilla" id="pob-kpis"></div>
+  <section class="bloque" id="poblacion-bloque" aria-label="Población por edad">
+    <h2 class="subtitulo" style="margin-top:0">Pirámide de población</h2>
+    <div class="comp-controles">
+      <div class="pob-slider"><label for="pob-anio">Año: <b id="pob-anio-txt"></b></label><input type="range" id="pob-anio" aria-label="Año de la pirámide"></div>
+      <div class="rangos" id="pob-modo" role="group" aria-label="Unidad"><button type="button" data-modo="pct">% de la población</button><button type="button" data-modo="abs">Personas</button></div>
+    </div>
+    <div class="comp-controles" style="margin-top:10px"><span class="pob-etq">Comparar con:</span>
+      <div class="rangos" id="pob-comparar" role="group" aria-label="Año de comparación">${POB_COMPARAR.map(([etq, a]) => `<button type="button" data-comparar="${a ?? ""}">${etq}</button>`).join("")}</div></div>
+    <p class="callout" id="pob-resumen" hidden></p>
+    <div class="grafico-compuesto" id="pob-piramide" style="height:480px" role="img" aria-label="Pirámide de población de Chile"></div>
+    <h2 class="subtitulo" style="margin-top:26px">Cómo se reparte la población por edad, año a año</h2>
+    <div class="grafico-compuesto" id="pob-reparto" style="height:340px" role="img" aria-label="Porcentaje de la población en cada tramo de edad"></div>
+    <h2 class="subtitulo" style="margin-top:26px">Población total (con los censos)</h2>
+    <div class="grafico-compuesto" id="pob-total" style="height:260px" role="img" aria-label="Población total de Chile"></div>
+    <h2 class="subtitulo" style="margin-top:26px">Dependencia y envejecimiento</h2>
+    <div class="grafico-compuesto" id="pob-razones" style="height:260px" role="img" aria-label="Razón de dependencia e índice de envejecimiento"></div>
+    <div class="bloque-cabecera" style="margin-top:18px"><h2>Detalle del año elegido</h2><button class="boton-chico" type="button" id="pob-csv">Descargar CSV</button></div>
+    <div class="tabla-ancha" id="pob-tabla"></div>
+    <p class="bloque-nota" id="pob-nota"></p>
+  </section>`;
+}
+
+function pobGrafico(id) {
+  const el = document.getElementById(id);
+  if (!pob.g[id]) {
+    pob.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => pob.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: pob.g[id], observador: o });
+  }
+  return pob.g[id];
+}
+
+const pobEjes = (anios, extra = {}) => ({
+  xAxis: { type: "category", data: anios, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } },
+  yAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted") }, ...extra },
+});
+const pobTooltip = (formatter) => ({ trigger: "axis", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 }, formatter });
+const pobProyectado = (d) => ({ silent: true, itemStyle: { color: css("--border"), opacity: 0.35 }, label: { show: true, position: "insideTop", color: css("--muted"), fontSize: 11 },
+  data: [[{ name: "Proyección", xAxis: String(d.primer_proyectado) }, { xAxis: String(d.anios[d.anios.length - 1]) }]] });
+
+function pobPintar() {
+  const d = pob.datos, i = d.anios.indexOf(pob.anio), m = pobMetricas(i);
+  document.getElementById("pob-anio").value = pob.anio;
+  document.getElementById("pob-anio-txt").textContent = `${pob.anio}${pob.anio >= d.primer_proyectado ? " (proyección)" : ""}`;
+  document.querySelectorAll("#pob-modo button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modo === pob.modo)));
+  document.querySelectorAll("#pob-comparar button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.comparar === "" ? null : Number(b.dataset.comparar)) === pob.comparar)));
+
+  // tarjetas
+  const m0 = pobMetricas(d.anios.indexOf(Math.max(d.anios[0], pob.anio - 10)));
+  const tarjeta = (nombre, valor, nota) => `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${valor}</div><div class="tono">${nota}</div></article>`;
+  const dif = (a, b, un) => { const x = a - b; return `${x >= 0 ? "+" : "−"}${numero(Math.abs(x), 1)} ${un} vs. hace 10 años`; };
+  document.getElementById("pob-kpis").innerHTML = [
+    tarjeta(`Población total · ${pob.anio}`, `${numero(m.t / 1e6, 2)} millones`, `${(m.t >= m0.t ? "+" : "−")}${numero(Math.abs(m.t / m0.t - 1) * 100, 1)}% vs. hace 10 años`),
+    tarjeta("Menores de 15 años", `${numero(m.pj, 1)}%`, dif(m.pj, m0.pj, "pp")),
+    tarjeta("De 15 a 64 años", `${numero(m.pa, 1)}%`, dif(m.pa, m0.pa, "pp")),
+    tarjeta("De 65 años y más", `${numero(m.pm, 1)}%`, dif(m.pm, m0.pm, "pp")),
+    tarjeta("Edad mediana", `${numero(m.mediana, 1)} años`, `${m.mediana >= m0.mediana ? "+" : "−"}${numero(Math.abs(m.mediana - m0.mediana), 1)} años vs. hace 10 años`),
+    tarjeta("Índice de envejecimiento", numero(m.envejecimiento, 0), `personas de 65+ por cada 100 menores de 15 · ${dif(m.envejecimiento, m0.envejecimiento, "").trim()}`),
+  ].join("");
+
+  // pirámide
+  const pct = pob.modo === "pct", grupos = d.grupos, esc2 = (v) => Math.abs(v);
+  const serieSexo = (idx, sexo, signo) => { const tot = pobSuma(pobGrupos(idx), 0, 17); return d[sexo][idx].map((v) => signo * (pct ? (v / tot) * 100 : v)); };
+  const ic = pob.comparar ? d.anios.indexOf(pob.comparar) : -1;
+  const fmtV = (v) => (pct ? `${numero(esc2(v), 2)}%` : numero(esc2(v), 0));
+  const series = [
+    { name: `Hombres ${pob.anio}`, type: "bar", stack: "a", data: serieSexo(i, "hombres", -1), itemStyle: { color: "#6c8cf0" }, barWidth: "78%", z: 2 },
+    { name: `Mujeres ${pob.anio}`, type: "bar", stack: "b", data: serieSexo(i, "mujeres", 1), itemStyle: { color: "#e07a9d" }, barWidth: "78%", z: 2 },
+  ];
+  if (ic >= 0) {
+    series.push({ name: `Hombres ${pob.comparar}`, type: "bar", stack: "c", data: serieSexo(ic, "hombres", -1), barGap: "-100%", barWidth: "78%", itemStyle: { color: "transparent", borderColor: css("--text"), borderWidth: 1.4 }, z: 3 });
+    series.push({ name: `Mujeres ${pob.comparar}`, type: "bar", stack: "d", data: serieSexo(ic, "mujeres", 1), barGap: "-100%", barWidth: "78%", itemStyle: { color: "transparent", borderColor: css("--text"), borderWidth: 1.4 }, z: 3 });
+  }
+  const maxAbs = Math.max(...series.flatMap((s) => s.data.map(esc2)));
+  pobGrafico("pob-piramide").setOption({
+    animation: false, grid: { left: 44, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, data: series.map((s) => s.name), selectedMode: false },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => `<b>${ps[0].axisValue} años</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${fmtV(p.value)}</b>`).join("<br>")}` },
+    xAxis: { type: "value", min: -maxAbs * 1.05, max: maxAbs * 1.05, splitLine: { lineStyle: { color: css("--border") } },
+      axisLabel: { color: css("--muted"), formatter: (v) => (pct ? `${numero(esc2(v), 1)}%` : `${numero(esc2(v) / 1000, 0)} mil`) } },
+    yAxis: { type: "category", data: grupos, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted") } },
+    series,
+  }, true);
+  document.getElementById("pob-resumen").hidden = false;
+  document.getElementById("pob-resumen").textContent = `En ${pob.anio} hay ${numero(m.t / 1e6, 2)} millones de personas: ${numero(m.pj, 1)}% menores de 15 años, ${numero(m.pa, 1)}% entre 15 y 64 y ${numero(m.pm, 1)}% de 65 años y más. `
+    + `La edad mediana es ${numero(m.mediana, 1)} años y hay ${numero(m.dependencia, 0)} personas en edad de depender (menores de 15 y mayores de 64) por cada 100 en edad de trabajar.`;
+
+  // reparto por edad (100% apilado)
+  const lineaAnio = { silent: true, symbol: "none", lineStyle: { color: css("--text"), type: "dashed", width: 1.2 }, label: { show: false }, data: [{ xAxis: String(pob.anio) }] };
+  pobGrafico("pob-reparto").setOption({
+    animation: false, grid: { left: 46, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: pobTooltip((ps) => `<b>${ps[0].axisValue}</b><br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}%</b>`).join("<br>")}`),
+    ...pobEjes(d.anios.map(String), { min: 0, max: 100, axisLabel: { color: css("--muted"), formatter: (v) => `${v}%` } }),
+    series: POB_TRAMOS.map(([nombre, a, b], k) => ({
+      name: nombre, type: "line", stack: "t", symbol: "none", lineStyle: { width: 0.6, color: POB_COLORES[k] }, itemStyle: { color: POB_COLORES[k] },
+      areaStyle: { color: POB_COLORES[k], opacity: 0.85 },
+      data: d.anios.map((_, j) => { const g = pobGrupos(j); return (pobSuma(g, a, b) / pobSuma(g, 0, 17)) * 100; }),
+      ...(k === 0 ? { markLine: lineaAnio, markArea: pobProyectado(d) } : {}),
+    })),
+  }, true);
+
+  // población total + censos
+  pobGrafico("pob-total").setOption({
+    animation: false, grid: { left: 52, right: 20, top: 30, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: pobTooltip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.filter((p) => p.value !== null && p.value !== undefined).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(Array.isArray(p.value) ? p.value[1] : p.value, 2)} millones</b>`).join("<br>")}`),
+    ...pobEjes(d.anios.map(String), { scale: true, axisLabel: { color: css("--muted"), formatter: (v) => numero(v, 0) } }),
+    series: [
+      { name: "Estimación y proyección ONU", type: "line", symbol: "none", lineStyle: { width: 2.4, color: css("--accent") }, areaStyle: { color: css("--accent"), opacity: 0.12 },
+        data: d.anios.map((_, j) => pobSuma(pobGrupos(j), 0, 17) / 1e6), markLine: lineaAnio, markArea: pobProyectado(d) },
+      { name: "Censo (INE)", type: "scatter", symbolSize: 11, itemStyle: { color: "#e8c15a", borderColor: css("--card"), borderWidth: 1.5 },
+        data: d.censos.map((c) => [String(c.anio), c.total / 1e6]) },
+    ],
+  }, true);
+
+  // razones
+  const serieRazon = (nombre, campo, color) => ({ name: nombre, type: "line", symbol: "none", lineStyle: { width: 2.4, color }, itemStyle: { color }, data: d.anios.map((_, j) => pobMetricas(j)[campo]) });
+  pobGrafico("pob-razones").setOption({
+    animation: false, grid: { left: 46, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: pobTooltip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 0)}</b>`).join("<br>")}`),
+    ...pobEjes(d.anios.map(String), { min: 0, axisLabel: { color: css("--muted"), formatter: (v) => numero(v, 0) } }),
+    series: [
+      { ...serieRazon("Razón de dependencia", "dependencia", "#f0a97c"), markLine: lineaAnio, markArea: pobProyectado(d) },
+      serieRazon("Índice de envejecimiento", "envejecimiento", "#c792ea"),
+    ],
+  }, true);
+
+  // tabla
+  const h = d.hombres[i], mu = d.mujeres[i], tot = pobGrupos(i);
+  document.getElementById("pob-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Población por tramo de edad, ${pob.anio}</caption>
+    <thead><tr><th scope="col">Edad</th><th scope="col">Hombres</th><th scope="col">Mujeres</th><th scope="col">Total</th><th scope="col">% del total</th></tr></thead>
+    <tbody>${d.grupos.map((g, k) => `<tr><td>${g}</td><td class="num">${numero(h[k], 0)}</td><td class="num">${numero(mu[k], 0)}</td><td class="num">${numero(tot[k], 0)}</td><td class="num">${numero((tot[k] / m.t) * 100, 1)}%</td></tr>`).join("")}
+    <tr><td><b>Total</b></td><td class="num"><b>${numero(pobSuma(h, 0, 17), 0)}</b></td><td class="num"><b>${numero(pobSuma(mu, 0, 17), 0)}</b></td><td class="num"><b>${numero(m.t, 0)}</b></td><td class="num"><b>100%</b></td></tr></tbody></table>`;
+  document.getElementById("pob-nota").textContent = `Fuente: ONU (World Population Prospects) vía Banco Mundial, descargado el ${d.descargado}. Desde ${d.primer_proyectado} son proyecciones. `
+    + "Los totales de la ONU no coinciden con los censos del INE (el Censo 2024 contó 18,48 millones de personas), pero la distribución por edad es parecida: "
+    + "el Censo 2024 midió 17,7% de menores de 15 años, 68,3% entre 15 y 64 y 14,0% de 65 años y más. Razón de dependencia = (menores de 15 + mayores de 64) por cada 100 personas de 15 a 64; índice de envejecimiento = personas de 65 y más por cada 100 menores de 15.";
+  history.replaceState(null, "", pobHash());
+}
+
+async function activarPoblacion(idRender, query) {
+  try { if (!pob.datos) pob.datos = await pedirJSON("poblacion.json", estado.meta.generado); }
+  catch (e) { const c = document.getElementById("poblacion-bloque"); if (c) c.textContent = "No se pudieron cargar los datos de población."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("pob-piramide")) return;
+  pob.g = {};
+  const d = pob.datos, rango = document.getElementById("pob-anio");
+  rango.min = d.anios[0]; rango.max = d.anios[d.anios.length - 1]; rango.step = 1;
+  if (!pob.anio) pob.anio = Math.min(Math.max(d.primer_proyectado, d.anios[0]), d.anios[d.anios.length - 1]);
+  pobDesdeQuery(query);
+  rango.addEventListener("input", () => { pob.anio = Number(rango.value); pobPintar(); });
+  document.getElementById("poblacion-bloque").addEventListener("click", (ev) => {
+    const modo = ev.target.closest("[data-modo]"), cmpBtn = ev.target.closest("[data-comparar]");
+    if (modo) { pob.modo = modo.dataset.modo; pobPintar(); }
+    else if (cmpBtn) { pob.comparar = cmpBtn.dataset.comparar === "" ? null : Number(cmpBtn.dataset.comparar); pobPintar(); }
+  });
+  document.getElementById("pob-csv").addEventListener("click", () => {
+    const i = d.anios.indexOf(pob.anio), filas = ["tramo,hombres,mujeres,total", ...d.grupos.map((g, k) => [g, d.hombres[i][k], d.mujeres[i][k], d.hombres[i][k] + d.mujeres[i][k]].join(","))];
+    const url = URL.createObjectURL(new Blob([filas.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `poblacion_chile_${pob.anio}.csv` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  pobPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -1233,6 +1431,7 @@ async function render() {
     // El salto al gráfico pedido se hace cuando ya se dibujaron todos: antes, las alturas aún no estaban fijadas.
     if (ruta.tema === "comparador") activarComparador(id, ruta.query);
     if (ruta.tema === "composicion") activarComposicion(id, ruta.query);
+    if (ruta.tema === "poblacion") activarPoblacion(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });
