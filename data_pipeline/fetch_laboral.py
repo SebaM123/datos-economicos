@@ -6,7 +6,7 @@ historico.csv. Cada corrida baja todo el historial y reemplaza el archivo (el IN
 
 Códigos del Banco Central (familia F049): {medida}.PMT.INE9.{H|M}{edad}.M con medida POB (población en edad de trabajar), FTR (fuerza de
 trabajo), OCU (ocupados), DES (desocupados) y FFT (fuera de la fuerza de trabajo, o inactivos); y OCU.PMT.INE4.{rama}.M (ocupados por rama,
-CIIU Rev.4, desde 2013) y OCU.PMT.INE9.{85..89}.M (ocupados por categoría ocupacional). Se comprueba que las identidades contables cuadren (POB = FTR + FFT; FTR = OCU + DES) antes de guardar.
+CIIU Rev.4, desde 2013) OCU.PMT.INE9.{85..89}.M (ocupados por categoría ocupacional) y OCU.PMT.INE9.{41A,41B,...}.M (ocupados por grupo ocupacional, CIUO-08). Se comprueba que las identidades contables cuadren (POB = FTR + FFT; FTR = OCU + DES) antes de guardar.
 """
 
 import json
@@ -40,6 +40,14 @@ RAMAS = {
 
 # Ocupados según su situación en el empleo (categoría ocupacional, CISE): las cinco suman el total de ocupados.
 CATEGORIAS = {"85": "Empleadores", "86": "Cuenta propia", "87": "Asalariados", "88": "Personal de servicio doméstico", "89": "Familiar no remunerado"}
+
+
+# Ocupados por grupo ocupacional (CIUO-08, el tipo de trabajo que hacen, no el título que tienen). Suman el total salvo ~28 mil «no sabe / no responde».
+GRUPOS = {
+    "41A": "Profesionales, científicos e intelectuales", "41B": "Técnicos y profesionales de nivel medio", "42A": "Directivos y gerentes", "43": "Personal de apoyo administrativo",
+    "44A": "Trabajadores de servicios y vendedores", "45A": "Agricultores y trabajadores agropecuarios calificados", "47A": "Oficiales, operarios y artesanos",
+    "48A": "Operadores de instalaciones y máquinas", "49": "Ocupaciones elementales (no calificados)", "51": "Otros no identificados",
+}
 
 
 def main() -> None:
@@ -80,6 +88,12 @@ def main() -> None:
     if cats.isna().any().any() or ((cats.sum(axis=1) - tabla["OCU_T"]).abs() > 0.5).any():
         raise RuntimeError("Las categorías ocupacionales no suman el total de ocupados")
     salida["categorias"] = [{"id": c, "nombre": n, "datos": [round(float(v), 1) for v in cats[c]]} for c, n in CATEGORIAS.items()]
+
+    gru_ids = {c: f"F049.OCU.PMT.INE9.{c}.M" for c in GRUPOS}
+    gru = cliente.cuadro(series=list(gru_ids.values()), nombres=list(gru_ids.keys()), desde=DESDE, hasta=hasta).reindex(tabla.index)
+    if gru.isna().any().any() or ((tabla["OCU_T"] - gru.sum(axis=1)).abs() > 60).any():
+        raise RuntimeError("Los grupos ocupacionales no suman (casi) el total de ocupados")
+    salida["grupos"] = [{"id": c, "nombre": n, "datos": [round(float(v), 1) for v in gru[c]]} for c, n in GRUPOS.items()]
 
     SALIDA.write_text(json.dumps(salida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"Mercado laboral: {len(tabla)} meses ({salida['fechas'][0]} a {salida['fechas'][-1]}), {len(ramas)} meses de ramas, guardado en {SALIDA}")

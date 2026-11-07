@@ -97,6 +97,10 @@ SECCIONES = [
      "intro": "La estructura completa del mercado laboral: cuántas personas están en edad de trabajar, cuántas participan (ocupados y desocupados) y "
               "cuántas están fuera de la fuerza de trabajo (inactivos), por sexo y tramo de edad, y los ocupados por rama de actividad. Son las "
               "cifras de la Encuesta Nacional de Empleo del INE (serie original, trimestre móvil, en miles de personas) desde 2010."},
+    {"id": "profesionales", "nombre": "Profesionales y técnicos", "icono": "graduation", "tipo": "profesionales",
+     "intro": "Cuántos técnicos y profesionales se titulan cada año en Chile (Mineduc, SIES, desde 2007), en qué carreras y áreas, quién los forma, cuántas "
+              "son mujeres, y cuántos de los ocupados trabajan como profesionales o técnicos. Incluye las carreras que más crecen y los programas que "
+              "aparecen cada año. Son títulos obtenidos, no personas: quien se titula dos veces aparece dos veces."},
     {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
      "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
               "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "

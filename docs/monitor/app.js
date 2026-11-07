@@ -15,6 +15,7 @@ const ICONOS = {
   globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  graduation: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
   scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
@@ -787,7 +788,8 @@ function htmlPestana(id) {
     : seccion && seccion.tipo === "comparador" ? htmlComparador()
     : seccion && seccion.tipo === "composicion" ? htmlComposicion()
     : seccion && seccion.tipo === "poblacion" ? htmlPoblacion()
-    : seccion && seccion.tipo === "laboral" ? htmlLaboral() : "";
+    : seccion && seccion.tipo === "laboral" ? htmlLaboral()
+    : seccion && seccion.tipo === "profesionales" ? htmlProfesionales() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -1155,7 +1157,7 @@ function cmpPintar() {
   const k5 = Math.max(0, ultimo - 5 * paso);
   const cambioTxt = (a, b) => (a === null || b === null ? "—" : cmp.base === "monto" ? (b ? `${a / b - 1 >= 0 ? "+" : "−"}${numero(Math.abs((a / b - 1) * 100), 0)}%` : "—") : cmpFmt(arbol, cmp.base, a - b, true).replace("%", " pp"));
   document.getElementById("cmp-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Componentes de ${esc(nodo.n)}</caption>
-    <thead><tr><th scope="col">Componente</th><th scope="col">${fechaTxt}</th><th scope="col">Hace 5 años</th><th scope="col">Hace 10 años</th><th scope="col">Cambio en 10 años</th></tr></thead>
+    <thead><tr><th scope="col">Componente</th><th scope="col">${fechaTxt}</th><th scope="col">Hace 5 años</th><th scope="col">Hace 10 años</th><th scope="col">Cambio vs. ${k >= 10 ? A[k - 10] : "—"}</th></tr></thead>
     <tbody>${comp.map((id, i) => { const n = arbol.nodos[id], v = cmpValor(arbol, id, ultimo, cmp.base), v5 = cmpValor(arbol, id, k5, cmp.base), v10 = cmpValor(arbol, id, k10, cmp.base);
       const nombre = n.h.length && id !== cmp.nodo ? `<button type="button" class="enlace-boton" data-nodo="${esc(id)}">${esc(n.n)} ▸</button>` : esc(n.n);
       return `<tr><td><span class="punto-color" style="--color:${CMP_COLORES[i % CMP_COLORES.length]}"></span> ${nombre}${n.e ? ' <em class="aprox">estimado</em>' : ""}</td>
@@ -1644,6 +1646,231 @@ async function activarLaboral(idRender, query) {
   labPintar();
 }
 
+// ---------- Profesionales y técnicos ----------
+const PRO_NIVELES = [["tecnico", "Técnicos de nivel superior", "#5ec4c4"], ["profesional", "Profesionales", "#7c8ff0"], ["posgrado", "Posgrado", "#c792ea"], ["postitulo", "Diplomados y postítulos", "#8892a6"], ["licenciatura", "Licenciatura sin título", "#b6a98a"]];
+const PRO_COLORES = ["#7c8ff0", "#5ec4c4", "#5fd38d", "#e8c15a", "#f0a97c", "#e07a9d", "#c792ea", "#8d9bc4", "#b0b86a", "#d98cc0"];
+const PRO_EDAD_COLORES = ["#5ec4c4", "#5fd38d", "#e8c15a", "#f0a97c", "#e07a9d", "#c792ea"];
+const PRO_ORDENES = [["titulados", "Más titulados"], ["crece", "Más crecimiento"], ["cae", "Más caída"], ["mujeres", "Más mujeres"], ["hombres", "Más hombres"]];
+const pro = { datos: null, lab: null, k: null, nivel: "profesional", medida: "n", nivelCarr: "todas", orden: "titulados", busqueda: "", carrera: null, g: {} };
+
+const proSerie = (clave, n) => pro.datos.areas[n][clave];
+const proPct = (a, b) => (b ? (a / b - 1) * 100 : null);
+const proFmtPct = (v, signo = true) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : `${signo && v > 0 ? "+" : v < 0 ? "−" : ""}${numero(Math.abs(v), 0)}%`);
+const proSinTilde = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function proDesdeQuery(query) {
+  if (!query) return;
+  const p = new URLSearchParams(query), d = pro.datos;
+  if (d.anios.includes(Number(p.get("a")))) pro.k = d.anios.indexOf(Number(p.get("a")));
+  if (["tecnico", "profesional", "posgrado"].includes(p.get("n"))) pro.nivel = p.get("n");
+  if (d.carreras.some((c) => c.n === p.get("c"))) pro.carrera = p.get("c");
+}
+const proHash = () => `#/profesionales?a=${pro.datos.anios[pro.k]}&n=${pro.nivel}${pro.carrera ? `&c=${encodeURIComponent(pro.carrera)}` : ""}`;
+
+function htmlProfesionales() {
+  const btn = (attr, items) => items.map(([id, etq]) => `<button type="button" data-${attr}="${id}">${etq}</button>`).join("");
+  return `<div class="comp-controles">
+      <div class="pob-slider"><label for="pro-anio">Año: <b id="pro-anio-txt"></b></label><input type="range" id="pro-anio" aria-label="Año"></div></div>
+    <div class="rejilla" id="pro-kpis"></div>
+  <section class="bloque" id="profesionales-bloque" aria-label="Profesionales y técnicos">
+    <h2 class="subtitulo" style="margin-top:0">Cuántos se titulan cada año</h2>
+    <div class="grafico-compuesto" id="pro-niveles" style="height:340px" role="img" aria-label="Titulados por año y nivel"></div>
+    <p class="callout" id="pro-resumen" hidden></p>
+    <h2 class="subtitulo" style="margin-top:28px">Quién los forma y en qué áreas</h2>
+    <div class="comp-controles">
+      <div class="rangos" id="pro-nivel" role="group" aria-label="Nivel">${btn("nivel", [["tecnico", "Técnicos"], ["profesional", "Profesionales"], ["posgrado", "Posgrado"]])}</div>
+      <div class="rangos" id="pro-medida" role="group" aria-label="Medida">${btn("medida", [["n", "Cantidad"], ["pct", "% del total"]])}</div></div>
+    <div class="grafico-compuesto" id="pro-inst" style="height:300px" role="img" aria-label="Titulados por tipo de institución"></div>
+    <div class="grafico-compuesto" id="pro-areas" style="height:340px;margin-top:14px" role="img" aria-label="Titulados por área de conocimiento"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Quiénes son y cómo estudian</h2>
+    <div class="grafico-compuesto" id="pro-perfil" style="height:300px" role="img" aria-label="Porcentaje de mujeres y de modalidad no presencial"></div>
+    <div class="grafico-compuesto" id="pro-edades" style="height:280px;margin-top:14px" role="img" aria-label="Edad de los titulados"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Explorador de carreras</h2>
+    <p class="bloque-nota" style="margin-top:0">Carreras según la clasificación genérica del SIES, que agrupa los nombres propios de cada institución. Toca una para ver su evolución.</p>
+    <div class="comp-controles">
+      <div class="rangos" id="pro-nivel-carr" role="group" aria-label="Nivel de la carrera">${btn("nivelcarr", [["todas", "Todas"], ["profesional", "Profesionales"], ["tecnico", "Técnicas"]])}</div>
+      <div class="rangos" id="pro-orden" role="group" aria-label="Orden">${btn("orden", PRO_ORDENES)}</div></div>
+    <div class="comp-controles" style="margin-top:10px"><input type="search" id="pro-buscar" class="buscador-chico" placeholder="Buscar carrera (ej. enfermería, ingeniería, datos)…" aria-label="Buscar carrera"></div>
+    <div class="tabla-ancha" id="pro-tabla"></div>
+    <h2 class="subtitulo" style="margin-top:22px" id="pro-carrera-titulo"></h2>
+    <div class="grafico-compuesto" id="pro-carrera" style="height:260px" role="img" aria-label="Evolución de la carrera elegida"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Lo nuevo: carreras y programas que aparecen</h2>
+    <div id="pro-nuevas"></div>
+    <div class="grafico-compuesto" id="pro-nuevos-graf" style="height:240px;margin-top:10px" role="img" aria-label="Programas con nombre nuevo cada año"></div>
+    <div class="tabla-ancha" id="pro-nuevos-tabla"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Cuántos trabajan como profesionales y técnicos</h2>
+    <p class="bloque-nota" style="margin-top:0">Ocupados según el tipo de trabajo que hacen (grupo ocupacional, Encuesta Nacional de Empleo), no según el título que tienen: hay profesionales trabajando en otros oficios y personas sin título en cargos técnicos.</p>
+    <div class="grafico-compuesto" id="pro-ocupados" style="height:300px" role="img" aria-label="Ocupados profesionales y técnicos"></div>
+    <p class="bloque-nota" id="pro-nota"></p>
+  </section>`;
+}
+
+function proGrafico(id) {
+  const el = document.getElementById(id);
+  if (!pro.g[id]) {
+    pro.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => pro.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: pro.g[id], observador: o });
+  }
+  return pro.g[id];
+}
+
+function proPintar() {
+  const d = pro.datos, k = pro.k, A = d.anios, anio = A[k], tip = pobTooltip, anioStr = A.map(String);
+  const linea = { silent: true, symbol: "none", lineStyle: { color: css("--text"), type: "dashed", width: 1.2 }, label: { show: false }, data: [{ xAxis: String(anio) }] };
+  const ejeX = { type: "category", data: anioStr, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } };
+  const ejeY = (fmt) => ({ type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: fmt } });
+  document.getElementById("pro-anio").value = anio;
+  document.getElementById("pro-anio-txt").textContent = anio;
+  const marca = (sel, attr, v) => document.querySelectorAll(sel).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[attr] === v)));
+  marca("#pro-nivel button", "nivel", pro.nivel); marca("#pro-medida button", "medida", pro.medida);
+  marca("#pro-nivel-carr button", "nivelcarr", pro.nivelCarr); marca("#pro-orden button", "orden", pro.orden);
+
+  // tarjetas
+  const prev = Math.max(0, k - 1), k10 = Math.max(0, k - 10);
+  const tarj = (nombre, serie, nota = "") => `<article class="tarjeta"><div class="indicador">${nombre} · ${anio}</div><div class="valor num">${numero(serie[k], 0)}</div>
+    <div class="tono">${k > 0 ? `${proFmtPct(proPct(serie[k], serie[prev]))} vs. ${A[prev]}` : ""}${k >= 10 ? ` · ${proFmtPct(proPct(serie[k], serie[k10]))} vs. ${A[k10]}` : ""}</div>${nota ? `<div class="fuente">${nota}</div>` : ""}</article>`;
+  document.getElementById("pro-kpis").innerHTML = [
+    tarj("Técnicos de nivel superior", d.niveles.tecnico), tarj("Profesionales", d.niveles.profesional), tarj("Posgrado (magíster, doctorado, especialidades)", d.niveles.posgrado),
+    tarj("Diplomados y postítulos", d.niveles.postitulo), tarj("Personas con título técnico o profesional", d.personas.por_anio, "Personas distintas en el año"),
+    `<article class="tarjeta"><div class="indicador">Personas tituladas desde ${A[0]}</div><div class="valor num">${numero(d.personas.acumuladas[k] / 1e6, 2)} millones</div><div class="tono">Con título técnico o profesional, hasta ${anio}</div><div class="fuente">Suma de personas distintas; incluye a quienes ya no viven o trabajan en Chile</div></article>`,
+  ].join("");
+
+  // niveles por año
+  proGrafico("pro-niveles").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => `<b>${ps[0].axisValue}</b><br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 0)}</b>`).join("<br>")}<br>Total: <b>${numero(ps.reduce((s, p) => s + p.value, 0), 0)}</b>` },
+    xAxis: { ...ejeX, boundaryGap: true }, yAxis: ejeY((v) => numero(v, 0)),
+    series: PRO_NIVELES.map(([id, nombre, color], i) => ({ name: nombre, type: "bar", stack: "t", itemStyle: { color }, data: d.niveles[id], ...(i === 0 ? { markLine: linea } : {}) })),
+  }, true);
+  const tp = d.niveles.tecnico[k] + d.niveles.profesional[k], tp0 = d.niveles.tecnico[k10] + d.niveles.profesional[k10];
+  const r = document.getElementById("pro-resumen"); r.hidden = false;
+  r.textContent = `En ${anio} se entregaron ${numero(tp, 0)} títulos técnicos y profesionales (${numero(d.niveles.tecnico[k], 0)} técnicos y ${numero(d.niveles.profesional[k], 0)} profesionales)`
+    + `${k >= 10 ? `, ${proFmtPct(proPct(tp, tp0))} más que en ${A[k10]}` : ""}. ${anio === 2020 ? "2020 cayó por la pandemia, que retrasó titulaciones. " : ""}Con diplomados, postítulos y posgrados el total fue ${numero(PRO_NIVELES.reduce((s, [id]) => s + d.niveles[id][k], 0), 0)}.`;
+
+  // instituciones y áreas (según nivel y medida)
+  const nivelNom = { tecnico: "técnicos", profesional: "profesionales", posgrado: "de posgrado" }[pro.nivel], pct = pro.medida === "pct";
+  const apilado = (id, mapa, colores, etqNivel) => {
+    const claves = Object.keys(mapa).sort((a, b) => mapa[b][k] - mapa[a][k]), tot = A.map((_, j) => claves.reduce((s, c) => s + mapa[c][j], 0));
+    proGrafico(id).setOption({
+      animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+      legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+      tooltip: tip((ps) => `<b>${ps[0].axisValue}</b> · titulados ${etqNivel}<br>${[...ps].reverse().filter((p) => p.value > 0).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${pct ? `${numero(p.value, 1)}%` : numero(p.value, 0)}</b>`).join("<br>")}`),
+      xAxis: ejeX, yAxis: { ...ejeY((v) => (pct ? `${v}%` : numero(v, 0))), ...(pct ? { max: 100 } : {}) },
+      series: claves.map((c, i) => ({ name: c, type: "line", stack: "t", symbol: "none", lineStyle: { width: 0.6, color: colores[i % colores.length] }, itemStyle: { color: colores[i % colores.length] },
+        areaStyle: { color: colores[i % colores.length], opacity: 0.85 }, data: A.map((_, j) => (pct ? (mapa[c][j] / (tot[j] || 1)) * 100 : mapa[c][j])), ...(i === 0 ? { markLine: linea } : {}) })),
+    }, true);
+  };
+  apilado("pro-inst", d.instituciones[pro.nivel], PRO_COLORES, nivelNom);
+  if (pro.nivel === "posgrado") { proGrafico("pro-areas").clear(); document.getElementById("pro-areas").style.display = "none"; }
+  else { document.getElementById("pro-areas").style.display = ""; proGrafico("pro-areas").resize(); apilado("pro-areas", d.areas[pro.nivel], PRO_COLORES.slice().reverse(), nivelNom); }
+
+  // perfil: % mujeres y % no presencial
+  const perfil = [["Mujeres entre técnicos", d.mujeres.tecnico, "#5ec4c4", "solid"], ["Mujeres entre profesionales", d.mujeres.profesional, "#7c8ff0", "solid"], ["Mujeres en posgrado", d.mujeres.posgrado, "#c792ea", "solid"],
+    ["Técnicos en modalidad no presencial", d.no_presencial.tecnico, "#5ec4c4", "dashed"], ["Profesionales en modalidad no presencial", d.no_presencial.profesional, "#7c8ff0", "dashed"]];
+  proGrafico("pro-perfil").setOption({
+    animation: false, grid: { left: 50, right: 20, top: 44, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.filter((p) => p.value !== null && p.value !== undefined).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}%</b>`).join("<br>")}`),
+    xAxis: ejeX, yAxis: ejeY((v) => `${v}%`),
+    series: perfil.map(([nombre, datos, color, trazo], i) => ({ name: nombre, type: "line", symbol: "none", connectNulls: false, lineStyle: { width: 2.2, color, type: trazo }, itemStyle: { color }, data: datos, ...(i === 0 ? { markLine: linea } : {}) })),
+  }, true);
+  const edades = d.edades[pro.nivel === "posgrado" ? "profesional" : pro.nivel];
+  proGrafico("pro-edades").setOption({
+    animation: false, grid: { left: 50, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b> · edad al titularse (${pro.nivel === "tecnico" ? "técnicos" : "profesionales"})<br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}%</b>`).join("<br>")}`),
+    xAxis: ejeX, yAxis: { ...ejeY((v) => `${v}%`), max: 100 },
+    series: Object.keys(edades).map((e, i) => ({ name: e.replace(" Años", "").replace(" años", ""), type: "line", stack: "t", symbol: "none", lineStyle: { width: 0.6, color: PRO_EDAD_COLORES[i] }, itemStyle: { color: PRO_EDAD_COLORES[i] }, areaStyle: { color: PRO_EDAD_COLORES[i], opacity: 0.85 }, data: edades[e], ...(i === 0 ? { markLine: linea } : {}) })),
+  }, true);
+
+  // explorador de carreras
+  const q = proSinTilde(pro.busqueda.trim());
+  let filas = d.carreras.filter((c) => (pro.nivelCarr === "todas" || c.nivel === pro.nivelCarr) && c.t[k] > 0 && (!q || proSinTilde(c.n).includes(q)));
+  // 2020 fue un año de titulaciones excepcionalmente bajas por la pandemia: si la base de 5 años cae ahí, se mide contra 2019
+  const k5 = A[k - 5] === 2020 ? k - 6 : k - 5, base = (c, n) => (n === 5 ? (k5 >= 0 ? c.t[k5] : null) : k - n >= 0 ? c.t[k - n] : null), cambio = (c) => proPct(c.t[k], base(c, 5));
+  if (!q && (pro.orden === "crece" || pro.orden === "cae")) filas = filas.filter((c) => c.t[k] >= 300 && (base(c, 5) || 0) >= 100);
+  const ord = { titulados: (a, b) => b.t[k] - a.t[k], crece: (a, b) => cambio(b) - cambio(a), cae: (a, b) => cambio(a) - cambio(b), mujeres: (a, b) => (b.mujeres ?? -1) - (a.mujeres ?? -1), hombres: (a, b) => (a.mujeres ?? 101) - (b.mujeres ?? 101) }[pro.orden];
+  if (!q && (pro.orden === "mujeres" || pro.orden === "hombres")) filas = filas.filter((c) => c.mujeres !== null && c.t[A.length - 1] >= 300);
+  filas = filas.sort(ord).slice(0, 25);
+  if (!pro.carrera || !d.carreras.some((c) => c.n === pro.carrera)) pro.carrera = (filas[0] || d.carreras[0]).n;
+  document.getElementById("pro-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Carreras</caption>
+    <thead><tr><th scope="col">Carrera</th><th scope="col">Nivel</th><th scope="col">Titulados ${anio}</th><th scope="col">Cambio vs. ${k5 >= 0 ? A[k5] : "—"}</th><th scope="col">Cambio en 10 años</th><th scope="col">% mujeres (${A[A.length - 1]})</th></tr></thead>
+    <tbody>${filas.map((c) => `<tr class="fila-clic${c.n === pro.carrera ? " activa" : ""}" data-carrera="${esc(c.n)}" tabindex="0"><td>${esc(c.n)}</td><td>${c.nivel === "tecnico" ? "Técnica" : "Profesional"}</td><td class="num">${numero(c.t[k], 0)}</td>
+      <td class="num">${proFmtPct(proPct(c.t[k], base(c, 5)))}</td><td class="num">${proFmtPct(proPct(c.t[k], base(c, 10)))}</td><td class="num">${c.mujeres === null ? "—" : `${numero(c.mujeres, 0)}%`}</td></tr>`).join("") || '<tr><td colspan="6">Sin resultados.</td></tr>'}</tbody></table>`
+    + (A[k - 5] === 2020 ? '<p class="bloque-nota">2020 fue un año de titulaciones excepcionalmente bajas por la pandemia (en Medicina, por ejemplo, se titularon 501 personas contra 1.817 en 2019 y 2.613 en 2021), así que el cambio se mide contra 2019 y no contra 2020. Los años 2020 y 2021 conviene leerlos con cuidado.</p>' : "");
+  const sel = d.carreras.find((c) => c.n === pro.carrera);
+  document.getElementById("pro-carrera-titulo").textContent = `Evolución: ${sel.n}`;
+  proGrafico("pro-carrera").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 14, bottom: 30 },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${numero(ps[0].value, 0)} titulados`),
+    xAxis: { ...ejeX, boundaryGap: true }, yAxis: ejeY((v) => numero(v, 0)),
+    series: [{ type: "bar", itemStyle: { color: sel.nivel === "tecnico" ? "#5ec4c4" : "#7c8ff0" }, data: A.map((a, j) => ({ value: sel.t[j], itemStyle: { opacity: j === k ? 1 : 0.65 } })), markLine: linea }],
+  }, true);
+
+  // nuevas carreras y programas
+  const gen = d.nuevas_genericas.filter((g) => g.anio >= 2014 && g.t >= 15);
+  document.getElementById("pro-nuevas").innerHTML = `<p class="callout">La clasificación genérica del SIES casi no cambia: desde ${gen[gen.length - 1].anio} solo sumó ${gen.length} categorías nuevas de carreras técnicas y profesionales con titulados relevantes: ${gen.map((g) => `<b>${esc(g.n)}</b> (${g.anio}, ${numero(g.t, 0)} titulados en ${A[A.length - 1]})`).join("; ")}. `
+    + `Lo que sí aparece cada año son programas con nombre nuevo dentro de carreras ya existentes (por ejemplo «Entrenador personal» o «Ingeniería en operaciones logísticas»), que son cerca del ${numero(d.nuevos_programas[String(A[A.length - 1])].pct, 1)}% de los titulados.</p>`;
+  const NP = A.slice(1).map(String);
+  proGrafico("pro-nuevos-graf").setOption({
+    animation: false, grid: { left: 56, right: 50, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${p.seriesIndex === 0 ? numero(p.value, 0) : `${numero(p.value, 2)}%`}</b>`).join("<br>")}`),
+    xAxis: { ...ejeX, data: NP, boundaryGap: true }, yAxis: [ejeY((v) => numero(v, 0)), { ...ejeY((v) => `${v}%`), splitLine: { show: false } }],
+    series: [{ name: "Programas con nombre nuevo", type: "bar", itemStyle: { color: "#7c8ff0", opacity: 0.75 }, data: NP.map((a) => d.nuevos_programas[a].programas), markLine: { ...linea, data: [{ xAxis: String(Math.max(anio, A[1])) }] } },
+      { name: "% de los titulados", type: "line", yAxisIndex: 1, symbol: "circle", symbolSize: 5, lineStyle: { width: 2, color: "#e8c15a" }, itemStyle: { color: "#e8c15a" }, data: NP.map((a) => d.nuevos_programas[a].pct) }],
+  }, true);
+  const np = d.nuevos_programas[String(Math.max(anio, A[1]))];
+  document.getElementById("pro-nuevos-tabla").innerHTML = `<h3 class="subtitulo" style="font-size:1.05rem;margin:14px 0 4px">Programas con nombre nuevo en ${Math.max(anio, A[1])}: ${numero(np.programas, 0)}, con ${numero(np.titulados, 0)} titulados</h3>
+    <table class="tabla-datos izq"><caption class="solo-lectores">Programas nuevos</caption><thead><tr><th scope="col">Programa</th><th scope="col">Institución</th><th scope="col">Titulados</th><th scope="col">Carrera genérica</th></tr></thead>
+    <tbody>${np.lista.map((x) => `<tr><td>${esc(x.n)}</td><td>${esc(x.inst)}</td><td class="num">${numero(x.t, 0)}</td><td>${esc(x.carrera)}</td></tr>`).join("")}</tbody></table>`;
+
+  // ocupados profesionales y técnicos (ENE)
+  const L = pro.lab, g = (id) => L.grupos.find((x) => x.id === id).datos;
+  const total = L.fechas.map((_, j) => L.medidas.OCU.H.reduce((s, e) => s + e[j], 0) + L.medidas.OCU.M.reduce((s, e) => s + e[j], 0));
+  const prof = g("41A"), tec = g("41B"), kL = L.fechas.length - 1;
+  proGrafico("pro-ocupados").setOption({
+    animation: false, grid: { left: 56, right: 50, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${labTrim(ps[0].axisValue)}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${p.seriesIndex === 2 ? `${numero(p.value, 1)}%` : `${numero(p.value, 0)} mil`}</b>`).join("<br>")}`),
+    xAxis: { ...ejeX, data: L.fechas, axisLabel: { color: css("--muted"), hideOverlap: true, formatter: (v) => v.slice(0, 4) } },
+    yAxis: [ejeY((v) => numero(v, 0)), { ...ejeY((v) => `${numero(v, 0)}%`), splitLine: { show: false }, scale: true }],
+    series: [{ name: "Profesionales, científicos e intelectuales (miles)", type: "line", symbol: "none", lineStyle: { width: 2.4, color: "#7c8ff0" }, itemStyle: { color: "#7c8ff0" }, data: prof },
+      { name: "Técnicos y profesionales de nivel medio (miles)", type: "line", symbol: "none", lineStyle: { width: 2.4, color: "#5ec4c4" }, itemStyle: { color: "#5ec4c4" }, data: tec },
+      { name: "Peso de ambos en el empleo total (%)", type: "line", yAxisIndex: 1, symbol: "none", lineStyle: { width: 1.8, color: "#e8c15a", type: "dashed" }, itemStyle: { color: "#e8c15a" }, data: L.fechas.map((_, j) => ((prof[j] + tec[j]) / total[j]) * 100) }],
+  }, true);
+  document.getElementById("pro-nota").textContent = `Fuente: Mineduc, Servicio de Información de Educación Superior (SIES), bases de titulados ${A[0]}–${A[A.length - 1]}, y INE (Encuesta Nacional de Empleo) vía Banco Central, hasta ${labTrim(L.fechas[kL])}. `
+    + `Técnicos = «Técnico de Nivel Superior»; profesionales = carreras profesionales con y sin licenciatura; posgrado = magíster, doctorado y especialidades médicas u odontológicas. Los diplomados y postítulos los cursan quienes ya tienen un título, por eso no se cuentan como profesiones nuevas. `
+    + `Un «programa nuevo» es un nombre que nunca había tenido titulados en el sistema (sin contar planes especiales, de continuidad ni de segunda titulación); puede ser un cambio de nombre y no una profesión realmente nueva. `
+    + `Las «personas» son identificadores anonimizados distintos. 2020 cayó por la pandemia. Parte de los cambios grandes de una carrera puede deberse a que el SIES reclasifica programas entre categorías genéricas y no a que se hayan formado más personas.`;
+  history.replaceState(null, "", proHash());
+}
+
+async function activarProfesionales(idRender, query) {
+  try {
+    if (!pro.datos) pro.datos = await pedirJSON("titulados.json", estado.meta.generado);
+    if (!pro.lab) pro.lab = await pedirJSON("laboral.json", estado.meta.generado);
+  } catch (e) { const c = document.getElementById("profesionales-bloque"); if (c) c.textContent = "No se pudieron cargar los datos de titulados."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("pro-niveles")) return;
+  pro.g = {};
+  const d = pro.datos, rango = document.getElementById("pro-anio");
+  rango.min = d.anios[0]; rango.max = d.anios[d.anios.length - 1]; rango.step = 1;
+  if (pro.k === null) pro.k = d.anios.length - 1;
+  proDesdeQuery(query);
+  rango.addEventListener("input", () => { pro.k = d.anios.indexOf(Number(rango.value)); proPintar(); });
+  document.getElementById("pro-buscar").addEventListener("input", (ev) => { pro.busqueda = ev.target.value; proPintar(); });
+  document.getElementById("contenido").addEventListener("click", (ev) => {
+    if (!document.getElementById("pro-niveles")) return;
+    const n = ev.target.closest("#pro-nivel [data-nivel]"), m = ev.target.closest("#pro-medida [data-medida]"), nc = ev.target.closest("[data-nivelcarr]"), o = ev.target.closest("[data-orden]"), fila = ev.target.closest("[data-carrera]");
+    if (n) pro.nivel = n.dataset.nivel; else if (m) pro.medida = m.dataset.medida; else if (nc) pro.nivelCarr = nc.dataset.nivelcarr; else if (o) pro.orden = o.dataset.orden; else if (fila) pro.carrera = fila.dataset.carrera; else return;
+    proPintar();
+  });
+  proPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -1691,6 +1918,7 @@ async function render() {
     if (ruta.tema === "composicion") activarComposicion(id, ruta.query);
     if (ruta.tema === "poblacion") activarPoblacion(id, ruta.query);
     if (ruta.tema === "laboral") activarLaboral(id, ruta.query);
+    if (ruta.tema === "profesionales") activarProfesionales(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });
