@@ -775,7 +775,8 @@ function htmlPestana(id) {
   const tema = estado.indice.temas.find((t) => t.id === id), seccion = (estado.indice.secciones || []).find((t) => t.id === id);
   const entrada = tema || seccion;
   const series = tema ? estado.indice.series.filter((s) => s.tema === id) : (seccion.series || []).map(serieDe).filter(Boolean);
-  const cabecera = seccion ? `<h1 class="detalle-titulo">${esc(seccion.nombre)}</h1><p class="detalle-def">${esc(seccion.intro || "")}</p>` : "";
+  const cabecera = seccion ? `<h1 class="detalle-titulo">${esc(seccion.nombre)}</h1><p class="detalle-def">${esc(seccion.intro || "")}</p>`
+    : tema && tema.intro ? `<p class="detalle-def">${esc(tema.intro).replace("«Mercado laboral»", '<a href="#/laboral">«Mercado laboral»</a>')}</p>` : "";
   // En un tema con muchos indicadores: primero los principales, luego los gráficos de análisis y al final el resto.
   const principalesIds = tema ? [...new Set([tema.serie, ...Object.values(tema.vistas || {}), ...tema.secundarias])] : series.map((s) => s.id);
   const principales = principalesIds.map(serieDe).filter(Boolean);
@@ -1394,6 +1395,21 @@ const LAB_METRICAS = [["participacion", "Tasa de participación", "%"], ["ocupac
   ["OCU", "Ocupados", "miles"], ["DES", "Desocupados", "miles"], ["FFT", "Inactivos", "miles"], ["FTR", "Fuerza de trabajo", "miles"], ["POB", "Población en edad de trabajar", "miles"]];
 const LAB_COLORES = { T: "#e8c15a", H: "#6c8cf0", M: "#e07a9d" };
 const LAB_COLORES_EDAD = ["#7c8ff0", "#5ec4c4", "#5fd38d", "#e8c15a", "#f0a97c", "#c792ea", "#e07a9d"];
+const LAB_GLOSARIO = [
+  ["Población en edad de trabajar (PET)", "Todas las personas de 15 años o más. Es el punto de partida: se reparte entre quienes participan del mercado laboral (la fuerza de trabajo) y quienes no (los inactivos). Los menores de 15 años no se miden."],
+  ["Fuerza de trabajo", "Las personas en edad de trabajar que tienen empleo o lo están buscando. También se llama población económicamente activa. <b>Fuerza de trabajo = ocupados + desocupados.</b>"],
+  ["Ocupados", "Personas de 15 años o más que, en la semana de referencia, trabajaron al menos una hora a cambio de un pago o ganancia (o en un negocio familiar sin sueldo), o que tienen un empleo del que estuvieron ausentes solo temporalmente (vacaciones, licencia, enfermedad corta). Una sola hora de trabajo ya cuenta: por eso conviene mirar también las horas, los asalariados y la informalidad."],
+  ["Desocupados (desempleados)", "Personas de 15 años o más que no tenían empleo, buscaron trabajo activamente en las últimas cuatro semanas y estaban disponibles para empezar a trabajar en las dos siguientes. Son <b>cesantes</b> si ya habían trabajado antes, o personas que <b>buscan trabajo por primera vez</b>."],
+  ["Fuera de la fuerza de trabajo (inactivos)", "Personas de 15 años o más que no están ocupadas ni desocupadas: estudian, se dedican a quehaceres del hogar o al cuidado de otros, están jubiladas, tienen una discapacidad que les impide trabajar, o quieren trabajar pero no buscaron o no podían empezar pronto (el INE las llama «potencialmente activas»; incluye a quienes se desalentaron de buscar). <b>PET = fuerza de trabajo + inactivos.</b>"],
+  ["Tasa de desocupación", "<b>Desocupados ÷ fuerza de trabajo.</b> No es el porcentaje de la población sin trabajo: se calcula solo sobre quienes participan, así que un inactivo (un estudiante, un jubilado, alguien que dejó de buscar) no cuenta como desempleado. Por eso la tasa puede bajar solo porque menos gente busca trabajo."],
+  ["Tasa de participación", "<b>Fuerza de trabajo ÷ población en edad de trabajar.</b> De cada 100 personas de 15 años o más, cuántas tienen empleo o lo buscan."],
+  ["Tasa de ocupación", "<b>Ocupados ÷ población en edad de trabajar.</b> De cada 100 personas de 15 años o más, cuántas tienen empleo. Es la medida menos afectada por quienes entran o salen de la búsqueda de trabajo."],
+  ["Situación en el empleo", "<b>Asalariados</b>: trabajan para un empleador a cambio de un sueldo (sector privado y público). <b>Cuenta propia</b>: trabajan por su cuenta, sin empleados. <b>Empleadores</b>: tienen un negocio con personal contratado. <b>Personal de servicio doméstico</b> y <b>familiares no remunerados</b>: completan el total de ocupados."],
+  ["Tasas ampliadas (SU1, SU2, SU3)", "Variantes que publica el INE para ver más allá de la tasa oficial: SU1 suma a los «iniciadores disponibles» (quienes ya consiguieron un trabajo que empieza más adelante); SU2 suma a los ocupados que trabajan menos horas de las que quieren (tiempo parcial involuntario); SU3 suma a la fuerza de trabajo potencial (inactivos que quieren trabajar). No están en el Monitor; el INE las publica en su boletín trimestral."],
+  ["Trimestre móvil", "Cada cifra del INE corresponde a tres meses consecutivos (por ejemplo, julio–septiembre), porque la encuesta reparte su muestra a lo largo del trimestre. Cada mes se corre un mes: el dato de «julio–septiembre» y el de «junio–agosto» comparten dos meses. En el Monitor, la fecha de cada punto es el último mes del trimestre."],
+  ["Serie original y desestacionalizada", "El INE titula con la serie original (sin ajustar), que tiene estacionalidad: por ejemplo, el empleo sube en verano por la cosecha de fruta y en diciembre por el comercio. La serie desestacionalizada quita ese patrón y sirve para comparar un trimestre con el anterior. El Monitor muestra la original, así que conviene comparar contra el mismo trimestre del año anterior."],
+  ["Encuesta, no censo", "Las cifras son estimaciones a partir de una encuesta a hogares, así que tienen un margen de error. Se expanden a todo el país usando las proyecciones de población del INE, por lo que los niveles (en miles de personas) pueden cambiar cuando esas proyecciones se actualicen con el Censo 2024."],
+];
 const lab = { datos: null, sexo: "T", metrica: "participacion", edad: 0, comparar: "sexo", k: null, rama: "36A", g: {} };
 
 function labNiv(medida, sexo, a, b, k) {
@@ -1432,6 +1448,10 @@ function htmlLaboral() {
       <div class="pob-slider"><label for="lab-fecha">Trimestre móvil: <b id="lab-fecha-txt"></b></label><input type="range" id="lab-fecha" aria-label="Trimestre móvil"></div>
       <div class="rangos" id="lab-sexo" role="group" aria-label="Sexo">${btn("sexo", LAB_SEXOS)}</div>
     </div>
+    <div class="lab-arbol" id="lab-arbol" aria-label="Cómo se arma el mercado laboral"></div>
+    <details class="glosario" open><summary>Definiciones: qué cuenta como ocupado, desocupado o inactivo</summary>
+      <dl>${LAB_GLOSARIO.map(([t, d]) => `<div><dt>${t}</dt><dd>${d}</dd></div>`).join("")}</dl>
+      <p class="bloque-nota">Las definiciones siguen el estándar de la Organización Internacional del Trabajo (OIT) que aplica la Encuesta Nacional de Empleo (ENE) del INE: la encuesta pregunta por lo que hizo cada persona durante la «semana de referencia» (la anterior a la entrevista).</p></details>
     <div class="rejilla" id="lab-kpis"></div>
   <section class="bloque" id="laboral-bloque" aria-label="Mercado laboral por edad">
     <h2 class="subtitulo" style="margin-top:0">Qué hace cada tramo de edad</h2>
@@ -1449,6 +1469,8 @@ function htmlLaboral() {
     <div class="grafico-compuesto" id="lab-evolucion" style="height:340px" role="img" aria-label="Evolución del indicador elegido"></div>
     <div class="bloque-cabecera" style="margin-top:22px"><h2>Detalle por tramo de edad</h2><button class="boton-chico" type="button" id="lab-csv">Descargar CSV</button></div>
     <div class="tabla-ancha" id="lab-tabla"></div>
+    <h2 class="subtitulo" style="margin-top:30px">Ocupados según su situación en el empleo</h2>
+    <div class="grafico-compuesto" id="lab-categorias" style="height:320px" role="img" aria-label="Ocupados por categoría ocupacional"></div>
     <h2 class="subtitulo" style="margin-top:30px">Ocupados por rama de actividad</h2>
     <p class="bloque-nota" style="margin-top:0">Toca una rama para ver su evolución. Clasificación CIIU Rev.4, desde 2013.</p>
     <div class="grafico-compuesto" id="lab-ramas" style="height:560px" role="img" aria-label="Ocupados por rama de actividad"></div>
@@ -1481,6 +1503,15 @@ function labPintar() {
   const selEdad = document.getElementById("lab-edad");
   if (lab.comparar === "edad") { selEdad.innerHTML = LAB_SEXOS.map(([id, etq]) => `<button type="button" data-sexoevo="${id}" aria-pressed="${id === lab.sexo}">${etq}</button>`).join(""); }
   else { selEdad.innerHTML = LAB_BRACKETS.map(([nm], i) => `<button type="button" data-edad="${i}" aria-pressed="${i === lab.edad}">${nm}</button>`).join(""); }
+
+  // cómo se arma: población en edad de trabajar -> fuerza de trabajo (ocupados + desocupados) + inactivos, con las cifras del período elegido
+  const N = (m) => labNiv(m, lab.sexo, 0, 12, k), pet = N("POB"), ft = N("FTR"), oc = N("OCU"), de = N("DES"), ina = N("FFT"), quienTxt = LAB_SEXOS.find((s) => s[0] === lab.sexo)[1].toLowerCase();
+  const caja = (cls, nombre, valor, nota, hijos = "") => `<div class="lab-caja ${cls}"><span class="lab-nombre">${nombre}</span><b class="num">${numero(valor, 0)} mil</b><small>${nota}</small>${hijos}</div>`;
+  document.getElementById("lab-arbol").innerHTML = `<h2 class="subtitulo" style="margin-top:18px">Cómo se arma el mercado laboral · ${labTrim(d.fechas[k])} · ${quienTxt}</h2>`
+    + caja("lab-pet", "Población en edad de trabajar (15 años y más)", pet, "Todas las personas de 15 años o más",
+      `<div class="lab-hijos">${caja("lab-ft", "Fuerza de trabajo", ft, `${numero((ft / pet) * 100, 1)}% de la población en edad de trabajar = <b>tasa de participación</b>`,
+        `<div class="lab-hijos">${caja("lab-oc", "Ocupados", oc, `${numero((oc / pet) * 100, 1)}% de la población en edad de trabajar = <b>tasa de ocupación</b>`)}${caja("lab-de", "Desocupados", de, `${numero((de / ft) * 100, 1)}% de la fuerza de trabajo = <b>tasa de desocupación</b>`)}</div>`)}`
+      + `${caja("lab-in", "Fuera de la fuerza de trabajo (inactivos)", ina, `${numero((ina / pet) * 100, 1)}% de la población en edad de trabajar`)}</div>`);
 
   // tarjetas (todas las edades, sexo elegido)
   const tarjetas = [["POB", "Población en edad de trabajar"], ["FTR", "Fuerza de trabajo"], ["OCU", "Ocupados"], ["DES", "Desocupados"], ["FFT", "Inactivos (fuera de la fuerza de trabajo)"],
@@ -1533,6 +1564,18 @@ function labPintar() {
   document.getElementById("lab-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Mercado laboral por tramo de edad, ${labTrim(d.fechas[k])}</caption>
     <thead><tr><th scope="col">Edad</th><th scope="col">Población 15+ (miles)</th><th scope="col">Fuerza de trabajo</th><th scope="col">Ocupados</th><th scope="col">Desocupados</th><th scope="col">Inactivos</th><th scope="col">Participación</th><th scope="col">Ocupación</th><th scope="col">Desocupación</th></tr></thead>
     <tbody>${[0, 1, 2, 3, 4, 5, 6].map(fila).join("")}</tbody></table>`;
+
+  // categorías ocupacionales (área apilada)
+  const CAT_COL = ["#e8c15a", "#5ec4c4", "#7c8ff0", "#c792ea", "#8892a6"];
+  labGrafico("lab-categorias").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${labTrim(ps[0].axisValue)}</b><br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 0)} mil</b>`).join("<br>")}<br>Total: <b>${numero(ps.reduce((s, p) => s + p.value, 0), 0)} mil</b>`),
+    xAxis: { type: "category", data: d.fechas, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true, formatter: (v) => v.slice(0, 4) } },
+    yAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => numero(v, 0) } },
+    series: d.categorias.map((c, i) => ({ name: c.nombre, type: "line", stack: "t", symbol: "none", lineStyle: { width: 0.6, color: CAT_COL[i] }, itemStyle: { color: CAT_COL[i] }, areaStyle: { color: CAT_COL[i], opacity: 0.85 }, data: c.datos,
+      ...(i === 0 ? { markLine: { silent: true, symbol: "none", lineStyle: { color: css("--text"), type: "dashed", width: 1 }, label: { show: false }, data: [{ xAxis: d.fechas[k] }] } } : {}) })),
+  }, true);
 
   // ramas
   const R = d.ramas, kr = Math.min(Math.max(R.fechas.indexOf(d.fechas[k]), 0), R.fechas.length - 1), kr12 = Math.max(0, kr - 12);

@@ -62,6 +62,8 @@ TEMAS = [
      "vistas": {"ytd": "tpm_cambio_anio", "12m": "tpm_cambio_12m"},
      "secundarias": ["eof_inflacion_12m"]},
     {"id": "empleo", "nombre": "Empleo", "icono": "briefcase", "serie": "desempleo",
+     "intro": "Ocupados, desocupados y fuerza de trabajo del INE (Encuesta Nacional de Empleo), remuneraciones y masa salarial. Para entender qué cuenta como "
+              "ocupado, desocupado o inactivo, y cómo se calculan las tasas, mira las definiciones en la pestaña «Mercado laboral».",
      "graficos": ["fuerza_trabajo_estructura", "cambio_fuerza_trabajo", "ocupados_por_tipo", "masa_salarial_aportes", "remuneraciones_inflacion", "desempleo_movil"],
      "vistas": {"ytd": "desempleo_cambio_anio", "12m": "desempleo_cambio_12m"},
      "secundarias": ["fuerza_trabajo", "ocupados", "desocupados", "ocupados_asalariados", "ocupados_no_asalariados", "ocupados_interanual",
@@ -309,7 +311,9 @@ SERIES = [
     # --- Empleo
     dict(id="desempleo", nombre="Tasa de desempleo", tema="empleo", unidad="%", frecuencia="M", delta="pp",
          polaridad="sube_malo", firmado=False, fuente="INE",
-         definicion="Porcentaje de la fuerza de trabajo que está desocupada (trimestre móvil, ENE). Serie original (sin desestacionalizar), la que titula el INE.",
+         definicion="Desocupados / fuerza de trabajo x 100 (trimestre móvil, ENE). Desocupado = persona de 15 años o más sin empleo que buscó trabajo activamente en las últimas "
+                    "4 semanas y está disponible para empezar en las 2 siguientes; no cuentan los inactivos (estudiantes, jubilados, quehaceres del hogar). Serie "
+                    "original (sin desestacionalizar), la que titula el INE. Definiciones completas en la pestaña «Mercado laboral».",
          datos=lambda h: _raw(h, "desempleo")),
     dict(id="remuneraciones_real_interanual", nombre="Remuneración real interanual", tema="empleo", unidad="%",
          frecuencia="M", delta="pp", polaridad="sube_bueno", firmado=True, fuente="INE",
@@ -446,11 +450,14 @@ SERIES += [
             frecuencia="D", decimales=0, fuente="Yahoo Finance", huecos=45, alerta=False),
     # --- Empleo
     _simple("fuerza_trabajo", "Fuerza de trabajo", "empleo", lambda h: _raw(h, "fuerza_trabajo"), unidad="personas", decimales=0,
-            sufijo=" mil", fuente="INE"),
+            sufijo=" mil", fuente="INE", definicion="Ocupados + desocupados: las personas de 15 años o más que tienen empleo o lo buscan activamente (población económicamente activa). "
+                                                    "Serie original de la ENE, trimestre móvil, en miles de personas. Ver definiciones en la pestaña «Mercado laboral»."),
     _simple("ocupados", "Ocupados", "empleo", lambda h: _raw(h, "ocupados"), unidad="personas", polaridad="sube_bueno", decimales=0,
-            sufijo=" mil", fuente="INE"),
+            sufijo=" mil", fuente="INE", definicion="Personas de 15 años o más que en la semana de referencia trabajaron al menos una hora a cambio de pago o ganancia (o en un negocio "
+                                                    "familiar sin sueldo), o que tienen un empleo del que están ausentes solo temporalmente. Serie original de la ENE, trimestre móvil, en miles de personas."),
     _simple("desocupados", "Desocupados", "empleo", lambda h: _raw(h, "desocupados"), unidad="personas", polaridad="sube_malo",
-            decimales=0, sufijo=" mil", fuente="INE"),
+            decimales=0, sufijo=" mil", fuente="INE", definicion="Personas de 15 años o más sin empleo que buscaron trabajo activamente en las últimas 4 semanas y están "
+                                                         "disponibles para empezar en las 2 siguientes (cesantes y quienes buscan por primera vez). Serie original de la ENE, trimestre móvil, en miles de personas."),
     _simple("ocupados_asalariados", "Ocupados asalariados", "empleo", lambda h: _raw(h, "ocupados_asalariados"), unidad="personas", polaridad="sube_bueno",
             decimales=0, sufijo=" mil", fuente="INE", definicion="Ocupados que trabajan para un empleador (ENE, serie original, trimestre móvil)."),
     _simple("ocupados_no_asalariados", "Ocupados no asalariados", "empleo", lambda h: _no_asalariados(h), unidad="personas", decimales=0, sufijo=" mil",

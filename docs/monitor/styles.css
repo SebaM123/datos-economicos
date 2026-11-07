@@ -141,6 +141,19 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .grande-grafico { height: 400px; margin-top: 14px; }
 .pob-slider { display: flex; align-items: center; gap: 12px; flex: 1 1 280px; min-width: 240px; }
 .pob-slider input { flex: 1; accent-color: var(--accent); }
+.lab-caja { border: 1px solid var(--border-fuerte); border-left: 4px solid var(--c, var(--border-fuerte)); border-radius: 12px; padding: 12px 14px; background: var(--card); }
+.lab-caja .lab-nombre { display: block; color: var(--muted); font-size: 0.9rem; }
+.lab-caja b.num { display: block; font-size: 1.6rem; font-weight: 600; line-height: 1.2; margin: 2px 0; }
+.lab-caja small { display: block; color: var(--muted); font-size: 0.85rem; }
+.lab-caja small b { color: var(--text); }
+.lab-hijos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+.lab-pet { --c: #8d9bc4; } .lab-ft { --c: #7c8ff0; } .lab-oc { --c: #5fd38d; } .lab-de { --c: #e5645f; } .lab-in { --c: #8892a6; }
+.glosario { margin: 18px 0; border: 1px solid var(--border); border-radius: 14px; background: var(--card); padding: 4px 16px 14px; }
+.glosario > summary { cursor: pointer; font-weight: 600; padding: 12px 0; }
+.glosario dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px 22px; margin: 6px 0 0; }
+.glosario dt { font-weight: 600; margin-bottom: 3px; }
+.glosario dd { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+.glosario dd b { color: var(--text); }
 .unidad-chica { font-size: 1rem; font-weight: 500; color: var(--muted); }
 .pob-etq { color: var(--muted); font-size: 0.88rem; }
 .rangos { display: flex; gap: 4px; background: var(--card-2); border-radius: 10px; padding: 3px; }
