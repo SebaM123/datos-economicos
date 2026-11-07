@@ -91,6 +91,10 @@ SECCIONES = [
      "intro": "Cuántos somos y cómo nos repartimos por edad: la pirámide de población año a año desde 1960 hasta 2050, el peso de niños, "
               "adultos y mayores, y qué tan rápido envejece Chile. Los datos son estimaciones y proyecciones de la ONU; el Censo 2024 contó "
               "menos personas que ellas, pero la distribución por edad es parecida."},
+    {"id": "laboral", "nombre": "Mercado laboral", "icono": "briefcase", "tipo": "laboral",
+     "intro": "La estructura completa del mercado laboral: cuántas personas están en edad de trabajar, cuántas participan (ocupados y desocupados) y "
+              "cuántas están fuera de la fuerza de trabajo (inactivos), por sexo y tramo de edad, y los ocupados por rama de actividad. Son las "
+              "cifras de la Encuesta Nacional de Empleo del INE (serie original, trimestre móvil, en miles de personas) desde 2010."},
     {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
      "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
               "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "

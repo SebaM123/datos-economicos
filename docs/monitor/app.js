@@ -785,7 +785,8 @@ function htmlPestana(id) {
   const extra = seccion && seccion.tipo === "revisiones" ? '<section class="bloque" id="revisiones-contenido" aria-live="polite">Cargando…</section>'
     : seccion && seccion.tipo === "comparador" ? htmlComparador()
     : seccion && seccion.tipo === "composicion" ? htmlComposicion()
-    : seccion && seccion.tipo === "poblacion" ? htmlPoblacion() : "";
+    : seccion && seccion.tipo === "poblacion" ? htmlPoblacion()
+    : seccion && seccion.tipo === "laboral" ? htmlLaboral() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -1386,6 +1387,220 @@ async function activarPoblacion(idRender, query) {
   pobPintar();
 }
 
+// ---------- Mercado laboral por sexo y edad ----------
+const LAB_SEXOS = [["T", "Total"], ["H", "Hombres"], ["M", "Mujeres"]];
+const LAB_BRACKETS = [["Todas (15 y más)", 0, 12], ["15–24", 0, 2], ["25–34", 2, 4], ["35–44", 4, 6], ["45–54", 6, 8], ["55–64", 8, 10], ["65 y más", 10, 12]];
+const LAB_METRICAS = [["participacion", "Tasa de participación", "%"], ["ocupacion", "Tasa de ocupación", "%"], ["desocupacion", "Tasa de desocupación", "%"],
+  ["OCU", "Ocupados", "miles"], ["DES", "Desocupados", "miles"], ["FFT", "Inactivos", "miles"], ["FTR", "Fuerza de trabajo", "miles"], ["POB", "Población en edad de trabajar", "miles"]];
+const LAB_COLORES = { T: "#e8c15a", H: "#6c8cf0", M: "#e07a9d" };
+const LAB_COLORES_EDAD = ["#7c8ff0", "#5ec4c4", "#5fd38d", "#e8c15a", "#f0a97c", "#c792ea", "#e07a9d"];
+const lab = { datos: null, sexo: "T", metrica: "participacion", edad: 0, comparar: "sexo", k: null, rama: "36A", g: {} };
+
+function labNiv(medida, sexo, a, b, k) {
+  let s = 0;
+  for (const sx of sexo === "T" ? ["H", "M"] : [sexo]) for (let e = a; e < b; e++) s += lab.datos.medidas[medida][sx][e][k];
+  return s;
+}
+function labVal(metrica, sexo, br, k) {
+  const [, a, b] = LAB_BRACKETS[br], n = (m) => labNiv(m, sexo, a, b, k);
+  if (metrica === "participacion") return (n("FTR") / n("POB")) * 100;
+  if (metrica === "ocupacion") return (n("OCU") / n("POB")) * 100;
+  if (metrica === "desocupacion") return (n("DES") / n("FTR")) * 100;
+  return n(metrica);
+}
+const labTrim = (iso) => {
+  const [y, m] = iso.split("-").map(Number), nm = (i) => MESES[((i % 12) + 12) % 12];
+  return m >= 3 ? `${nm(m - 3)}–${nm(m - 1)} ${y}` : `${nm(m - 3)} ${y - 1}–${nm(m - 1)} ${y}`;
+};
+const labFmt = (metrica, v) => (v === null || v === undefined || Number.isNaN(v) ? "—" : LAB_METRICAS.find((x) => x[0] === metrica)[2] === "%" ? `${numero(v, 1)}%` : numero(v, 0));
+
+function labDesdeQuery(query) {
+  if (!query) return;
+  const p = new URLSearchParams(query), d = lab.datos;
+  if (["T", "H", "M"].includes(p.get("s"))) lab.sexo = p.get("s");
+  if (LAB_METRICAS.some((m) => m[0] === p.get("m"))) lab.metrica = p.get("m");
+  if (p.has("e") && Number(p.get("e")) >= 0 && Number(p.get("e")) < LAB_BRACKETS.length) lab.edad = Number(p.get("e"));
+  if (["sexo", "edad"].includes(p.get("c"))) lab.comparar = p.get("c");
+  if (p.has("f") && d.fechas.includes(p.get("f"))) lab.k = d.fechas.indexOf(p.get("f"));
+  if (d.ramas.series.some((r) => r.id === p.get("r"))) lab.rama = p.get("r");
+}
+const labHash = () => `#/laboral?s=${lab.sexo}&m=${lab.metrica}&e=${lab.edad}&c=${lab.comparar}&f=${lab.datos.fechas[lab.k]}&r=${lab.rama}`;
+
+function htmlLaboral() {
+  const btn = (attr, items) => items.map(([id, etq]) => `<button type="button" data-${attr}="${id}">${etq}</button>`).join("");
+  return `<div class="comp-controles" id="lab-controles-tope">
+      <div class="pob-slider"><label for="lab-fecha">Trimestre móvil: <b id="lab-fecha-txt"></b></label><input type="range" id="lab-fecha" aria-label="Trimestre móvil"></div>
+      <div class="rangos" id="lab-sexo" role="group" aria-label="Sexo">${btn("sexo", LAB_SEXOS)}</div>
+    </div>
+    <div class="rejilla" id="lab-kpis"></div>
+  <section class="bloque" id="laboral-bloque" aria-label="Mercado laboral por edad">
+    <h2 class="subtitulo" style="margin-top:0">Qué hace cada tramo de edad</h2>
+    <p class="bloque-nota" style="margin-top:0">Cada barra es el 100% de las personas de ese tramo: cuántas trabajan, cuántas buscan trabajo y cuántas están fuera de la fuerza de trabajo.</p>
+    <div class="grafico-compuesto" id="lab-composicion" style="height:430px" role="img" aria-label="Ocupados, desocupados e inactivos por tramo de edad"></div>
+    <h2 class="subtitulo" style="margin-top:26px">Cómo ha cambiado en el tiempo</h2>
+    <div class="comp-controles"><div class="rangos" id="lab-metrica" role="group" aria-label="Indicador">${btn("metrica", LAB_METRICAS.map((m) => [m[0], m[1]]))}</div></div>
+    <div class="comp-controles" style="margin-top:10px">
+      <span class="pob-etq">Comparar:</span>
+      <div class="rangos" id="lab-comparar" role="group" aria-label="Comparar por">${btn("comparar", [["sexo", "Hombres y mujeres"], ["edad", "Tramos de edad"]])}</div>
+      <span class="pob-etq" id="lab-edad-etq">Tramo:</span>
+      <div class="rangos" id="lab-edad" role="group" aria-label="Tramo de edad">${LAB_BRACKETS.map(([n], i) => `<button type="button" data-edad="${i}">${n}</button>`).join("")}</div>
+    </div>
+    <p class="callout" id="lab-resumen" hidden></p>
+    <div class="grafico-compuesto" id="lab-evolucion" style="height:340px" role="img" aria-label="Evolución del indicador elegido"></div>
+    <div class="bloque-cabecera" style="margin-top:22px"><h2>Detalle por tramo de edad</h2><button class="boton-chico" type="button" id="lab-csv">Descargar CSV</button></div>
+    <div class="tabla-ancha" id="lab-tabla"></div>
+    <h2 class="subtitulo" style="margin-top:30px">Ocupados por rama de actividad</h2>
+    <p class="bloque-nota" style="margin-top:0">Toca una rama para ver su evolución. Clasificación CIIU Rev.4, desde 2013.</p>
+    <div class="grafico-compuesto" id="lab-ramas" style="height:560px" role="img" aria-label="Ocupados por rama de actividad"></div>
+    <h2 class="subtitulo" style="margin-top:22px" id="lab-rama-titulo"></h2>
+    <div class="grafico-compuesto" id="lab-rama-linea" style="height:260px" role="img" aria-label="Evolución de la rama elegida"></div>
+    <p class="bloque-nota" id="lab-nota"></p>
+  </section>`;
+}
+
+function labGrafico(id) {
+  const el = document.getElementById(id);
+  if (!lab.g[id]) {
+    lab.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => lab.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: lab.g[id], observador: o });
+  }
+  return lab.g[id];
+}
+
+function labPintar() {
+  const d = lab.datos, k = lab.k, n = d.fechas.length, k12 = Math.max(0, k - 12), tip = pobTooltip;
+  document.getElementById("lab-fecha").value = k;
+  document.getElementById("lab-fecha-txt").textContent = labTrim(d.fechas[k]);
+  const marca = (sel, attr, fn) => document.querySelectorAll(sel).forEach((b) => b.setAttribute("aria-pressed", String(fn(b.dataset[attr]))));
+  marca("#lab-sexo button", "sexo", (v) => v === lab.sexo);
+  marca("#lab-metrica button", "metrica", (v) => v === lab.metrica);
+  marca("#lab-comparar button", "comparar", (v) => v === lab.comparar);
+  marca("#lab-edad button", "edad", (v) => Number(v) === lab.edad);
+  document.getElementById("lab-edad-etq").textContent = lab.comparar === "sexo" ? "Tramo:" : "Sexo:";
+  const selEdad = document.getElementById("lab-edad");
+  if (lab.comparar === "edad") { selEdad.innerHTML = LAB_SEXOS.map(([id, etq]) => `<button type="button" data-sexoevo="${id}" aria-pressed="${id === lab.sexo}">${etq}</button>`).join(""); }
+  else { selEdad.innerHTML = LAB_BRACKETS.map(([nm], i) => `<button type="button" data-edad="${i}" aria-pressed="${i === lab.edad}">${nm}</button>`).join(""); }
+
+  // tarjetas (todas las edades, sexo elegido)
+  const tarjetas = [["POB", "Población en edad de trabajar"], ["FTR", "Fuerza de trabajo"], ["OCU", "Ocupados"], ["DES", "Desocupados"], ["FFT", "Inactivos (fuera de la fuerza de trabajo)"],
+    ["participacion", "Tasa de participación"], ["ocupacion", "Tasa de ocupación"], ["desocupacion", "Tasa de desocupación"]];
+  document.getElementById("lab-kpis").innerHTML = tarjetas.map(([m, nombre]) => {
+    const v = labVal(m, lab.sexo, 0, k), v0 = labVal(m, lab.sexo, 0, k12), esTasa = LAB_METRICAS.find((x) => x[0] === m)[2] === "%", dif = v - v0;
+    const nota = esTasa ? `${dif >= 0 ? "+" : "−"}${numero(Math.abs(dif), 1)} pp vs. hace 12 meses` : `${dif >= 0 ? "+" : "−"}${numero(Math.abs(dif), 0)} mil vs. hace 12 meses`;
+    return `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${esTasa ? `${numero(v, 1)}%` : `${numero(v, 0)}<span class="unidad-chica"> mil</span>`}</div><div class="tono">${nota}</div></article>`;
+  }).join("");
+
+  // composición por tramo de edad (12 tramos, % de cada tramo)
+  const sexos = lab.sexo === "T" ? ["H", "M"] : [lab.sexo];
+  const sum = (m, e) => sexos.reduce((s, sx) => s + d.medidas[m][sx][e][k], 0);
+  const partes = [["OCU", "Ocupados", "#5fd38d"], ["DES", "Desocupados", "#e5645f"], ["FFT", "Inactivos", "#8892a6"]];
+  labGrafico("lab-composicion").setOption({
+    animation: false, grid: { left: 52, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, selectedMode: false },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const e = ps[0].dataIndex, pob2 = sum("POB", e); return `<b>${d.edades[e]} años</b> · ${numero(pob2, 0)} mil personas<br>${ps.map((p) => `${p.marker} ${p.seriesName}: <b>${numero(p.value, 1)}%</b> (${numero(sum(partes.find((x) => x[1] === p.seriesName)[0], e), 0)} mil)`).join("<br>")}`; } },
+    xAxis: { type: "value", min: 0, max: 100, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${v}%` } },
+    yAxis: { type: "category", data: d.edades, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted") } },
+    series: partes.map(([m, nombre, color]) => ({ name: nombre, type: "bar", stack: "t", itemStyle: { color }, barWidth: "72%", data: d.edades.map((_, e) => (sum(m, e) / sum("POB", e)) * 100) })),
+  }, true);
+
+  // evolución
+  const metr = LAB_METRICAS.find((x) => x[0] === lab.metrica), esTasa = metr[2] === "%";
+  const lineas = lab.comparar === "sexo"
+    ? LAB_SEXOS.map(([id, nm]) => ({ nombre: nm, color: LAB_COLORES[id], f: (kk) => labVal(lab.metrica, id, lab.edad, kk) }))
+    : LAB_BRACKETS.map(([nm], i) => ({ nombre: nm, color: LAB_COLORES_EDAD[i], f: (kk) => labVal(lab.metrica, lab.sexo, i, kk) }));
+  const rango = lineas;
+  labGrafico("lab-evolucion").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${labTrim(ps[0].axisValue)}</b><br>${[...ps].sort((a, b) => b.value - a.value).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${labFmt(lab.metrica, p.value)}</b>`).join("<br>")}`),
+    xAxis: { type: "category", data: d.fechas, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true, formatter: (v) => v.slice(0, 4) } },
+    yAxis: { type: "value", scale: true, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => (esTasa ? `${numero(v, 0)}%` : numero(v, 0)) } },
+    series: rango.map((l, i) => ({ name: l.nombre, type: "line", symbol: "none", lineStyle: { width: i === 0 ? 2.8 : 2.2, color: l.color }, itemStyle: { color: l.color }, data: d.fechas.map((_, kk) => l.f(kk)),
+      ...(i === 0 ? { markLine: { silent: true, symbol: "none", lineStyle: { color: css("--text"), type: "dashed", width: 1 }, label: { show: false }, data: [{ xAxis: d.fechas[k] }] } } : {}) })),
+  }, true);
+  const quien = lab.comparar === "sexo" ? (lab.edad === 0 ? "en todas las edades (15 y más)" : `en el tramo de ${LAB_BRACKETS[lab.edad][0]} años`) : `de ${LAB_SEXOS.find((s) => s[0] === lab.sexo)[1].toLowerCase()}`;
+  const r0 = document.getElementById("lab-resumen"); r0.hidden = false;
+  r0.textContent = `${metr[1]} ${quien}: ${rango.map((l) => `${l.nombre} ${labFmt(lab.metrica, l.f(k))}`).join(", ")} en ${labTrim(d.fechas[k])}; hace 12 meses ${rango.map((l) => labFmt(lab.metrica, l.f(k12))).join(", ")}.`;
+
+  // tabla por tramo
+  const fila = (br) => {
+    const [nm, a, b] = LAB_BRACKETS[br], nv = (m) => labNiv(m, lab.sexo, a, b, k);
+    return `<tr><td>${br === 0 ? "<b>Total (15 y más)</b>" : nm}</td><td class="num">${numero(nv("POB"), 0)}</td><td class="num">${numero(nv("FTR"), 0)}</td><td class="num">${numero(nv("OCU"), 0)}</td><td class="num">${numero(nv("DES"), 0)}</td><td class="num">${numero(nv("FFT"), 0)}</td>
+      <td class="num">${numero(labVal("participacion", lab.sexo, br, k), 1)}%</td><td class="num">${numero(labVal("ocupacion", lab.sexo, br, k), 1)}%</td><td class="num">${numero(labVal("desocupacion", lab.sexo, br, k), 1)}%</td></tr>`;
+  };
+  document.getElementById("lab-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Mercado laboral por tramo de edad, ${labTrim(d.fechas[k])}</caption>
+    <thead><tr><th scope="col">Edad</th><th scope="col">Población 15+ (miles)</th><th scope="col">Fuerza de trabajo</th><th scope="col">Ocupados</th><th scope="col">Desocupados</th><th scope="col">Inactivos</th><th scope="col">Participación</th><th scope="col">Ocupación</th><th scope="col">Desocupación</th></tr></thead>
+    <tbody>${[0, 1, 2, 3, 4, 5, 6].map(fila).join("")}</tbody></table>`;
+
+  // ramas
+  const R = d.ramas, kr = Math.min(Math.max(R.fechas.indexOf(d.fechas[k]), 0), R.fechas.length - 1), kr12 = Math.max(0, kr - 12);
+  const ramas = R.series.map((s) => ({ ...s, v: s.datos[kr], v12: s.datos[kr12] })).sort((a, b) => b.v - a.v);
+  const sinClas = R.total[kr] - R.series.reduce((s, r) => s + r.datos[kr], 0);
+  labGrafico("lab-ramas").setOption({
+    animation: false, grid: { left: 190, right: 56, top: 8, bottom: 26 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const r = ramas[ramas.length - 1 - ps[0].dataIndex], dif = r.v - r.v12; return `<b>${esc(r.nombre)}</b><br>${numero(r.v, 0)} mil ocupados (${numero((r.v / R.total[kr]) * 100, 1)}% del total)<br>${dif >= 0 ? "+" : "−"}${numero(Math.abs(dif), 0)} mil vs. hace 12 meses`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => numero(v, 0) } },
+    yAxis: { type: "category", data: [...ramas].reverse().map((r) => r.nombre), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted"), width: 175, overflow: "truncate" } },
+    series: [{ type: "bar", barWidth: "68%", label: { show: true, position: "right", color: css("--muted"), formatter: (p) => numero(p.value, 0) },
+      data: [...ramas].reverse().map((r) => ({ value: r.v, itemStyle: { color: r.id === lab.rama ? css("--accent") : "#8d9bc4", opacity: r.id === lab.rama ? 1 : 0.7 } })) }],
+  }, true);
+  const rama = R.series.find((s) => s.id === lab.rama);
+  document.getElementById("lab-rama-titulo").textContent = `Evolución: ${rama.nombre}`;
+  labGrafico("lab-rama-linea").setOption({
+    animation: false, grid: { left: 56, right: 48, top: 30, bottom: 28 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${labTrim(ps[0].axisValue)}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${p.seriesIndex === 0 ? `${numero(p.value, 0)} mil` : `${numero(p.value, 1)}%`}</b>`).join("<br>")}`),
+    xAxis: { type: "category", data: R.fechas, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true, formatter: (v) => v.slice(0, 4) } },
+    yAxis: [{ type: "value", scale: true, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => numero(v, 0) } },
+      { type: "value", scale: true, splitLine: { show: false }, axisLabel: { color: css("--muted"), formatter: (v) => `${numero(v, 1)}%` } }],
+    series: [{ name: "Ocupados (miles)", type: "line", symbol: "none", lineStyle: { width: 2.4, color: css("--accent") }, areaStyle: { color: css("--accent"), opacity: 0.12 }, data: rama.datos },
+      { name: "Peso en el empleo total (%)", type: "line", yAxisIndex: 1, symbol: "none", lineStyle: { width: 1.8, color: "#e8c15a", type: "dashed" }, data: rama.datos.map((v, i) => (v / R.total[i]) * 100) }],
+  }, true);
+
+  document.getElementById("lab-nota").textContent = `Fuente: INE (Encuesta Nacional de Empleo, serie original, trimestre móvil) vía Banco Central; datos hasta ${labTrim(d.fechas[n - 1])}. Población en edad de trabajar = personas de 15 años y más = fuerza de trabajo (ocupados + desocupados) + inactivos. `
+    + `Tasa de participación = fuerza de trabajo / población en edad de trabajar; tasa de ocupación = ocupados / población en edad de trabajar; tasa de desocupación = desocupados / fuerza de trabajo. `
+    + `Las ramas suman ${numero(sinClas, 0)} mil menos que el total de ocupados (rama no informada). Las cifras se calculan con las proyecciones de población del INE, que se actualizarán con el Censo 2024.`;
+  history.replaceState(null, "", labHash());
+}
+
+async function activarLaboral(idRender, query) {
+  try { if (!lab.datos) lab.datos = await pedirJSON("laboral.json", estado.meta.generado); }
+  catch (e) { const c = document.getElementById("laboral-bloque"); if (c) c.textContent = "No se pudieron cargar los datos del mercado laboral."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("lab-composicion")) return;
+  lab.g = {};
+  const d = lab.datos, rango = document.getElementById("lab-fecha");
+  rango.min = 0; rango.max = d.fechas.length - 1; rango.step = 1;
+  lab.k = lab.k === null ? d.fechas.length - 1 : lab.k;
+  labDesdeQuery(query);
+  rango.addEventListener("input", () => { lab.k = Number(rango.value); labPintar(); });
+  const raiz = document.getElementById("contenido");
+  raiz.addEventListener("click", (ev) => {
+    if (!document.getElementById("lab-composicion")) return;
+    const sexo = ev.target.closest("#lab-sexo [data-sexo]"), met = ev.target.closest("[data-metrica]"), cmpB = ev.target.closest("[data-comparar]"), edad = ev.target.closest("#lab-edad [data-edad]"), sexoEvo = ev.target.closest("[data-sexoevo]");
+    if (sexo) lab.sexo = sexo.dataset.sexo; else if (sexoEvo) lab.sexo = sexoEvo.dataset.sexoevo;
+    else if (met && met.closest("#lab-metrica")) lab.metrica = met.dataset.metrica;
+    else if (cmpB && cmpB.closest("#lab-comparar")) lab.comparar = cmpB.dataset.comparar;
+    else if (edad) lab.edad = Number(edad.dataset.edad); else return;
+    labPintar();
+  });
+  labGrafico("lab-ramas").on("click", (p) => {
+    const R = d.ramas, kr = Math.min(Math.max(R.fechas.indexOf(d.fechas[lab.k]), 0), R.fechas.length - 1);
+    const orden = [...R.series].sort((a, b) => b.datos[kr] - a.datos[kr]);
+    const r = orden[orden.length - 1 - p.dataIndex]; if (r) { lab.rama = r.id; labPintar(); }
+  });
+  document.getElementById("lab-csv").addEventListener("click", () => {
+    const k = lab.k, filas = ["tramo,poblacion_15_mas,fuerza_trabajo,ocupados,desocupados,inactivos,participacion,ocupacion,desocupacion",
+      ...LAB_BRACKETS.map(([nm, a, b], br) => [nm.replace(/,/g, ""), ...["POB", "FTR", "OCU", "DES", "FFT"].map((m) => labNiv(m, lab.sexo, a, b, k).toFixed(1)), ...["participacion", "ocupacion", "desocupacion"].map((m) => labVal(m, lab.sexo, br, k).toFixed(2))].join(","))];
+    const url = URL.createObjectURL(new Blob([filas.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `mercado_laboral_${lab.sexo}_${d.fechas[k]}.csv` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  labPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -1432,6 +1647,7 @@ async function render() {
     if (ruta.tema === "comparador") activarComparador(id, ruta.query);
     if (ruta.tema === "composicion") activarComposicion(id, ruta.query);
     if (ruta.tema === "poblacion") activarPoblacion(id, ruta.query);
+    if (ruta.tema === "laboral") activarLaboral(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });

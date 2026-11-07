@@ -63,6 +63,15 @@ jobs:
         run: python fetch_bcch.py
         working-directory: data_pipeline
 
+      # Corre en cada ejecución (no solo en la completa) para que el mercado laboral por edad aparezca el mismo día que el IPC/empleo del INE.
+      - name: Traer mercado laboral por sexo y edad (Banco Central)
+        continue-on-error: true
+        env:
+          BCCH_USER: ${{ secrets.BCCH_USER }}
+          BCCH_PASSWORD: ${{ secrets.BCCH_PASSWORD }}
+        run: python fetch_laboral.py
+        working-directory: data_pipeline
+
       - name: Traer datos de mercado
         run: python fetch_market.py
         working-directory: data_pipeline
