@@ -16,6 +16,8 @@ const ICONOS = {
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   graduation: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  landmark: '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
   scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
@@ -789,7 +791,8 @@ function htmlPestana(id) {
     : seccion && seccion.tipo === "composicion" ? htmlComposicion()
     : seccion && seccion.tipo === "poblacion" ? htmlPoblacion()
     : seccion && seccion.tipo === "laboral" ? htmlLaboral()
-    : seccion && seccion.tipo === "profesionales" ? htmlProfesionales() : "";
+    : seccion && seccion.tipo === "profesionales" ? htmlProfesionales()
+    : seccion && seccion.tipo === "pensiones" ? htmlPensiones() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -1871,6 +1874,163 @@ async function activarProfesionales(idRender, query) {
   proPintar();
 }
 
+// ---------- Fondos de pensiones ----------
+const PEN_TIPOS = [["A", "A · más riesgoso", "#e5645f"], ["B", "B · riesgoso", "#f0a97c"], ["C", "C · intermedio", "#e8c15a"], ["D", "D · conservador", "#5ec4c4"], ["E", "E · más conservador", "#7c8ff0"]];
+const PEN_RANGOS = [["5 años", 5], ["10 años", 10], ["Todo", null]];
+const PEN_COLORES_AFP = ["#7c8ff0", "#5fd38d", "#e8c15a", "#f0a97c", "#e07a9d", "#5ec4c4", "#c792ea", "#8d9bc4", "#b0b86a", "#d98cc0", "#8892a6"];
+const pen = { datos: null, rango: 10, comp: "monto", ocde: "pf", soloOcde: true, g: {} };
+
+const penFecha = (iso) => { const [y, m, d] = iso.split("-").map(Number); return `${d} ${MESES[m - 1]} ${y}`; };
+const penBill = (v, dec = 1) => `$${numero(v / 1e6, dec)} billones`;
+
+function htmlPensiones() {
+  const btn = (attr, items) => items.map(([id, etq]) => `<button type="button" data-${attr}="${id}">${etq}</button>`).join("");
+  return `<div class="rejilla" id="pen-kpis"></div>
+  <section class="bloque" id="pensiones-bloque" aria-label="Fondos de pensiones">
+    <h2 class="subtitulo" style="margin-top:0">Cuánto ahorro hay y cuánto pesa en el PIB</h2>
+    <div class="comp-controles"><div class="rangos" id="pen-rango" role="group" aria-label="Período">${PEN_RANGOS.map(([e, a]) => `<button type="button" data-rango="${a ?? "todo"}">${e}</button>`).join("")}</div></div>
+    <div class="grafico-compuesto" id="pen-total" style="height:360px" role="img" aria-label="Valor de los fondos de pensiones y porcentaje del PIB"></div>
+    <p class="callout" id="pen-resumen" hidden></p>
+    <h2 class="subtitulo" style="margin-top:28px">Por tipo de fondo</h2>
+    <div class="comp-controles"><div class="rangos" id="pen-comp" role="group" aria-label="Medida">${btn("comp", [["monto", "Monto"], ["pct", "% del total"]])}</div></div>
+    <div class="grafico-compuesto" id="pen-tipos" style="height:320px" role="img" aria-label="Fondos de pensiones por tipo de fondo"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Por AFP</h2>
+    <div class="grafico-compuesto" id="pen-afp" style="height:300px" role="img" aria-label="Participación de cada AFP"></div>
+    <div class="tabla-ancha" id="pen-tabla"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Chile frente al mundo</h2>
+    <div class="comp-controles">
+      <div class="rangos" id="pen-ocde" role="group" aria-label="Qué activos">${btn("ocde", [["pf", "Fondos de pensiones"], ["total", "Todos los activos para la jubilación"]])}</div>
+      <div class="rangos" id="pen-solo" role="group" aria-label="Países">${btn("solo", [["ocde", "Países OCDE"], ["todos", "Todos los países"]])}</div></div>
+    <div class="grafico-compuesto" id="pen-mundo" style="height:700px" role="img" aria-label="Activos de pensiones como porcentaje del PIB por país"></div>
+    <details class="glosario"><summary>Cómo leer estas cifras</summary>
+      <dl>
+        <div><dt>Patrimonio de los fondos</dt><dd>Lo que valen hoy los ahorros previsionales que administran las AFP (cotizaciones obligatorias, ahorro voluntario y la rentabilidad acumulada). La Superintendencia de Pensiones publica a diario el patrimonio de cada fondo; sus reportes mensuales hablan de «valor de los fondos» (activos), que es cerca de 1,4% mayor porque no descuenta obligaciones pendientes.</dd></div>
+        <div><dt>Porcentaje del PIB</dt><dd>El patrimonio dividido por el PIB nominal de los últimos 4 trimestres. Con el patrimonio sale cerca de un punto más bajo que la cifra oficial (activos), que publica el Banco Central cada trimestre: la muestro como puntos aparte. La OCDE usa la misma cifra del Banco Central para comparar países.</dd></div>
+        <div><dt>Tipos de fondo (A a E)</dt><dd>Cada afiliado elige cómo invertir sus ahorros: el Fondo A es el más riesgoso (más acciones, más ganancias y pérdidas posibles) y el E el más conservador (casi todo en renta fija). Los fondos A y B pesan hoy cerca de 44% del total.</dd></div>
+        <div><dt>Qué no incluye</dt><dd>Solo los fondos de pensiones de las AFP (cuentas obligatorias y voluntarias). No incluye el Fondo de Cesantía, los seguros de rentas vitalicias de las aseguradoras, ni los activos del nuevo sistema mixto cuando empiece a operar.</dd></div>
+        <div><dt>Comparación internacional</dt><dd>La OCDE mide los «activos destinados a la jubilación» de cada país: fondos de pensiones, reservas de seguros, planes de ahorro individuales y reservas contables de empresas. Para comparar con las AFP lo más parecido son los «fondos de pensiones». Cada país tiene su último año disponible.</dd></div>
+      </dl></details>
+    <p class="bloque-nota" id="pen-nota"></p>
+  </section>`;
+}
+
+function penGrafico(id) {
+  const el = document.getElementById(id);
+  if (!pen.g[id]) {
+    pen.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => pen.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: pen.g[id], observador: o });
+  }
+  return pen.g[id];
+}
+
+function penPintar() {
+  const d = pen.datos, n = d.fechas.length, ult = n - 1, tip = pobTooltip;
+  const hace = (meses) => { const [y, m] = d.fechas[ult].split("-").map(Number), t = new Date(Date.UTC(y, m - 1 - meses, 1)); const clave = `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}`; return d.fechas.map((f, i) => [f, i]).filter(([f]) => f.slice(0, 7) <= clave).pop()?.[1] ?? 0; };
+  const i12 = hace(12), desde = pen.rango === null ? 0 : hace(pen.rango * 12);
+  const idx = Array.from({ length: n - desde }, (_, k) => desde + k);
+  const marca = (sel, attr, v) => document.querySelectorAll(sel).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[attr] === v)));
+  marca("#pen-rango button", "rango", pen.rango === null ? "todo" : String(pen.rango)); marca("#pen-comp button", "comp", pen.comp);
+  marca("#pen-ocde button", "ocde", pen.ocde); marca("#pen-solo button", "solo", pen.soloOcde ? "ocde" : "todos");
+
+  // tarjetas
+  const tot = d.total[ult], tot12 = d.total[i12], bc = d.bcch_pct_pib.length ? d.bcch_pct_pib[d.bcch_pct_pib.length - 1] : null;
+  const ab = d.tipos.A[ult] + d.tipos.B[ult];
+  const tarj = (nombre, valor, nota) => `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${valor}</div><div class="tono">${nota}</div></article>`;
+  document.getElementById("pen-kpis").innerHTML = [
+    tarj(`Patrimonio de los fondos · ${penFecha(d.fechas[ult])}`, `$${numero(tot / 1e6, 1)} billones`, `${proFmtPct(proPct(tot, tot12))} vs. hace 12 meses (nominal)`),
+    tarj("En dólares", `US$${numero(d.usd[ult] / 1000, 1)} mil millones`, "Al dólar observado de esa fecha"),
+    tarj("Porcentaje del PIB (cálculo propio)", `${numero(d.pct_pib[ult], 1)}%`, `${numero(d.pct_pib[ult] - d.pct_pib[i12], 1).replace("-", "−")} pp vs. hace 12 meses`),
+    bc ? tarj("Porcentaje del PIB oficial (Banco Central)", `${numero(bc[1], 1)}%`, `Activos de los fondos, ${penFecha(bc[0])}`) : "",
+    tarj("Fondos más riesgosos (A y B)", `${numero((ab / tot) * 100, 1)}%`, `del total; los fondos C, D y E suman ${numero(100 - (ab / tot) * 100, 1)}%`),
+    tarj("Mayor administradora", (() => { const a = Object.entries(d.ultimo.afp_tipo).map(([k, v]) => [k, Object.values(v).reduce((s, x) => s + x, 0)]).sort((x, y) => y[1] - x[1])[0]; return `${a[0][0] + a[0].slice(1).toLowerCase()} · ${numero((a[1] / tot) * 100, 0)}%`; })(), "Parte del patrimonio total"),
+  ].join("");
+
+  // patrimonio y % del PIB
+  const par = (arr) => idx.map((i) => [d.fechas[i], arr[i]]);
+  const oficial = d.bcch_pct_pib.filter(([f]) => f >= d.fechas[desde]);
+  penGrafico("pen-total").setOption({
+    animation: false, grid: { left: 56, right: 54, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${penFecha(ps[0].value[0].slice(0, 10))}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${p.seriesName.startsWith("Patrimonio") ? `$${numero(p.value[1] / 1e6, 1)} billones` : `${numero(p.value[1], 1)}%`}</b>`).join("<br>")}`),
+    xAxis: { type: "time", axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted") } },
+    yAxis: [{ type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${numero(v / 1e6, 0)}` }, name: "billones $", nameTextStyle: { color: css("--muted") } },
+      { type: "value", scale: true, splitLine: { show: false }, axisLabel: { color: css("--muted"), formatter: (v) => `${numero(v, 0)}%` } }],
+    series: [
+      { name: "Patrimonio (billones de pesos)", type: "line", symbol: "none", lineStyle: { width: 2, color: css("--accent") }, areaStyle: { color: css("--accent"), opacity: 0.14 }, data: par(d.total) },
+      { name: "% del PIB (cálculo propio)", type: "line", yAxisIndex: 1, symbol: "none", lineStyle: { width: 2.2, color: "#e8c15a" }, data: par(d.pct_pib) },
+      { name: "% del PIB oficial (Banco Central, trimestral)", type: "scatter", yAxisIndex: 1, symbolSize: 7, itemStyle: { color: "#5fd38d" }, data: oficial },
+    ],
+  }, true);
+  const max = idx.reduce((m, i) => (d.pct_pib[i] > d.pct_pib[m] ? i : m), idx[0]);
+  const r = document.getElementById("pen-resumen"); r.hidden = false;
+  r.textContent = `Al ${penFecha(d.fechas[ult])} los fondos suman ${penBill(tot)} (US$${numero(d.usd[ult] / 1000, 1)} mil millones), equivalentes a ${numero(d.pct_pib[ult], 1)}% del PIB. En el período mostrado, el máximo fue ${numero(d.pct_pib[max], 1)}% en ${penFecha(d.fechas[max])}.`;
+
+  // por tipo de fondo
+  const pct = pen.comp === "pct";
+  penGrafico("pen-tipos").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+    tooltip: tip((ps) => `<b>${penFecha(ps[0].value[0].slice(0, 10))}</b><br>${[...ps].reverse().map((p) => `${p.marker} Fondo ${esc(p.seriesName)}: <b>${pct ? `${numero(p.value[1], 1)}%` : penBill(p.value[1])}</b>`).join("<br>")}`),
+    xAxis: { type: "time", axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted") } },
+    yAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => (pct ? `${v}%` : `${numero(v / 1e6, 0)}`) }, ...(pct ? { max: 100 } : {}) },
+    series: PEN_TIPOS.map(([id, nombre, color]) => ({ name: nombre, type: "line", stack: "t", symbol: "none", lineStyle: { width: 0.6, color }, itemStyle: { color }, areaStyle: { color, opacity: 0.85 },
+      data: idx.map((i) => [d.fechas[i], pct ? (d.tipos[id][i] / d.total[i]) * 100 : d.tipos[id][i]]) })),
+  }, true);
+
+  // por AFP (participación)
+  const afps = Object.keys(d.afp).sort((a, b) => (d.afp[b][ult] ?? -1) - (d.afp[a][ult] ?? -1));
+  penGrafico("pen-afp").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+    tooltip: tip((ps) => `<b>${penFecha(ps[0].value[0].slice(0, 10))}</b><br>${[...ps].reverse().filter((p) => p.value[1] > 0).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value[1], 1)}%</b>`).join("<br>")}`),
+    xAxis: { type: "time", axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted") } },
+    yAxis: { type: "value", max: 100, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${v}%` } },
+    series: afps.map((a, k) => ({ name: a[0] + a.slice(1).toLowerCase(), type: "line", stack: "t", symbol: "none", lineStyle: { width: 0.6, color: PEN_COLORES_AFP[k % PEN_COLORES_AFP.length] }, itemStyle: { color: PEN_COLORES_AFP[k % PEN_COLORES_AFP.length] },
+      areaStyle: { color: PEN_COLORES_AFP[k % PEN_COLORES_AFP.length], opacity: 0.85 }, data: idx.map((i) => [d.fechas[i], ((d.afp[a][i] ?? 0) / d.total[i]) * 100]) })),
+  }, true);
+  const filas = Object.entries(d.ultimo.afp_tipo).map(([a, t]) => ({ a, t, s: Object.values(t).reduce((x, y) => x + y, 0) })).sort((x, y) => y.s - x.s);
+  document.getElementById("pen-tabla").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Fondos de pensiones por AFP</caption>
+    <thead><tr><th scope="col">AFP</th><th scope="col">Total (billones $)</th><th scope="col">% del total</th>${PEN_TIPOS.map(([id]) => `<th scope="col">Fondo ${id}</th>`).join("")}</tr></thead>
+    <tbody>${filas.map((f) => `<tr><td>${f.a[0] + f.a.slice(1).toLowerCase()}</td><td class="num">${numero(f.s / 1e6, 2)}</td><td class="num">${numero((f.s / tot) * 100, 1)}%</td>${PEN_TIPOS.map(([id]) => `<td class="num">${numero((f.t[id] ?? 0) / 1e6, 2)}</td>`).join("")}</tr>`).join("")}
+    <tr><td><b>Total</b></td><td class="num"><b>${numero(tot / 1e6, 2)}</b></td><td class="num"><b>100%</b></td>${PEN_TIPOS.map(([id]) => `<td class="num"><b>${numero(d.tipos[id][ult] / 1e6, 2)}</b></td>`).join("")}</tr></tbody></table>`;
+
+  // mundo (OCDE)
+  const o = d.ocde, clave = pen.ocde;
+  const paises = (o ? o.paises : []).filter((p) => p[clave] !== undefined && (!pen.soloOcde || p.ocde || p.id === "CHL"));
+  const orden = [...paises].sort((a, b) => b[clave] - a[clave]), posChile = orden.findIndex((p) => p.id === "CHL") + 1;
+  const alto = Math.max(360, orden.length * 21 + 40);
+  document.getElementById("pen-mundo").style.height = `${alto}px`; penGrafico("pen-mundo").resize();
+  penGrafico("pen-mundo").setOption({
+    animation: false, grid: { left: 150, right: 56, top: 8, bottom: 24 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const p = [...orden].reverse()[ps[0].dataIndex]; return `<b>${esc(p.nombre)}</b><br>${numero(p[clave], 1)}% del PIB (${p[`${clave}_anio`]})`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${v}%` } },
+    yAxis: { type: "category", data: [...orden].reverse().map((p) => p.nombre), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted"), width: 140, overflow: "truncate" } },
+    series: [{ type: "bar", barWidth: "70%", label: { show: true, position: "right", color: css("--muted"), formatter: (p) => `${numero(p.value, 0)}%` },
+      data: [...orden].reverse().map((p) => ({ value: p[clave], itemStyle: { color: p.id === "CHL" ? css("--accent") : "#8d9bc4", opacity: p.id === "CHL" ? 1 : 0.7 } })) }],
+  }, true);
+
+  document.getElementById("pen-nota").textContent = `Fuentes: Superintendencia de Pensiones (patrimonio de los fondos, solo valores confirmados hasta el ${penFecha(d.fechas[ult])}); Banco Central de Chile (activos de los fondos como % del PIB, trimestral); OCDE (activos para la jubilación como % del PIB). `
+    + `El PIB usado es el nominal de los últimos 4 trimestres publicados por el Banco Central (último trimestre disponible: ${penFecha(d.bcch_pct_pib.length ? d.bcch_pct_pib[d.bcch_pct_pib.length - 1][0] : d.fechas[ult])}). `
+    + `${posChile ? `Entre ${orden.length} países ${pen.soloOcde ? "de la OCDE " : ""}con datos, Chile ocupa el lugar ${posChile} en ${pen.ocde === "pf" ? "fondos de pensiones" : "activos para la jubilación"}. ` : ""}`
+    + "Las AFP han cambiado con el tiempo (por ejemplo Santa María, Bansander y Summa se fusionaron en otras); la serie de AFP muestra las que existían en cada fecha.";
+}
+
+async function activarPensiones(idRender, query) {
+  try { if (!pen.datos) pen.datos = await pedirJSON("pensiones.json", estado.meta.generado); }
+  catch (e) { const c = document.getElementById("pensiones-bloque"); if (c) c.textContent = "No se pudieron cargar los datos de pensiones."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("pen-total")) return;
+  pen.g = {};
+  document.getElementById("contenido").addEventListener("click", (ev) => {
+    if (!document.getElementById("pen-total")) return;
+    const r = ev.target.closest("#pen-rango [data-rango]"), c = ev.target.closest("#pen-comp [data-comp]"), o = ev.target.closest("#pen-ocde [data-ocde]"), s = ev.target.closest("#pen-solo [data-solo]");
+    if (r) pen.rango = r.dataset.rango === "todo" ? null : Number(r.dataset.rango); else if (c) pen.comp = c.dataset.comp; else if (o) pen.ocde = o.dataset.ocde; else if (s) pen.soloOcde = s.dataset.solo === "ocde"; else return;
+    penPintar();
+  });
+  penPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -1919,6 +2079,7 @@ async function render() {
     if (ruta.tema === "poblacion") activarPoblacion(id, ruta.query);
     if (ruta.tema === "laboral") activarLaboral(id, ruta.query);
     if (ruta.tema === "profesionales") activarProfesionales(id, ruta.query);
+    if (ruta.tema === "pensiones") activarPensiones(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });

@@ -101,6 +101,9 @@ SECCIONES = [
      "intro": "Cuántos técnicos y profesionales se titulan cada año en Chile (Mineduc, SIES, desde 2007), en qué carreras y áreas, quién los forma, cuántas "
               "son mujeres, y cuántos de los ocupados trabajan como profesionales o técnicos. Incluye las carreras que más crecen y los programas que "
               "aparecen cada año. Son títulos obtenidos, no personas: quien se titula dos veces aparece dos veces."},
+    {"id": "pensiones", "nombre": "Fondos de pensiones", "icono": "shield", "tipo": "pensiones",
+     "intro": "Cuánto ahorro previsional administran las AFP, cuánto pesa respecto del PIB y cómo se reparte por tipo de fondo y por administradora, comparado con "
+              "otros países. Las cifras vienen de la Superintendencia de Pensiones (patrimonio de los fondos), el Banco Central y la OCDE."},
     {"id": "ocde", "nombre": "Comparación OCDE", "icono": "globe",
      "intro": "Cómo se ubica Chile frente a los 38 países de la OCDE. Todos los indicadores vienen del Banco Mundial para que estén calculados "
               "con la misma metodología entre países, así que pueden diferir un poco de las cifras oficiales de Chile que se muestran en el resto "

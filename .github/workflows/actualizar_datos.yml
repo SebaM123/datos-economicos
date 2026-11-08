@@ -107,6 +107,15 @@ jobs:
         run: python fetch_comparador.py
         working-directory: data_pipeline
 
+      - name: Traer fondos de pensiones (Superintendencia, Banco Central, OCDE)
+        if: needs.decidir.outputs.completa == 'true'
+        continue-on-error: true
+        env:
+          BCCH_USER: ${{ secrets.BCCH_USER }}
+          BCCH_PASSWORD: ${{ secrets.BCCH_PASSWORD }}
+        run: python fetch_pensiones.py
+        working-directory: data_pipeline
+
       - name: Traer población por edad (Banco Mundial / ONU)
         if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true
