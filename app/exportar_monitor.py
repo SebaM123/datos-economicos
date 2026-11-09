@@ -101,6 +101,9 @@ SECCIONES = [
      "intro": "Cuántos técnicos y profesionales se titulan cada año en Chile (Mineduc, SIES, desde 2007), en qué carreras y áreas, quién los forma, cuántas "
               "son mujeres, y cuántos de los ocupados trabajan como profesionales o técnicos. Incluye las carreras que más crecen y los programas que "
               "aparecen cada año. Son títulos obtenidos, no personas: quien se titula dos veces aparece dos veces."},
+    {"id": "presupuesto", "nombre": "Presupuesto fiscal", "icono": "landmark", "tipo": "presupuesto",
+     "intro": "Cuánto gasta el Estado, en qué y quién lo gasta: el gasto del Gobierno Central por ministerio y por tipo, sus ingresos, y cómo va la ejecución del "
+              "presupuesto del año en curso contra lo aprobado en la ley. Son las cifras de la Dirección de Presupuestos (Dipres), desde 2009."},
     {"id": "pensiones", "nombre": "Fondos de pensiones", "icono": "shield", "tipo": "pensiones",
      "intro": "Cuánto ahorro previsional administran las AFP, cuánto pesa respecto del PIB y cómo se reparte por tipo de fondo y por administradora, comparado con "
               "otros países. Las cifras vienen de la Superintendencia de Pensiones (patrimonio de los fondos), el Banco Central y la OCDE."},

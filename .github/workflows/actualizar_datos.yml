@@ -107,6 +107,12 @@ jobs:
         run: python fetch_comparador.py
         working-directory: data_pipeline
 
+      - name: Traer presupuesto fiscal (Dipres)
+        if: needs.decidir.outputs.completa == 'true'
+        continue-on-error: true
+        run: python fetch_presupuesto.py
+        working-directory: data_pipeline
+
       - name: Traer fondos de pensiones (Superintendencia, Banco Central, OCDE)
         if: needs.decidir.outputs.completa == 'true'
         continue-on-error: true

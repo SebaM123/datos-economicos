@@ -792,7 +792,8 @@ function htmlPestana(id) {
     : seccion && seccion.tipo === "poblacion" ? htmlPoblacion()
     : seccion && seccion.tipo === "laboral" ? htmlLaboral()
     : seccion && seccion.tipo === "profesionales" ? htmlProfesionales()
-    : seccion && seccion.tipo === "pensiones" ? htmlPensiones() : "";
+    : seccion && seccion.tipo === "pensiones" ? htmlPensiones()
+    : seccion && seccion.tipo === "presupuesto" ? htmlPresupuesto() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -2031,6 +2032,214 @@ async function activarPensiones(idRender, query) {
   penPintar();
 }
 
+// ---------- Presupuesto fiscal ----------
+// Grupos de gasto por subtítulo del presupuesto (clasificación económica de la Dipres)
+const PRE_GRUPOS = [["Personal", [21], "#7c8ff0"], ["Bienes y servicios", [22], "#5ec4c4"], ["Prestaciones de seguridad social", [23], "#e8c15a"], ["Transferencias corrientes", [24], "#f0a97c"],
+  ["Inversión", [29, 31], "#5fd38d"], ["Transferencias de capital", [33], "#c792ea"], ["Otros gastos", [25, 26, 30, 32], "#8892a6"]];
+const PRE_INGRESOS = [["Impuestos", [1], "#7c8ff0"], ["Cotizaciones previsionales", [4], "#5ec4c4"], ["Otros ingresos corrientes", [5, 6, 7, 8], "#e8c15a"], ["Venta y recuperación de activos", [10, 11, 12, 13], "#f0a97c"], ["Endeudamiento", [14], "#e5645f"]];
+const PRE_MEDIDAS = [["monto", "Monto (billones de $)"], ["pib", "% del PIB"], ["total", "% del total"]];
+const pre = { datos: null, k: null, medida: "pib", deuda: false, code: null, g: {} };
+
+const preCorto = (n) => { const s = n.replace(/^Ministerio (?:de la |de los |de las |del |de )?/, ""); return s.charAt(0).toUpperCase() + s.slice(1); };
+const preSum = (o, subs) => subs.reduce((s, x) => s + (o?.[String(x)] ?? 0), 0);
+// Gasto de una partida sin duplicar: el Tesoro Público (50) reparte su presupuesto a los ministerios como «aporte fiscal libre» (27 y 28), que ellos ya cuentan
+const preSubsGasto = (code) => (code === "50" ? [21, 22, 23, 24, 25, 26, 29, 30, 31, 32, 33] : [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
+const preGasto = (code, a) => preSum(pre.datos.partidas[code].gasto[a], preSubsGasto(code));
+const preNombre = (code, a) => preCorto(code === "50" ? "Tesoro Público (sin aporte fiscal)" : pre.datos.partidas[code].nombres[a] ?? pre.datos.partidas[code].n);
+const preDeuda = (a) => Object.values(pre.datos.partidas).reduce((s, p) => s + (p.gasto[a]?.["34"] ?? 0), 0);
+const preConsolidado = (a) => preSum(pre.datos.nacional[a], [21, 22, 23, 24, 25, 26, 29, 30, 31, 32, 33]);
+const preFmt = (medida, v, pib, total) => (medida === "monto" ? `${numero(v / 1e6, 2)}` : medida === "pib" ? `${numero((v / pib) * 100, 1)}%` : `${numero((v / total) * 100, 1)}%`);
+
+function htmlPresupuesto() {
+  const btn = (attr, items) => items.map(([id, etq]) => `<button type="button" data-${attr}="${id}">${etq}</button>`).join("");
+  return `<div class="comp-controles"><div class="pob-slider"><label for="pre-anio">Año: <b id="pre-anio-txt"></b></label><input type="range" id="pre-anio" aria-label="Año"></div>
+      <div class="rangos" id="pre-medida" role="group" aria-label="Medida">${btn("medida", PRE_MEDIDAS)}</div></div>
+    <div class="rejilla" id="pre-kpis"></div>
+  <section class="bloque" id="presupuesto-bloque" aria-label="Presupuesto fiscal">
+    <h2 class="subtitulo" style="margin-top:0">En qué se gasta</h2>
+    <div class="grafico-compuesto" id="pre-tipos" style="height:330px" role="img" aria-label="Gasto del Gobierno Central por tipo"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Quién lo gasta: gasto por ministerio</h2>
+    <div class="comp-controles"><div class="rangos" id="pre-deuda" role="group" aria-label="Servicio de la deuda">${btn("deuda", [["no", "Sin servicio de la deuda"], ["si", "Con servicio de la deuda"]])}</div></div>
+    <p class="bloque-nota" style="margin-top:0">Toca un ministerio para ver su evolución y en qué gasta.</p>
+    <div class="grafico-compuesto" id="pre-ministerios" style="height:760px" role="img" aria-label="Gasto por ministerio"></div>
+    <p class="callout" id="pre-resumen" hidden></p>
+    <h2 class="subtitulo" style="margin-top:22px" id="pre-detalle-titulo"></h2>
+    <div class="grafico-compuesto" id="pre-detalle" style="height:280px" role="img" aria-label="Evolución del gasto del ministerio"></div>
+    <div class="grafico-compuesto" id="pre-detalle-tipos" style="height:300px;margin-top:14px" role="img" aria-label="Gasto del ministerio por tipo"></div>
+    <h2 class="subtitulo" style="margin-top:28px" id="pre-ytd-titulo">Ejecución del año en curso</h2>
+    <p class="callout" id="pre-ytd-resumen" hidden></p>
+    <div class="tabla-ancha" id="pre-ytd"></div>
+    <h2 class="subtitulo" style="margin-top:28px">De dónde salen los recursos</h2>
+    <div class="grafico-compuesto" id="pre-ingresos" style="height:300px" role="img" aria-label="Ingresos del Gobierno Central"></div>
+    <details class="glosario"><summary>Cómo leer el presupuesto</summary><dl>
+      <div><dt>Partida</dt><dd>Cada ministerio u organismo (Congreso, Poder Judicial, Contraloría…) es una «partida» de la Ley de Presupuestos. Dentro de cada una, el dinero se clasifica por «subtítulo»: personal, bienes y servicios, prestaciones de seguridad social (pensiones y otros beneficios), transferencias corrientes (subsidios, aportes a municipios, universidades, hospitales…), inversión y transferencias de capital.</dd></div>
+      <div><dt>Gasto consolidado y gasto por ministerio</dt><dd>El gasto del Gobierno Central es el total consolidado (en 2025, unos $82 billones). Si se suma lo que gasta cada ministerio sale algo más, porque algunos fondos pasan de un organismo a otro (por ejemplo, transferencias a municipios o a servicios de salud) y se cuentan dos veces. Las cifras por ministerio son las propias de cada partida.</dd></div>
+      <div><dt>Tesoro Público</dt><dd>Es la caja del Estado: recibe los impuestos y reparte casi todo a los ministerios como «aporte fiscal libre». Esos traspasos se descuentan para no contar el gasto dos veces; lo que queda del Tesoro son transferencias propias, aportes a fondos y otros gastos. El servicio de la deuda (intereses y amortizaciones) se puede mostrar aparte.</dd></div>
+      <div><dt>Ley inicial, vigente y ejecución</dt><dd>La Ley inicial es el presupuesto aprobado por el Congreso; la vigente incluye las modificaciones durante el año; la ejecución es lo realmente gastado hasta el mes (base devengada). A mitad de año debería llevarse cerca de la mitad, aunque muchos ministerios gastan más hacia fin de año.</dd></div>
+      <div><dt>Cambios de ministerios</dt><dd>Los ministerios cambian con el tiempo: en 2025 se creó el de Seguridad Pública (partida 32) y parte de lo que antes estaba en Interior pasó a él; Desarrollo Social reemplazó a Planificación; se crearon Mujer, Ciencia, Cultura y Deporte. Las series siguen el código de la partida, con el nombre del año correspondiente.</dd></div>
+      <div><dt>2020 y 2021</dt><dd>Fueron años excepcionales por la pandemia: el gasto llegó a 29% y 33% del PIB por los bonos y subsidios de emergencia, y volvió a 26% en 2022.</dd></div></dl></details>
+    <p class="bloque-nota" id="pre-nota"></p>
+  </section>`;
+}
+
+function preGrafico(id) {
+  const el = document.getElementById(id);
+  if (!pre.g[id]) {
+    pre.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => pre.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: pre.g[id], observador: o });
+  }
+  return pre.g[id];
+}
+
+function prePintar() {
+  const d = pre.datos, A = d.anios, k = pre.k, a = String(A[k]), pib = d.pib[a], tip = pobTooltip, med = pre.medida, anioStr = A.map(String);
+  const linea = { silent: true, symbol: "none", lineStyle: { color: css("--text"), type: "dashed", width: 1.2 }, label: { show: false }, data: [{ xAxis: a }] };
+  const ejeX = { type: "category", data: anioStr, boundaryGap: true, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } };
+  const ejeY = { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => (med === "monto" ? numero(v / 1e6, 0) : `${numero(v, 0)}%`) } };
+  document.getElementById("pre-anio").value = A[k]; document.getElementById("pre-anio-txt").textContent = A[k];
+  const marca = (sel, attr, v) => document.querySelectorAll(sel).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[attr] === v)));
+  marca("#pre-medida button", "medida", med); marca("#pre-deuda button", "deuda", pre.deuda ? "si" : "no");
+  const valor = (v, ap, denom) => (med === "monto" ? v : med === "pib" ? (v / d.pib[ap]) * 100 : (v / denom) * 100);
+  const fmtV = (v) => (med === "monto" ? `$${numero(v / 1e6, 2)} billones` : `${numero(v, 1)}%`);
+
+  // tarjetas
+  const gast = preConsolidado(a), impu = d.nacional[a]["1"] ?? 0, kPrev = Math.max(0, k - 1), gPrev = preConsolidado(String(A[kPrev]));
+  const tarj = (nombre, v, nota) => `<article class="tarjeta"><div class="indicador">${nombre} · ${A[k]}</div><div class="valor num">${v}</div><div class="tono">${nota}</div></article>`;
+  const kpis = [
+    tarj("Gasto del Gobierno Central", `$${numero(gast / 1e6, 1)} billones`, `${numero((gast / pib) * 100, 1)}% del PIB${k > 0 ? ` · ${proFmtPct(proPct(gast, gPrev))} vs. ${A[kPrev]} (nominal)` : ""}`),
+    tarj("Ingresos por impuestos", `$${numero(impu / 1e6, 1)} billones`, `${numero((impu / pib) * 100, 1)}% del PIB`),
+    tarj("Prestaciones de seguridad social", `${numero(((d.nacional[a]["23"] ?? 0) / gast) * 100, 1)}%`, `del gasto ($${numero((d.nacional[a]["23"] ?? 0) / 1e6, 1)} billones): pensiones solidarias y otros beneficios`),
+    tarj("Gasto en personal", `${numero(((d.nacional[a]["21"] ?? 0) / gast) * 100, 1)}%`, `del gasto ($${numero((d.nacional[a]["21"] ?? 0) / 1e6, 1)} billones): sueldos del sector público`),
+    tarj("Servicio de la deuda", `$${numero((d.nacional[a]["34"] ?? 0) / 1e6, 1)} billones`, `${numero(((d.nacional[a]["34"] ?? 0) / pib) * 100, 1)}% del PIB (intereses y amortizaciones, incluye refinanciamiento)`),
+  ];
+  if (d.ytd) {
+    const nac = d.ytd.nacional, ej = preSum(nac.ej, [21, 22, 23, 24, 25, 26, 29, 30, 31, 32, 33]), lv = preSum(nac.lv, [21, 22, 23, 24, 25, 26, 29, 30, 31, 32, 33]);
+    kpis.push(tarj(`Ejecución ${d.ytd.anio} a ${d.ytd.mes_nombre.toLowerCase()}`, `${numero((ej / lv) * 100, 1)}%`, `del presupuesto vigente ($${numero(ej / 1e6, 1)} de $${numero(lv / 1e6, 1)} billones)`).replace(` · ${A[k]}`, ""));
+  }
+  document.getElementById("pre-kpis").innerHTML = kpis.join("");
+
+  // en qué se gasta (consolidado por tipo)
+  const grupoVal = (j, subs) => preSum(d.nacional[String(A[j])], subs);
+  const grupos = PRE_GRUPOS.concat(pre.deuda ? [["Servicio de la deuda", [34], "#e5645f"]] : []);
+  const totGrupos = (j) => grupos.reduce((s, [, subs]) => s + grupoVal(j, subs), 0);
+  preGrafico("pre-tipos").setOption({
+    animation: false, grid: { left: 52, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => `<b>${ps[0].axisValue}</b><br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${fmtV(p.value)}</b>`).join("<br>")}<br>Total: <b>${fmtV(ps.reduce((s, p) => s + p.value, 0))}</b>` },
+    xAxis: ejeX, yAxis: { ...ejeY, ...(med === "total" ? { max: 100 } : {}) },
+    series: grupos.map(([nombre, subs, color], i) => ({ name: nombre, type: "bar", stack: "t", itemStyle: { color }, data: A.map((x, j) => valor(grupoVal(j, subs), String(x), totGrupos(j))), ...(i === 0 ? { markLine: linea } : {}) })),
+  }, true);
+
+  // gasto por ministerio del año elegido
+  const items = Object.keys(d.partidas).filter((c) => d.partidas[c].gasto[a]).map((c) => ({ code: c, nombre: preNombre(c, a), v: preGasto(c, a) })).filter((x) => x.v > 0);
+  if (pre.deuda) items.push({ code: "deuda", nombre: "Servicio de la deuda", v: preDeuda(a) });
+  items.sort((x, y) => y.v - x.v);
+  const total = items.reduce((s, x) => s + x.v, 0);
+  if (!pre.code || !items.some((x) => x.code === pre.code)) pre.code = items.find((x) => x.code !== "deuda")?.code;
+  const mi = [...items].reverse();
+  preGrafico("pre-ministerios").setOption({
+    animation: false, grid: { left: 200, right: 64, top: 8, bottom: 24 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const x = mi[ps[0].dataIndex]; return `<b>${esc(x.nombre)}</b> · ${a}<br>$${numero(x.v / 1e6, 2)} billones<br>${numero((x.v / pib) * 100, 1)}% del PIB<br>${numero((x.v / total) * 100, 1)}% del total`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => (med === "monto" ? numero(v, 0) : `${numero(v, 0)}%`) } },
+    yAxis: { type: "category", data: mi.map((x) => x.nombre), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted"), width: 190, overflow: "truncate" } },
+    series: [{ type: "bar", barWidth: "70%", label: { show: true, position: "right", color: css("--muted"), formatter: (p) => (med === "monto" ? numero(p.value, 1) : `${numero(p.value, 1)}%`) },
+      data: mi.map((x) => ({ value: med === "monto" ? x.v / 1e6 : med === "pib" ? (x.v / pib) * 100 : (x.v / total) * 100, itemStyle: { color: x.code === pre.code ? css("--accent") : "#8d9bc4", opacity: x.code === pre.code ? 1 : 0.72 } })) }],
+  }, true);
+  const rs = document.getElementById("pre-resumen"); rs.hidden = false;
+  rs.textContent = `En ${a}, los ministerios y organismos sumaron $${numero(total / 1e6, 1)} billones (${numero((total / pib) * 100, 1)}% del PIB)${pre.deuda ? ", incluido el servicio de la deuda" : ""}. El gasto consolidado del Gobierno Central fue $${numero(gast / 1e6, 1)} billones: la diferencia se debe a transferencias entre organismos que se cuentan dos veces. Los tres que más gastan son ${items.slice(0, 3).map((x) => `${x.nombre} (${numero((x.v / total) * 100, 0)}%)`).join(", ")}.`;
+
+  // detalle del ministerio elegido
+  const code = pre.code, esDeuda = code === "deuda";
+  const totalDe = (j) => Object.keys(d.partidas).reduce((s, c) => s + (d.partidas[c].gasto[String(A[j])] ? preGasto(c, String(A[j])) : 0), 0) + (pre.deuda ? preDeuda(String(A[j])) : 0);
+  const gDe = (j) => (esDeuda ? preDeuda(String(A[j])) : d.partidas[code].gasto[String(A[j])] ? preGasto(code, String(A[j])) : null);
+  document.getElementById("pre-detalle-titulo").textContent = `Evolución: ${esDeuda ? "Servicio de la deuda" : preNombre(code, a)}`;
+  preGrafico("pre-detalle").setOption({
+    animation: false, grid: { left: 52, right: 20, top: 14, bottom: 30 },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps[0].value === null || ps[0].value === undefined ? "Sin datos" : fmtV(ps[0].value)}`),
+    xAxis: { ...ejeX, boundaryGap: false }, yAxis: ejeY,
+    series: [{ type: "line", symbol: "circle", symbolSize: 5, lineStyle: { width: 2.4, color: css("--accent") }, itemStyle: { color: css("--accent") }, areaStyle: { color: css("--accent"), opacity: 0.12 }, connectNulls: false,
+      data: A.map((x, j) => { const v = gDe(j); return v === null || v === undefined ? null : valor(v, String(x), totalDe(j)); }), markLine: linea }],
+  }, true);
+  const detalleTipos = document.getElementById("pre-detalle-tipos");
+  detalleTipos.style.display = esDeuda ? "none" : "";
+  if (!esDeuda) {
+    const gv = (j, subs) => preSum(d.partidas[code].gasto[String(A[j])], subs.filter((s) => preSubsGasto(code).includes(s)));
+    preGrafico("pre-detalle-tipos").resize();
+    preGrafico("pre-detalle-tipos").setOption({
+      animation: false, grid: { left: 52, right: 20, top: 34, bottom: 30 },
+      legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+        formatter: (ps) => `<b>${ps[0].axisValue}</b> · en qué gasta<br>${[...ps].reverse().filter((p) => p.value).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${fmtV(p.value)}</b>`).join("<br>")}` },
+      xAxis: ejeX, yAxis: ejeY,
+      series: PRE_GRUPOS.map(([nombre, subs, color]) => ({ name: nombre, type: "bar", stack: "t", itemStyle: { color }, data: A.map((x, j) => (d.partidas[code].gasto[String(x)] ? valor(gv(j, subs), String(x), totalDe(j)) : null)) })),
+    }, true);
+  }
+
+  // ejecución del año en curso por ministerio
+  const y = d.ytd;
+  if (y) {
+    const sg = (o, c) => preSum(o?.[c], preSubsGasto(c)), codes = Object.keys(y.ley_vigente).filter((c) => sg(y.ley_vigente, c) > 0 || sg(y.ejecucion, c) > 0);
+    const filas = codes.map((c) => ({ c, n: preNombre(c, String(y.anio)), li: sg(y.ley_inicial, c), lv: sg(y.ley_vigente, c), ej: sg(y.ejecucion, c), ep: y.previo ? sg(y.previo, c) : null })).sort((p, q) => q.lv - p.lv);
+    const nacEj = preSum(y.nacional.ej, preSubsGasto("05")), nacLv = preSum(y.nacional.lv, preSubsGasto("05")), nacLi = preSum(y.nacional.li, preSubsGasto("05")), nacEp = y.nacional_previo ? preSum(y.nacional_previo, preSubsGasto("05")) : null;
+    document.getElementById("pre-ytd-titulo").textContent = `Ejecución ${y.anio} a ${y.mes_nombre.toLowerCase()}: lo gastado contra lo presupuestado`;
+    const ry = document.getElementById("pre-ytd-resumen"); ry.hidden = false;
+    ry.textContent = `A ${y.mes_nombre.toLowerCase()} de ${y.anio} el Gobierno Central había ejecutado $${numero(nacEj / 1e6, 1)} billones, ${numero((nacEj / nacLv) * 100, 1)}% del presupuesto vigente ($${numero(nacLv / 1e6, 1)} billones; la ley inicial era de $${numero(nacLi / 1e6, 1)} billones) y ${nacEp ? `${numero(Math.abs(proPct(nacEj, nacEp)), 1)}% ${proPct(nacEj, nacEp) >= 0 ? "más" : "menos"} que a ${y.mes_nombre.toLowerCase()} de ${y.anio - 1} (en pesos nominales)` : "sin comparación con el año anterior"}. ${y.mes_nombre} es el mes ${y.mes} de 12, o sea ${numero((y.mes / 12) * 100, 0)}% del año.`;
+    const barra = (p) => `<div class="barra-ejec"><span style="width:${Math.min(100, Math.max(0, p))}%"></span></div>`;
+    document.getElementById("pre-ytd").innerHTML = `<table class="tabla-datos izq"><caption class="solo-lectores">Ejecución presupuestaria por ministerio</caption>
+      <thead><tr><th scope="col">Ministerio u organismo</th><th scope="col">Ley inicial</th><th scope="col">Ley vigente</th><th scope="col">Ejecutado</th><th scope="col">% de la vigente</th><th scope="col">Vs. ${y.mes_nombre.toLowerCase()} ${y.anio - 1}</th></tr></thead>
+      <tbody>${filas.map((f) => `<tr><td>${esc(f.n)}</td><td class="num">${numero(f.li / 1e6, 2)}</td><td class="num">${numero(f.lv / 1e6, 2)}</td><td class="num">${numero(f.ej / 1e6, 2)}</td><td class="num">${f.lv ? `${numero((f.ej / f.lv) * 100, 0)}%${barra((f.ej / f.lv) * 100)}` : "—"}</td><td class="num">${f.ep ? proFmtPct(proPct(f.ej, f.ep)) : "—"}</td></tr>`).join("")}
+      <tr><td><b>Gobierno Central (consolidado)</b></td><td class="num"><b>${numero(nacLi / 1e6, 2)}</b></td><td class="num"><b>${numero(nacLv / 1e6, 2)}</b></td><td class="num"><b>${numero(nacEj / 1e6, 2)}</b></td><td class="num"><b>${numero((nacEj / nacLv) * 100, 0)}%</b></td><td class="num"><b>${nacEp ? proFmtPct(proPct(nacEj, nacEp)) : "—"}</b></td></tr></tbody></table>
+      <p class="bloque-nota">Montos en billones de pesos del año, sin servicio de la deuda. Las filas por ministerio no suman el consolidado porque algunos fondos pasan de un organismo a otro.</p>`;
+  } else { document.getElementById("pre-ytd-titulo").hidden = true; }
+
+  // ingresos
+  const ingVal = (j, subs) => preSum(d.nacional[String(A[j])], subs);
+  const totIng = (j) => PRE_INGRESOS.reduce((s, [, subs]) => s + ingVal(j, subs), 0);
+  preGrafico("pre-ingresos").setOption({
+    animation: false, grid: { left: 52, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") }, type: "scroll" },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => `<b>${ps[0].axisValue}</b><br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${fmtV(p.value)}</b>`).join("<br>")}` },
+    xAxis: ejeX, yAxis: { ...ejeY, ...(med === "total" ? { max: 100 } : {}) },
+    series: PRE_INGRESOS.map(([nombre, subs, color], i) => ({ name: nombre, type: "bar", stack: "t", itemStyle: { color }, data: A.map((x, j) => valor(ingVal(j, subs), String(x), totIng(j))), ...(i === 0 ? { markLine: linea } : {}) })),
+  }, true);
+  document.getElementById("pre-nota").textContent = `Fuente: Dirección de Presupuestos (Dipres), Ejecución Presupuestaria y Ley de Presupuestos del Gobierno Central (datos.gob.cl), cierres de diciembre ${A[0]}–${A[A.length - 1]}${y ? ` y ejecución a ${y.mes_nombre.toLowerCase()} de ${y.anio}` : ""}. `
+    + "Pesos nominales (sin ajustar por inflación), base devengada. Gasto sin servicio de la deuda salvo que se indique; los porcentajes del PIB usan el PIB nominal anual del Banco Central. "
+    + "Los ingresos incluyen el endeudamiento como fuente de financiamiento, así que no son comparables con el gasto sin la deuda. Los cierres de años recientes pueden tener ajustes menores.";
+  history.replaceState(null, "", `#/presupuesto?a=${A[k]}&m=${med}`);
+}
+
+async function activarPresupuesto(idRender, query) {
+  try { if (!pre.datos) pre.datos = await pedirJSON("presupuesto.json", estado.meta.generado); }
+  catch (e) { const c = document.getElementById("presupuesto-bloque"); if (c) c.textContent = "No se pudieron cargar los datos del presupuesto."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("pre-tipos")) return;
+  pre.g = {};
+  const d = pre.datos, rango = document.getElementById("pre-anio");
+  rango.min = d.anios[0]; rango.max = d.anios[d.anios.length - 1]; rango.step = 1;
+  if (pre.k === null) pre.k = d.anios.length - 1;
+  const p = new URLSearchParams(query || "");
+  if (d.anios.includes(Number(p.get("a")))) pre.k = d.anios.indexOf(Number(p.get("a")));
+  if (["monto", "pib", "total"].includes(p.get("m"))) pre.medida = p.get("m");
+  rango.addEventListener("input", () => { pre.k = d.anios.indexOf(Number(rango.value)); prePintar(); });
+  document.getElementById("contenido").addEventListener("click", (ev) => {
+    if (!document.getElementById("pre-tipos")) return;
+    const m = ev.target.closest("#pre-medida [data-medida]"), de = ev.target.closest("#pre-deuda [data-deuda]");
+    if (m) pre.medida = m.dataset.medida; else if (de) pre.deuda = de.dataset.deuda === "si"; else return;
+    prePintar();
+  });
+  preGrafico("pre-ministerios").on("click", (e) => {
+    const A = d.anios, a = String(A[pre.k]);
+    const items = Object.keys(d.partidas).filter((c) => d.partidas[c].gasto[a]).map((c) => ({ code: c, v: preGasto(c, a) })).filter((x) => x.v > 0);
+    if (pre.deuda) items.push({ code: "deuda", v: preDeuda(a) });
+    const orden = items.sort((x, y) => y.v - x.v), sel = orden[orden.length - 1 - e.dataIndex];
+    if (sel) { pre.code = sel.code; prePintar(); }
+  });
+  prePintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -2080,6 +2289,7 @@ async function render() {
     if (ruta.tema === "laboral") activarLaboral(id, ruta.query);
     if (ruta.tema === "profesionales") activarProfesionales(id, ruta.query);
     if (ruta.tema === "pensiones") activarPensiones(id, ruta.query);
+    if (ruta.tema === "presupuesto") activarPresupuesto(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });
