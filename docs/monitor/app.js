@@ -793,7 +793,8 @@ function htmlPestana(id) {
     : seccion && seccion.tipo === "laboral" ? htmlLaboral()
     : seccion && seccion.tipo === "profesionales" ? htmlProfesionales()
     : seccion && seccion.tipo === "pensiones" ? htmlPensiones()
-    : seccion && seccion.tipo === "presupuesto" ? htmlPresupuesto() : "";
+    : seccion && seccion.tipo === "presupuesto" ? htmlPresupuesto()
+    : seccion && seccion.tipo === "deuda" ? htmlDeuda() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -2240,6 +2241,136 @@ async function activarPresupuesto(idRender, query) {
   prePintar();
 }
 
+// ---------- Deuda pública ----------
+const deu = { datos: null, pre: null, rango: 20, g: {} };
+
+function htmlDeuda() {
+  return `<div class="rejilla" id="deu-kpis"></div>
+  <section class="bloque" id="deuda-bloque" aria-label="Deuda pública">
+    <h2 class="subtitulo" style="margin-top:0">Cuánto debe el Gobierno Central (% del PIB)</h2>
+    <div class="comp-controles"><div class="rangos" id="deu-rango" role="group" aria-label="Período">${[["10 años", 10], ["20 años", 20], ["Todo", "todo"]].map(([e, a]) => `<button type="button" data-rango="${a}">${e}</button>`).join("")}</div></div>
+    <div class="grafico-compuesto" id="deu-gc" style="height:340px" role="img" aria-label="Deuda bruta y neta del Gobierno Central"></div>
+    <p class="callout" id="deu-resumen" hidden></p>
+    <h2 class="subtitulo" style="margin-top:28px">En pesos y en dólares</h2>
+    <div class="grafico-compuesto" id="deu-stock" style="height:300px" role="img" aria-label="Deuda bruta del Gobierno Central en pesos"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Por sector: quién debe</h2>
+    <div class="grafico-compuesto" id="deu-sectores" style="height:300px" role="img" aria-label="Deuda bruta por sector"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Chile frente a otros países</h2>
+    <div class="grafico-compuesto" id="deu-mundo" style="height:620px" role="img" aria-label="Deuda bruta del gobierno por país"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Cuánto se endeuda y cuánto paga el presupuesto cada año</h2>
+    <div class="grafico-compuesto" id="deu-flujo" style="height:300px" role="img" aria-label="Endeudamiento y servicio de la deuda del presupuesto"></div>
+    <details class="glosario"><summary>Cómo leer la deuda</summary><dl>
+      <div><dt>Deuda bruta y neta</dt><dd>La deuda bruta es todo lo que el Estado debe (bonos, créditos). La neta le resta los activos financieros que tiene (por ejemplo, los fondos soberanos y los depósitos del Tesoro): es lo que quedaría debiendo si usara esos ahorros para pagar. Por eso la neta es bastante menor.</dd></div>
+      <div><dt>Gobierno Central y sector público</dt><dd>El Gobierno Central es el fisco: ministerios y organismos del presupuesto. El sector público consolidado suma además a las empresas públicas (Codelco, Metro, ENAP…) y al Banco Central, descontando lo que se deben entre sí. Lo que se compara entre países y se discute en el debate fiscal es la deuda bruta del Gobierno Central.</dd></div>
+      <div><dt>Porcentaje del PIB</dt><dd>La deuda dividida por el PIB nominal de los últimos 4 trimestres. Si el PIB crece más que la deuda, el porcentaje baja aunque la deuda en pesos suba. Una parte de la deuda está en dólares, así que si el dólar sube, la deuda en pesos y el porcentaje aumentan.</dd></div>
+      <div><dt>Límite prudencial</dt><dd>La prensa ha citado un tope prudencial de deuda bruta de 45% del PIB que maneja Hacienda; la línea punteada del gráfico lo muestra como referencia. No es una regla legal.</dd></div>
+      <div><dt>Endeudamiento y servicio de la deuda</dt><dd>En el presupuesto, el «endeudamiento» es el dinero nuevo que el fisco pide prestado en el año y el «servicio de la deuda» lo que paga en intereses y amortizaciones (incluye refinanciar deuda que vence, por eso varía tanto).</dd></div></dl></details>
+    <p class="bloque-nota" id="deu-nota"></p>
+  </section>`;
+}
+
+function deuGrafico(id) {
+  const el = document.getElementById(id);
+  if (!deu.g[id]) {
+    deu.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => deu.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: deu.g[id], observador: o });
+  }
+  return deu.g[id];
+}
+
+function deuPintar() {
+  const d = deu.datos, n = d.fechas.length, ult = n - 1, tip = pobTooltip;
+  const trim = (iso) => { const [y, m] = iso.split("-").map(Number); return `${Math.ceil(m / 3)}T ${y}`; };
+  const desde = deu.rango === "todo" ? 0 : Math.max(0, n - deu.rango * 4);
+  const idx = Array.from({ length: n - desde }, (_, k) => desde + k), par = (arr) => idx.filter((i) => arr[i] !== null).map((i) => [d.fechas[i], arr[i]]);
+  document.querySelectorAll("#deu-rango button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.rango === String(deu.rango))));
+  const ejeX = { type: "time", axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted") } };
+  const ejeY = (fmt) => ({ type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: fmt } });
+  const k12 = Math.max(0, ult - 4), tarj = (nombre, v, nota) => `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${v}</div><div class="tono">${nota}</div></article>`;
+  const dif = (a, b) => `${a - b >= 0 ? "+" : "−"}${numero(Math.abs(a - b), 1)} pp vs. hace 12 meses`;
+  document.getElementById("deu-kpis").innerHTML = [
+    tarj(`Deuda bruta del Gobierno Central · ${trim(d.fechas[ult])}`, `${numero(d.bruta_gc[ult], 1)}% del PIB`, dif(d.bruta_gc[ult], d.bruta_gc[k12])),
+    tarj("En pesos", `$${numero(d.stock_gc[ult] / 1e6, 1)} billones`, `${proFmtPct(proPct(d.stock_gc[ult], d.stock_gc[k12]))} vs. hace 12 meses (nominal)`),
+    tarj("En dólares", `US$${numero(d.usd_gc[ult] / 1000, 1)} mil millones`, "Al dólar observado de fin de trimestre"),
+    tarj("Deuda neta del Gobierno Central", `${numero(d.neta_gc[ult], 1)}% del PIB`, `${dif(d.neta_gc[ult], d.neta_gc[k12])} (descuenta los activos financieros)`),
+    tarj("Deuda bruta del sector público", `${numero(d.bruta_spc[ult], 1)}% del PIB`, "Incluye empresas públicas y Banco Central"),
+    tarj("Margen bajo el límite de 45%", `${numero(45 - d.bruta_gc[ult], 1)} pp`, "Referencia citada por la prensa, no es una regla legal"),
+  ].join("");
+
+  const ref = { silent: true, symbol: "none", lineStyle: { color: "#e5645f", type: "dashed", width: 1.2 }, label: { show: true, formatter: "Límite prudencial 45%", color: css("--muted"), position: "insideStartTop" }, data: [{ yAxis: 45 }] };
+  deuGrafico("deu-gc").setOption({
+    animation: false, grid: { left: 50, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${trim(ps[0].value[0])}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value[1], 1)}% del PIB</b>`).join("<br>")}`),
+    xAxis: ejeX, yAxis: ejeY((v) => `${numero(v, 0)}%`),
+    series: [{ name: "Deuda bruta", type: "line", symbol: "none", lineStyle: { width: 2.6, color: "#7c8ff0" }, areaStyle: { color: "#7c8ff0", opacity: 0.12 }, data: par(d.bruta_gc), markLine: ref },
+      { name: "Deuda neta", type: "line", symbol: "none", lineStyle: { width: 2.2, color: "#5fd38d" }, data: par(d.neta_gc) }],
+  }, true);
+  const max = idx.reduce((m, i) => (d.bruta_gc[i] > d.bruta_gc[m] ? i : m), idx[0]);
+  const r = document.getElementById("deu-resumen"); r.hidden = false;
+  r.textContent = `En ${trim(d.fechas[ult])} la deuda bruta del Gobierno Central fue ${numero(d.bruta_gc[ult], 1)}% del PIB y la neta ${numero(d.neta_gc[ult], 1)}%. En 2006 era solo ${numero(d.bruta_gc[0], 1)}%: subió sobre todo desde 2020 por el gasto de la pandemia y los déficits posteriores. En el período mostrado el máximo fue ${numero(d.bruta_gc[max], 1)}% (${trim(d.fechas[max])}).`;
+
+  deuGrafico("deu-stock").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 20, bottom: 30 },
+    tooltip: tip((ps) => { const i = d.fechas.indexOf(ps[0].value[0]); return `<b>${trim(ps[0].value[0])}</b><br>$${numero(ps[0].value[1] / 1e6, 1)} billones${d.usd_gc[i] ? `<br>US$${numero(d.usd_gc[i] / 1000, 1)} mil millones` : ""}`; }),
+    xAxis: ejeX, yAxis: ejeY((v) => numero(v / 1e6, 0)),
+    series: [{ type: "line", symbol: "none", lineStyle: { width: 2.4, color: css("--accent") }, areaStyle: { color: css("--accent"), opacity: 0.14 }, data: par(d.stock_gc) }],
+  }, true);
+  const sec = [["Gobierno Central", d.bruta_gc, "#7c8ff0"], ["Empresas públicas", d.bruta_emp, "#e8c15a"], ["Banco Central", d.bruta_bc, "#5ec4c4"], ["Sector público consolidado", d.bruta_spc, "#e07a9d"]];
+  deuGrafico("deu-sectores").setOption({
+    animation: false, grid: { left: 50, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${trim(ps[0].value[0])}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value[1], 1)}% del PIB</b>`).join("<br>")}`),
+    xAxis: ejeX, yAxis: ejeY((v) => `${numero(v, 0)}%`),
+    series: sec.map(([nombre, arr, color]) => ({ name: nombre, type: "line", symbol: "none", lineStyle: { width: nombre.startsWith("Sector") ? 2.6 : 2, color, type: nombre.startsWith("Sector") ? "dashed" : "solid" }, itemStyle: { color }, data: par(arr) })),
+  }, true);
+
+  const pa = d.paises;
+  const posChile = pa.findIndex((p) => p.chile) + 1;
+  deuGrafico("deu-mundo").setOption({
+    animation: false, grid: { left: 120, right: 56, top: 8, bottom: 24 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const p = [...pa].reverse()[ps[0].dataIndex]; return `<b>${esc(p.nombre)}</b><br>${numero(p.v, 1)}% del PIB (${p.anio})`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${v}%` } },
+    yAxis: { type: "category", data: [...pa].reverse().map((p) => p.nombre), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted") } },
+    series: [{ type: "bar", barWidth: "70%", label: { show: true, position: "right", color: css("--muted"), formatter: (p) => `${numero(p.value, 0)}%` },
+      data: [...pa].reverse().map((p) => ({ value: p.v, itemStyle: { color: p.chile ? css("--accent") : "#8d9bc4", opacity: p.chile ? 1 : 0.7 } })) }],
+  }, true);
+
+  const P = deu.pre;
+  if (P) {
+    const A = P.anios, ejeC = { type: "category", data: A.map(String), boundaryGap: true, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } };
+    const pct = (a, s) => ((P.nacional[a][s] ?? 0) / P.pib[a]) * 100;
+    deuGrafico("deu-flujo").setOption({
+      animation: false, grid: { left: 50, right: 20, top: 34, bottom: 30 },
+      legend: { top: 0, textStyle: { color: css("--muted") } },
+      tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}% del PIB</b>`).join("<br>")}`),
+      xAxis: ejeC, yAxis: ejeY((v) => `${numero(v, 0)}%`),
+      series: [{ name: "Endeudamiento (deuda nueva)", type: "bar", itemStyle: { color: "#e5645f" }, data: A.map((a) => pct(String(a), "14")) },
+        { name: "Servicio de la deuda (intereses y amortizaciones)", type: "bar", itemStyle: { color: "#7c8ff0" }, data: A.map((a) => pct(String(a), "34")) }],
+    }, true);
+  }
+  document.getElementById("deu-nota").textContent = `Fuente: Banco Central de Chile (cuentas del sector público, trimestral, último dato ${trim(d.fechas[ult])}; comparación internacional anual del Banco Central) y Dipres (endeudamiento y servicio de la deuda del presupuesto). `
+    + `${posChile ? `Entre ${pa.length} países con datos, Chile ocupa el lugar ${posChile} de mayor a menor deuda bruta. ` : ""}`
+    + "La Dipres suele publicar una cifra provisoria del trimestre más reciente antes que el Banco Central. El endeudamiento del presupuesto incluye refinanciamiento, y por eso el servicio de la deuda y el endeudamiento varían tanto entre años.";
+}
+
+async function activarDeuda(idRender, query) {
+  try {
+    if (!deu.datos) deu.datos = await pedirJSON("deuda.json", estado.meta.generado);
+    if (!deu.pre) deu.pre = await pedirJSON("presupuesto.json", estado.meta.generado).catch(() => null);
+  } catch (e) { const c = document.getElementById("deuda-bloque"); if (c) c.textContent = "No se pudieron cargar los datos de deuda."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("deu-gc")) return;
+  deu.g = {};
+  document.getElementById("contenido").addEventListener("click", (ev) => {
+    const r = ev.target.closest("#deu-rango [data-rango]");
+    if (!r || !document.getElementById("deu-gc")) return;
+    deu.rango = r.dataset.rango === "todo" ? "todo" : Number(r.dataset.rango); deuPintar();
+  });
+  deuPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -2290,6 +2421,7 @@ async function render() {
     if (ruta.tema === "profesionales") activarProfesionales(id, ruta.query);
     if (ruta.tema === "pensiones") activarPensiones(id, ruta.query);
     if (ruta.tema === "presupuesto") activarPresupuesto(id, ruta.query);
+    if (ruta.tema === "deuda") activarDeuda(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });

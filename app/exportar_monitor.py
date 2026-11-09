@@ -104,6 +104,9 @@ SECCIONES = [
     {"id": "presupuesto", "nombre": "Presupuesto fiscal", "icono": "landmark", "tipo": "presupuesto",
      "intro": "Cuánto gasta el Estado, en qué y quién lo gasta: el gasto del Gobierno Central por ministerio y por tipo, sus ingresos, y cómo va la ejecución del "
               "presupuesto del año en curso contra lo aprobado en la ley. Son las cifras de la Dirección de Presupuestos (Dipres), desde 2009."},
+    {"id": "deuda", "nombre": "Deuda pública", "icono": "landmark", "tipo": "deuda",
+     "intro": "Cuánto debe el Estado: la deuda bruta y neta del Gobierno Central y del sector público como porcentaje del PIB, en pesos y en dólares, cómo se compara con "
+              "otros países y cuánto se endeuda y paga cada año el presupuesto. Las cifras vienen del Banco Central y de la Dipres."},
     {"id": "pensiones", "nombre": "Fondos de pensiones", "icono": "shield", "tipo": "pensiones",
      "intro": "Cuánto ahorro previsional administran las AFP, cuánto pesa respecto del PIB y cómo se reparte por tipo de fondo y por administradora, comparado con "
               "otros países. Las cifras vienen de la Superintendencia de Pensiones (patrimonio de los fondos), el Banco Central y la OCDE."},
