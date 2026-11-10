@@ -794,7 +794,8 @@ function htmlPestana(id) {
     : seccion && seccion.tipo === "profesionales" ? htmlProfesionales()
     : seccion && seccion.tipo === "pensiones" ? htmlPensiones()
     : seccion && seccion.tipo === "presupuesto" ? htmlPresupuesto()
-    : seccion && seccion.tipo === "deuda" ? htmlDeuda() : "";
+    : seccion && seccion.tipo === "deuda" ? htmlDeuda()
+    : seccion && seccion.tipo === "deficit" ? htmlDeficit() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -2371,6 +2372,109 @@ async function activarDeuda(idRender, query) {
   deuPintar();
 }
 
+// ---------- Déficit fiscal ----------
+const dfc = { datos: null, g: {} };
+
+function htmlDeficit() {
+  return `<div class="rejilla" id="dfc-kpis"></div>
+  <section class="bloque" id="deficit-bloque" aria-label="Déficit fiscal">
+    <h2 class="subtitulo" style="margin-top:0">Balance efectivo y estructural (% del PIB)</h2>
+    <div class="grafico-compuesto" id="dfc-balance" style="height:340px" role="img" aria-label="Balance efectivo y estructural"></div>
+    <p class="callout" id="dfc-resumen" hidden></p>
+    <h2 class="subtitulo" style="margin-top:28px">Ingresos y gastos (% del PIB)</h2>
+    <div class="grafico-compuesto" id="dfc-flujos" style="height:300px" role="img" aria-label="Ingresos y gasto total"></div>
+    <h2 class="subtitulo" style="margin-top:28px" id="dfc-anio-titulo">El año en curso mes a mes</h2>
+    <div class="grafico-compuesto" id="dfc-acum" style="height:320px" role="img" aria-label="Balance acumulado en el año"></div>
+    <details class="glosario"><summary>Cómo leer el déficit</summary><dl>
+      <div><dt>Balance efectivo</dt><dd>Ingresos menos gastos del Gobierno Central en el año, tal como ocurrieron (base devengada). Si es negativo hay déficit y el fisco debe endeudarse para financiarlo; si es positivo, superávit. Incluye el gasto en inversión.</dd></div>
+      <div><dt>Balance estructural</dt><dd>Lo que habría sido el balance si la economía hubiera crecido a su ritmo normal y el cobre hubiera estado a su precio de largo plazo. Quita los efectos pasajeros del ciclo, así que muestra si el gasto es sostenible. Lo calcula la Dipres con un comité de expertos y se revisa cuando cambian las cuentas nacionales, por lo que la cifra del Banco Central puede diferir de la primera estimación que dio a conocer la Dipres.</dd></div>
+      <div><dt>Qué pasó en 2020–2022</dt><dd>En la pandemia el gasto subió a 27% y 32% del PIB (bonos y subsidios de emergencia) y el déficit llegó a 7–8% del PIB. En 2022 hubo superávit por el alto precio del cobre y la alta inflación, mientras el gasto volvía a bajar, y desde entonces el déficit ha vuelto a ~3% del PIB.</dd></div>
+      <div><dt>Cómo se financia</dt><dd>El déficit se cubre con deuda nueva: por eso la deuda bruta del Gobierno Central subió desde 2020. Mira la pestaña «Deuda pública» para ver cuánto debe el fisco.</dd></div>
+      <div><dt>Año en curso</dt><dd>El gráfico mensual acumula el balance desde enero: si la línea de este año está por debajo de la de otros años en el mismo mes, el déficit va mayor. Los ingresos del fisco se concentran en abril (impuesto a la renta), por eso el balance suele mejorar ese mes.</dd></div></dl></details>
+    <p class="bloque-nota" id="dfc-nota"></p>
+  </section>`;
+}
+
+function dfcGrafico(id) {
+  const el = document.getElementById(id);
+  if (!dfc.g[id]) {
+    dfc.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => dfc.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: dfc.g[id], observador: o });
+  }
+  return dfc.g[id];
+}
+
+function dfcPintar() {
+  const d = dfc.datos, tip = pobTooltip;
+  // años completos (12 meses) y sus totales
+  const porAnio = {};
+  d.meses.forEach((f, i) => { const a = f.slice(0, 4); const o = (porAnio[a] ||= { n: 0, ing: 0, gas: 0, bal: 0 }); o.n++; o.ing += d.ingresos[i]; o.gas += d.gasto_total[i]; o.bal += d.balance[i]; });
+  const anios = Object.keys(porAnio).filter((a) => porAnio[a].n === 12 && d.pib[a]).sort();
+  const pct = (a, k) => (porAnio[a][k] / d.pib[a]) * 100, ult = anios[anios.length - 1], prev = anios[anios.length - 2];
+  const ejeC = { type: "category", data: anios, boundaryGap: true, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } };
+  const ejeY = (fmt) => ({ type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: fmt } });
+  const tarj = (nombre, v, nota) => `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${v}</div><div class="tono">${nota}</div></article>`;
+  const bil = (v) => `${v < 0 ? "−" : ""}$${numero(Math.abs(v) / 1e6, 1)} billones`;
+  const est = d.estructural[ult];
+  const mesesAnio = d.meses.map((f, i) => [f, i]).filter(([f]) => f.startsWith(String(Number(ult) + 1)));
+  const acum = mesesAnio.length ? mesesAnio.reduce((s, [, i]) => s + d.balance[i], 0) : null;
+  const acumPrev = mesesAnio.length ? mesesAnio.reduce((s, [f, i]) => s + d.balance[d.meses.indexOf(`${ult}${f.slice(4)}`)], 0) : null;
+  const ultimoMes = mesesAnio.length ? mesesAnio[mesesAnio.length - 1][0] : null;
+  document.getElementById("dfc-kpis").innerHTML = [
+    tarj(`Balance efectivo · ${ult}`, `${numero(pct(ult, "bal"), 1)}% del PIB`, `${bil(porAnio[ult].bal)} (${pct(prev, "bal") >= 0 ? "superávit" : "déficit"} de ${numero(Math.abs(pct(prev, "bal")), 1)}% en ${prev})`),
+    tarj(`Balance estructural · ${ult}`, `${est === undefined ? "—" : `${numero(est, 1)}% del PIB`}`, "Corregido por el ciclo y el precio del cobre (Banco Central)"),
+    tarj(`Ingresos · ${ult}`, `${numero(pct(ult, "ing"), 1)}% del PIB`, bil(porAnio[ult].ing)),
+    tarj(`Gasto total · ${ult}`, `${numero(pct(ult, "gas"), 1)}% del PIB`, bil(porAnio[ult].gas)),
+    acum === null ? "" : tarj(`Balance acumulado ${Number(ult) + 1}`, bil(acum), `a ${MESES[Number(ultimoMes.slice(5, 7)) - 1]} de ${Number(ult) + 1}; en el mismo período de ${ult}: ${bil(acumPrev)}`),
+  ].join("");
+
+  dfcGrafico("dfc-balance").setOption({
+    animation: false, grid: { left: 50, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.filter((p) => p.value !== null && p.value !== undefined).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}% del PIB</b>`).join("<br>")}`),
+    xAxis: ejeC, yAxis: ejeY((v) => `${numero(v, 0)}%`),
+    series: [{ name: "Balance efectivo", type: "bar", itemStyle: { color: (p) => (p.value >= 0 ? "#5fd38d" : "#e5645f") }, data: anios.map((a) => pct(a, "bal")), markLine: { silent: true, symbol: "none", lineStyle: { color: css("--muted"), width: 1 }, label: { show: false }, data: [{ yAxis: 0 }] } },
+      { name: "Balance estructural", type: "line", symbol: "circle", symbolSize: 5, lineStyle: { width: 2.4, color: "#e8c15a" }, itemStyle: { color: "#e8c15a" }, data: anios.map((a) => d.estructural[a] ?? null) }],
+  }, true);
+  const peor = anios.reduce((m, a) => (pct(a, "bal") < pct(m, "bal") ? a : m), anios[0]);
+  const r = document.getElementById("dfc-resumen"); r.hidden = false;
+  r.textContent = `En ${ult} el Gobierno Central tuvo un déficit efectivo de ${numero(Math.abs(pct(ult, "bal")), 1)}% del PIB (${bil(Math.abs(porAnio[ult].bal))}): ingresó ${numero(pct(ult, "ing"), 1)}% del PIB y gastó ${numero(pct(ult, "gas"), 1)}%. El peor año de los mostrados fue ${peor} (${numero(pct(peor, "bal"), 1)}%), por la pandemia, y el único superávit reciente fue ${anios.filter((a) => pct(a, "bal") > 0 && a > "2015").join(", ") || "ninguno"}.`;
+
+  dfcGrafico("dfc-flujos").setOption({
+    animation: false, grid: { left: 50, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}% del PIB</b>`).join("<br>")}`),
+    xAxis: { ...ejeC, boundaryGap: false }, yAxis: { ...ejeY((v) => `${numero(v, 0)}%`), scale: true },
+    series: [{ name: "Ingresos", type: "line", symbol: "none", lineStyle: { width: 2.4, color: "#5fd38d" }, data: anios.map((a) => pct(a, "ing")) },
+      { name: "Gasto total", type: "line", symbol: "none", lineStyle: { width: 2.4, color: "#e5645f" }, data: anios.map((a) => pct(a, "gas")) }],
+  }, true);
+
+  // acumulado mes a mes: año en curso y anteriores
+  const anioCurso = String(Number(ult) + 1), cmp = [anioCurso, ult, String(Number(ult) - 1), String(Number(ult) - 2)].filter((a) => d.meses.some((f) => f.startsWith(a)));
+  const acumulado = (a) => { let s = 0; const v = Array(12).fill(null); d.meses.forEach((f, i) => { if (f.startsWith(a)) { s += d.balance[i]; v[Number(f.slice(5, 7)) - 1] = s; } }); return v; };
+  const colores = ["#7c8ff0", "#e8c15a", "#5ec4c4", "#8892a6"];
+  document.getElementById("dfc-anio-titulo").textContent = `Balance acumulado desde enero: ${anioCurso} contra años anteriores`;
+  dfcGrafico("dfc-acum").setOption({
+    animation: false, grid: { left: 56, right: 20, top: 34, bottom: 30 },
+    legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.filter((p) => p.value !== null && p.value !== undefined).map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${bil(p.value)}</b>`).join("<br>")}`),
+    xAxis: { type: "category", data: MESES, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted") } },
+    yAxis: ejeY((v) => numero(v / 1e6, 0)),
+    series: cmp.map((a, i) => ({ name: a, type: "line", symbol: i === 0 ? "circle" : "none", symbolSize: 5, lineStyle: { width: i === 0 ? 3 : 1.8, color: colores[i] }, itemStyle: { color: colores[i] }, data: acumulado(a) })),
+  }, true);
+  document.getElementById("dfc-nota").textContent = `Fuente: Banco Central de Chile, cuentas del sector público (Gobierno Central total, base devengada, montos en pesos nominales); balance estructural anual del Banco Central. Último dato mensual: ${ultimoMes ? `${MESES[Number(ultimoMes.slice(5, 7)) - 1]} de ${ultimoMes.slice(0, 4)}` : ult}. `
+    + "Los porcentajes del PIB usan el PIB nominal de cada año. Solo se muestran años con los 12 meses disponibles. El balance de 2025 coincide con el que informó la Dipres ($9,5 billones de déficit). El gasto total incluye la inversión.";
+}
+
+async function activarDeficit(idRender, query) {
+  try { if (!dfc.datos) dfc.datos = await pedirJSON("balance.json", estado.meta.generado); }
+  catch (e) { const c = document.getElementById("deficit-bloque"); if (c) c.textContent = "No se pudieron cargar los datos del balance fiscal."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("dfc-balance")) return;
+  dfc.g = {};
+  dfcPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -2422,6 +2526,7 @@ async function render() {
     if (ruta.tema === "pensiones") activarPensiones(id, ruta.query);
     if (ruta.tema === "presupuesto") activarPresupuesto(id, ruta.query);
     if (ruta.tema === "deuda") activarDeuda(id, ruta.query);
+    if (ruta.tema === "deficit") activarDeficit(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });

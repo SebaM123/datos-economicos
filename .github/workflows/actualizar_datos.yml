@@ -72,6 +72,14 @@ jobs:
         run: python fetch_laboral.py
         working-directory: data_pipeline
 
+      - name: Traer balance fiscal (Banco Central)
+        continue-on-error: true
+        env:
+          BCCH_USER: ${{ secrets.BCCH_USER }}
+          BCCH_PASSWORD: ${{ secrets.BCCH_PASSWORD }}
+        run: python fetch_balance.py
+        working-directory: data_pipeline
+
       - name: Traer deuda pública (Banco Central)
         continue-on-error: true
         env:
