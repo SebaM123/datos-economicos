@@ -104,6 +104,10 @@ SECCIONES = [
     {"id": "presupuesto", "nombre": "Presupuesto fiscal", "icono": "landmark", "tipo": "presupuesto",
      "intro": "Cuánto gasta el Estado, en qué y quién lo gasta: el gasto del Gobierno Central por ministerio y por tipo, sus ingresos, y cómo va la ejecución del "
               "presupuesto del año en curso contra lo aprobado en la ley. Son las cifras de la Dirección de Presupuestos (Dipres), desde 2009."},
+    {"id": "mip", "nombre": "Insumo-producto", "icono": "scale", "tipo": "mip",
+     "intro": "Cómo se conecta la economía: quién le compra y le vende a quién. Con las matrices insumo-producto del Banco Central (2008-2023, 111 actividades) se miden los "
+              "encadenamientos y multiplicadores de cada sector, cuánto valor agregado del país depende de las exportaciones de cobre y de la cadena forestal, y se puede simular "
+              "qué pasa en toda la economía si cambia la demanda por un sector."},
     {"id": "deficit", "nombre": "Déficit fiscal", "icono": "landmark", "tipo": "deficit",
      "intro": "Cuánto más gasta que lo que recauda el Gobierno Central: el balance efectivo (lo que realmente pasó) y el balance estructural (corregido por el ciclo "
               "económico y el precio del cobre), los ingresos y gastos como porcentaje del PIB, y cómo va el año en curso contra años anteriores. Cifras del Banco Central."},

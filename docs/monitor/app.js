@@ -795,7 +795,8 @@ function htmlPestana(id) {
     : seccion && seccion.tipo === "pensiones" ? htmlPensiones()
     : seccion && seccion.tipo === "presupuesto" ? htmlPresupuesto()
     : seccion && seccion.tipo === "deuda" ? htmlDeuda()
-    : seccion && seccion.tipo === "deficit" ? htmlDeficit() : "";
+    : seccion && seccion.tipo === "deficit" ? htmlDeficit()
+    : seccion && seccion.tipo === "mip" ? htmlMip() : "";
   return `${cabecera}${tarjetas}${htmlBloquesGraficos(entrada.graficos)}${masIndicadores}${extra}`;
 }
 
@@ -2475,6 +2476,234 @@ async function activarDeficit(idRender, query) {
   dfcPintar();
 }
 
+// ---------- Insumo-producto (MIP) ----------
+const MIP_METRICAS = [["mult_x", "Producción", "veces"], ["mult_va", "Valor agregado", "$ por $1 de demanda"], ["mult_rem", "Remuneraciones", "$ por $1 de demanda"], ["mult_imp", "Importaciones", "$ por $1 de demanda"]];
+const MIP_FOCOS = [["cobre", "Cobre", "#e8a33a"], ["forestal", "Cadena forestal", "#5fd38d"]];
+const MIP_SECTORES_FOCO = { cobre: [15], forestal: [10, 39, 40, 41, 42, 43] };
+const MIP_DEMANDAS = [["exportaciones", "Exportaciones"], ["hogares", "Consumo de hogares"], ["gobierno", "Consumo del gobierno"], ["fbcf", "Inversión (FBCF)"], ["otros", "Otros"]];
+const mip = { datos: null, k: null, nivel: "111", metrica: "mult_x", foco: "cobre", sector: 15, simAnio: 2023, simDem: "exportaciones", simSector: 15, simPct: -10, L: {}, g: {} };
+
+const mipLeontief = (anio) => {
+  if (mip.L[anio]) return mip.L[anio];
+  const A = mip.datos.sim[anio].A, n = A.length, M = A.map((fila, i) => [...fila.map((v, j) => (i === j ? 1 : 0) - v), ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < n; c++) {   // Gauss-Jordan
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    const d = M[c][c]; for (let j = 0; j < 2 * n; j++) M[c][j] /= d;
+    for (let r = 0; r < n; r++) if (r !== c && M[r][c] !== 0) { const f = M[r][c]; for (let j = 0; j < 2 * n; j++) M[r][j] -= f * M[c][j]; }
+  }
+  return (mip.L[anio] = M.map((fila) => fila.slice(n)));
+};
+const mipNombre = (c) => mip.datos.sectores[c - 1].n;
+const mipColor = (i) => PRO_COLORES[i % PRO_COLORES.length];
+
+function htmlMip() {
+  const btn = (attr, items) => items.map(([id, etq]) => `<button type="button" data-${attr}="${id}">${etq}</button>`).join("");
+  return `<div class="comp-controles"><div class="pob-slider"><label for="mip-anio">Año: <b id="mip-anio-txt"></b></label><input type="range" id="mip-anio" aria-label="Año"></div>
+      <div class="rangos" id="mip-nivel" role="group" aria-label="Nivel de detalle">${btn("nivel", [["111", "111 actividades"], ["12", "12 sectores"]])}</div></div>
+    <div class="rejilla" id="mip-kpis"></div>
+  <details class="glosario" open><summary>Qué es una matriz insumo-producto y cómo leerla</summary><dl>
+    <div><dt>La matriz</dt><dd>Registra, para cada actividad económica, cuánto compra de cada una de las demás para producir (consumo intermedio) y cuánto vende a los hogares, el gobierno, la inversión y el exterior (demanda final). Lo que sobra después de pagar los insumos es el valor agregado (sueldos y excedentes), que es el PIB.</dd></div>
+    <div><dt>Inversa de Leontief y multiplicadores</dt><dd>Si el sector A compra insumos al B, y el B al C, producir una unidad más para el consumidor final genera producción en toda la cadena. La inversa de Leontief suma todas esas vueltas. El <b>multiplicador de producción</b> de un sector es cuánta producción total (en todos los sectores) se genera por cada $1 de demanda final por sus productos; el de <b>valor agregado</b>, cuánto PIB se genera; el de <b>importaciones</b>, cuánto se filtra al exterior.</dd></div>
+    <div><dt>Encadenamientos</dt><dd>Hacia atrás: cuánto arrastra un sector a sus proveedores al crecer (se mide con su multiplicador). Hacia adelante: cuánto lo necesitan los demás sectores como insumo. Valores sobre 1 son mayores al promedio de la economía. Un sector con ambos sobre 1 es «clave»: arrastra y es arrastrado.</dd></div>
+    <div><dt>Qué no hace el modelo</dt><dd>Es estático: supone que los coeficientes no cambian (cada sector usa siempre la misma receta de insumos), que no hay restricciones de capacidad ni cambios de precios, y que los insumos importados no se sustituyen por nacionales. Sirve para dimensionar efectos, no para pronosticar.</dd></div>
+    <div><dt>Datos y cambios de base</dt><dd>El Banco Central publica una matriz por año, pero en tres compilaciones de cuentas nacionales (base 2008 hasta 2012, base 2013 de 2013 a 2017 y base 2018 desde 2018). Al cambiar de base se revisan las cifras y los multiplicadores de 2013 difieren en promedio ~7% entre una y otra (la correlación entre sectores es de 0,77), así que los saltos entre 2012-2013 y 2017-2018 pueden ser en parte cambios metodológicos.</dd></div></dl></details>
+  <section class="bloque" id="mip-bloque" aria-label="Insumo-producto">
+    <h2 class="subtitulo" style="margin-top:0">Encadenamientos: quién arrastra y quién es arrastrado</h2>
+    <p class="bloque-nota" style="margin-top:0">Cada punto es una actividad; el tamaño es su producción. El cobre y la cadena forestal aparecen destacados.</p>
+    <div class="grafico-compuesto" id="mip-dispersion" style="height:520px" role="img" aria-label="Encadenamientos hacia atrás y hacia adelante"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Multiplicadores por sector</h2>
+    <div class="comp-controles"><div class="rangos" id="mip-metrica" role="group" aria-label="Qué multiplicador">${btn("metrica", MIP_METRICAS.map((m) => [m[0], m[1]]))}</div></div>
+    <div class="grafico-compuesto" id="mip-ranking" style="height:640px" role="img" aria-label="Multiplicadores por sector"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Foco: cobre y cadena forestal</h2>
+    <div class="comp-controles"><div class="rangos" id="mip-foco" role="group" aria-label="Foco">${btn("foco", MIP_FOCOS.map((f) => [f[0], f[1]]))}</div></div>
+    <p class="callout" id="mip-foco-resumen" hidden></p>
+    <div class="grafico-compuesto" id="mip-foco-tiempo" style="height:300px" role="img" aria-label="Valor agregado del país asociado a las exportaciones"></div>
+    <div class="grafico-compuesto" id="mip-foco-unidad" style="height:300px;margin-top:14px" role="img" aria-label="De cada peso exportado"></div>
+    <div class="grafico-compuesto" id="mip-foco-sectores" style="height:340px;margin-top:14px" role="img" aria-label="Valor agregado por sector asociado a las exportaciones"></div>
+    <div class="comp-controles" style="margin-top:14px"><span class="pob-etq">Actividad:</span><div class="rangos" id="mip-sector" role="group" aria-label="Actividad"></div></div>
+    <div class="tabla-ancha" id="mip-detalle"></div>
+    <h2 class="subtitulo" style="margin-top:28px">Simulador: ¿qué pasa si cambia la demanda?</h2>
+    <p class="bloque-nota" style="margin-top:0">Elige qué cambia (por ejemplo, las exportaciones de la minería del cobre) y en cuánto. El modelo calcula el efecto en la producción, el valor agregado, las remuneraciones y las importaciones de toda la economía.</p>
+    <div class="comp-controles" id="mip-sim-ctrl">
+      <label class="pob-etq">Año de la estructura <select id="mip-sim-anio" class="buscador-chico" style="flex:0 0 auto;max-width:110px">${[2008, 2013, 2018, 2023].map((a) => `<option value="${a}">${a}</option>`).join("")}</select></label>
+      <label class="pob-etq">Qué cambia <select id="mip-sim-dem" class="buscador-chico" style="flex:0 0 auto;max-width:210px">${MIP_DEMANDAS.map(([id, e]) => `<option value="${id}">${e}</option>`).join("")}</select></label>
+      <label class="pob-etq">Actividad <select id="mip-sim-sector" class="buscador-chico" style="flex:0 1 330px;max-width:330px"></select></label>
+    </div>
+    <div class="comp-controles"><div class="pob-slider"><label for="mip-sim-pct">Cambio: <b id="mip-sim-pct-txt"></b></label><input type="range" id="mip-sim-pct" min="-50" max="50" step="1" aria-label="Cambio porcentual"></div></div>
+    <div class="rejilla" id="mip-sim-kpis"></div>
+    <div class="grafico-compuesto" id="mip-sim-sectores" style="height:420px" role="img" aria-label="Sectores más afectados"></div>
+    <p class="bloque-nota" id="mip-nota"></p>
+  </section>`;
+}
+
+function mipGrafico(id) {
+  const el = document.getElementById(id);
+  if (!mip.g[id]) {
+    mip.g[id] = echarts.init(el, null, { renderer: "canvas" });
+    const o = new ResizeObserver(() => mip.g[id].resize()); o.observe(el);
+    estado.graficos.push({ grafico: mip.g[id], observador: o });
+  }
+  return mip.g[id];
+}
+
+function mipPintar() {
+  const d = mip.datos, k = mip.k, A = d.anios, anio = A[k], tip = pobTooltip, n12 = mip.nivel === "12";
+  document.getElementById("mip-anio").value = anio;
+  document.getElementById("mip-anio-txt").textContent = `${anio} (base ${d.bases[k]})`;
+  const marca = (sel, attr, v) => document.querySelectorAll(sel).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[attr] === v)));
+  marca("#mip-nivel button", "nivel", mip.nivel); marca("#mip-metrica button", "metrica", mip.metrica); marca("#mip-foco button", "foco", mip.foco);
+  const S = n12 ? d.serie12 : d.serie, nombres = n12 ? d.s12 : d.sectores.map((s) => s.n), sec12 = d.sectores.map((s) => s.s12);
+  const focoDe = (i) => (MIP_SECTORES_FOCO.cobre.includes(i + 1) ? "cobre" : MIP_SECTORES_FOCO.forestal.includes(i + 1) ? "forestal" : null);
+
+  // tarjetas del año
+  const fc = (f) => d.focos[f].anios[k];
+  const tarj = (nombre, v, nota) => `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${v}</div><div class="tono">${nota}</div></article>`;
+  document.getElementById("mip-kpis").innerHTML = [
+    tarj(`Multiplicador de producción: minería del cobre · ${anio}`, numero(d.serie.mult_x[k][14], 2), "Cada $1 de demanda final por cobre genera este monto de producción en toda la economía"),
+    tarj("Multiplicador de producción: celulosa", numero(d.serie.mult_x[k][40], 2), "Silvicultura, madera y papel arrastran más"),
+    tarj("Valor agregado del país ligado al cobre", `${numero(fc("cobre").pct_va_pais, 1)}%`, `directo e indirecto, por las exportaciones de la minería del cobre (${numero(fc("cobre").pct_exportaciones, 0)}% de las exportaciones)`),
+    tarj("Valor agregado del país ligado a la cadena forestal", `${numero(fc("forestal").pct_va_pais, 1)}%`, `por las exportaciones forestales (${numero(fc("forestal").pct_exportaciones, 0)}% de las exportaciones)`),
+  ].join("");
+
+  // dispersión de encadenamientos
+  const grupos = nombres.map((_, i) => i);
+  const punto = (i) => ({ value: [S.bl[k][i], S.fl[k][i]], i, x: S.x[k][i] });
+  const grande = Math.max(...S.x[k]);
+  const tamano = (x) => Math.max(6, Math.sqrt(x / grande) * (n12 ? 46 : 34));
+  const series = n12
+    ? [{ name: "Sectores", type: "scatter", data: grupos.map(punto), symbolSize: (v, p) => tamano(p.data.x), itemStyle: { color: "#7c8ff0", opacity: 0.75 }, label: { show: true, formatter: (p) => nombres[p.data.i].split(/[ ,(]/)[0], color: css("--muted"), position: "right", fontSize: 11 }, markLine: { silent: true, symbol: "none", lineStyle: { color: css("--muted"), type: "dashed" }, label: { show: false }, data: [{ xAxis: 1 }, { yAxis: 1 }] } }]
+    : [{ name: "Resto", type: "scatter", data: grupos.filter((i) => !focoDe(i)).map(punto), symbolSize: (v, p) => tamano(p.data.x), itemStyle: { color: "#8d9bc4", opacity: 0.55 }, markLine: { silent: true, symbol: "none", lineStyle: { color: css("--muted"), type: "dashed" }, label: { show: false }, data: [{ xAxis: 1 }, { yAxis: 1 }] } },
+      ...MIP_FOCOS.map(([f, nm, color]) => ({ name: nm, type: "scatter", data: grupos.filter((i) => focoDe(i) === f).map(punto), symbolSize: (v, p) => tamano(p.data.x) + 4, itemStyle: { color, opacity: 0.95, borderColor: css("--text"), borderWidth: 1.2 },
+        label: { show: true, formatter: (p) => nombres[p.data.i].replace(/^Fabricación de /, "").slice(0, 26), color: css("--text"), position: "right", fontSize: 11 } }))];
+  mipGrafico("mip-dispersion").setOption({
+    animation: false, grid: { left: 56, right: 30, top: 34, bottom: 46 }, legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: { trigger: "item", confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (p) => { const i = p.data.i; return `<b>${esc(nombres[i])}</b><br>Encadenamiento hacia atrás: ${numero(S.bl[k][i], 2)}<br>Hacia adelante: ${numero(S.fl[k][i], 2)}<br>Producción: $${numero(S.x[k][i] / 1e3, 1)} billones<br>Multiplicador de producción: ${numero(S.mult_x[k][i], 2)}`; } },
+    xAxis: { type: "value", name: "Encadenamiento hacia atrás (arrastra a sus proveedores)", nameLocation: "middle", nameGap: 28, nameTextStyle: { color: css("--muted") }, scale: true, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted") } },
+    yAxis: { type: "value", name: "Hacia adelante (lo usan otros)", nameTextStyle: { color: css("--muted") }, scale: true, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted") } },
+    series,
+  }, true);
+
+  // ranking de multiplicadores
+  const m = MIP_METRICAS.find((x) => x[0] === mip.metrica), val = S[mip.metrica][k];
+  let orden = grupos.map((i) => ({ i, v: val[i] })).sort((a, b) => b.v - a.v);
+  if (!n12) orden = orden.slice(0, 25);
+  const ro = [...orden].reverse();
+  const nProm = val.reduce((s, v) => s + v, 0) / val.length;
+  document.getElementById("mip-ranking").style.height = `${Math.max(340, ro.length * 22 + 50)}px`; mipGrafico("mip-ranking").resize();
+  mipGrafico("mip-ranking").setOption({
+    animation: false, grid: { left: 250, right: 56, top: 8, bottom: 24 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const x = ro[ps[0].dataIndex]; return `<b>${esc(nombres[x.i])}</b><br>${m[1]}: ${numero(x.v, 2)} (promedio ${numero(nProm, 2)})`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted") } },
+    yAxis: { type: "category", data: ro.map((x) => nombres[x.i]), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted"), width: 240, overflow: "truncate" } },
+    series: [{ type: "bar", barWidth: "68%", label: { show: true, position: "right", color: css("--muted"), formatter: (p) => numero(p.value, 2) },
+      data: ro.map((x) => ({ value: x.v, itemStyle: { color: n12 ? "#7c8ff0" : focoDe(x.i) === "cobre" ? MIP_FOCOS[0][2] : focoDe(x.i) === "forestal" ? MIP_FOCOS[1][2] : "#8d9bc4", opacity: n12 || focoDe(x.i) ? 1 : 0.75 } })) }],
+  }, true);
+
+  // foco: cobre o forestal
+  const f = mip.foco, fn = MIP_FOCOS.find((x) => x[0] === f), fa = d.focos[f].anios, fk = fa[k];
+  const r = document.getElementById("mip-foco-resumen"); r.hidden = false;
+  r.textContent = `En ${anio}, las exportaciones de ${f === "cobre" ? "la minería del cobre" : "la cadena forestal (silvicultura, aserrado, madera, celulosa y papel)"} fueron $${numero(fk.exportaciones / 1e3, 1)} billones, el ${numero(fk.pct_exportaciones, 0)}% de las exportaciones del país. `
+    + `Directa e indirectamente sostuvieron ${numero(fk.pct_va_pais, 1)}% del valor agregado del país y ${numero(fk.pct_rem_pais, 1)}% de las remuneraciones. De cada $1 exportado, $${numero(fk.va_por_unidad, 2)} quedan como valor agregado nacional ($${numero(fk.va_directo_por_unidad, 2)} en el propio sector y $${numero(fk.va_por_unidad - fk.va_directo_por_unidad, 2)} en sus proveedores) y $${numero(fk.imp_por_unidad, 2)} corresponden a insumos importados. `
+    + `Por cada $1 exportado se genera $${numero(fk.arrastre, 2)} de producción en toda la economía.`;
+  const ejeA = { type: "category", data: A.map(String), boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: css("--border-fuerte") } }, axisLabel: { color: css("--muted"), hideOverlap: true } };
+  const lineaK = { silent: true, symbol: "none", lineStyle: { color: css("--text"), type: "dashed", width: 1.2 }, label: { show: false }, data: [{ xAxis: String(anio) }] };
+  const baseMarks = d.bases.map((b, i) => (i > 0 && b !== d.bases[i - 1] ? { xAxis: String(A[i]), lineStyle: { color: css("--muted"), type: "dotted", width: 1 }, label: { show: true, formatter: `base ${b}`, color: css("--muted"), fontSize: 10, position: "insideEndTop" } } : null)).filter(Boolean);
+  mipGrafico("mip-foco-tiempo").setOption({
+    animation: false, grid: { left: 46, right: 20, top: 34, bottom: 30 }, legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b><br>${ps.map((p) => `${p.marker} ${esc(p.seriesName)}: <b>${numero(p.value, 1)}% del valor agregado</b>`).join("<br>")}`),
+    xAxis: ejeA, yAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `${numero(v, 0)}%` } },
+    series: MIP_FOCOS.map(([ff, nm, color], i) => ({ name: `Exportaciones de ${nm.toLowerCase()}`, type: "line", symbol: "circle", symbolSize: 4, lineStyle: { width: 2.4, color }, itemStyle: { color }, data: d.focos[ff].anios.map((x) => x.pct_va_pais), ...(i === 0 ? { markLine: { silent: true, symbol: "none", label: { show: true }, data: [{ xAxis: String(anio), lineStyle: { color: css("--text"), type: "dashed" }, label: { show: false } }, ...baseMarks] } } : {}) })),
+  }, true);
+  mipGrafico("mip-foco-unidad").setOption({
+    animation: false, grid: { left: 46, right: 20, top: 34, bottom: 30 }, legend: { top: 0, textStyle: { color: css("--muted") } },
+    tooltip: tip((ps) => `<b>${ps[0].axisValue}</b> · de cada $1 exportado (${fn[1]})<br>${[...ps].reverse().map((p) => `${p.marker} ${esc(p.seriesName)}: <b>$${numero(p.value, 2)}</b>`).join("<br>")}`),
+    xAxis: { ...ejeA, boundaryGap: true }, yAxis: { type: "value", max: 1, splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => `$${numero(v, 1)}` } },
+    series: [{ name: "Valor agregado en el propio sector", type: "bar", stack: "t", itemStyle: { color: fn[2] }, data: fa.map((x) => x.va_directo_por_unidad), markLine: lineaK },
+      { name: "Valor agregado en sus proveedores", type: "bar", stack: "t", itemStyle: { color: "#7c8ff0" }, data: fa.map((x) => x.va_por_unidad - x.va_directo_por_unidad) },
+      { name: "Insumos importados", type: "bar", stack: "t", itemStyle: { color: "#8892a6" }, data: fa.map((x) => x.imp_por_unidad) }],
+  }, true);
+  const v12 = fk.va_por_sector12, o12 = v12.map((v, i) => ({ i, v })).sort((a, b) => b.v - a.v), ro12 = [...o12].reverse();
+  mipGrafico("mip-foco-sectores").setOption({
+    animation: false, grid: { left: 230, right: 60, top: 26, bottom: 24 }, title: { text: `Quién se beneficia: valor agregado generado por las exportaciones (${anio})`, textStyle: { color: css("--muted"), fontSize: 12, fontWeight: 500 }, left: 0 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const x = ro12[ps[0].dataIndex]; return `<b>${esc(d.s12[x.i])}</b><br>$${numero(x.v / 1e3, 2)} billones (${numero((x.v / fk.va_total) * 100, 0)}% del total)`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => numero(v / 1e3, 0) } },
+    yAxis: { type: "category", data: ro12.map((x) => d.s12[x.i]), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted"), width: 220, overflow: "truncate" } },
+    series: [{ type: "bar", barWidth: "66%", itemStyle: { color: fn[2] }, label: { show: true, position: "right", color: css("--muted"), formatter: (p) => `${numero((p.value / fk.va_total) * 100, 0)}%` }, data: ro12.map((x) => x.v) }],
+  }, true);
+
+  // proveedores y clientes de la actividad elegida
+  const secs = MIP_SECTORES_FOCO[f];
+  if (!secs.includes(mip.sector)) mip.sector = secs[0];
+  document.getElementById("mip-sector").innerHTML = secs.map((c) => `<button type="button" data-sector="${c}" aria-pressed="${c === mip.sector}">${esc(mipNombre(c).replace(/^Fabricación de /, ""))}</button>`).join("");
+  const det = d.detalle[String(mip.sector)] || {}, ys = Object.keys(det).sort();
+  const lista = (arr, fmt) => arr.map(([c, v]) => `<li>${esc(mipNombre(c))} <b>${fmt(v)}</b></li>`).join("");
+  document.getElementById("mip-detalle").innerHTML = `<h3 class="subtitulo" style="font-size:1.05rem;margin:6px 0 8px">${esc(mipNombre(mip.sector))}: de quién compra y a quién vende</h3>
+    <div class="mip-cols">${ys.map((y) => `<div class="mip-col"><b>${y}</b>
+      <div class="mip-tit">Compra más a (por cada $1 que produce)</div><ul>${lista(det[y].compra, (v) => `$${numero(v, 3)}`)}</ul>
+      <div class="mip-tit">Le vende más a (% de su producción)</div><ul>${lista(det[y].vende, (v) => `${numero(v * 100, 1)}%`)}</ul></div>`).join("")}</div>`;
+
+  mipSimular();
+  document.getElementById("mip-nota").textContent = `Fuente: Banco Central de Chile, matrices insumo-producto anuales 2008-2023 (producción nacional a precio básico, 111 actividades; los 12 sectores son agrupaciones propias de las 111 para que sean comparables entre años), cálculo propio. Montos en miles de millones de pesos corrientes de cada año. `
+    + `Las bases de 2008, 2013 y 2018 son distintas compilaciones de las cuentas nacionales; en 2013, año en que hay dos versiones, los multiplicadores de producción difieren en promedio ${numero(d.quiebre_base.mult_x_dif_prom_rel * 100, 0)}% entre ellas (correlación de ${numero(d.quiebre_base.correlacion_mult_x, 2)} entre sectores). `
+    + "El «valor agregado ligado a las exportaciones» suma el generado en el propio sector exportador y en sus proveedores nacionales, directos e indirectos, y no incluye el efecto de gasto que generan esos ingresos (consumo e inversión inducidos).";
+}
+
+function mipSimular() {
+  const d = mip.datos, s = d.sim[mip.simAnio], L = mipLeontief(String(mip.simAnio)), j = mip.simSector - 1, pct = mip.simPct / 100;
+  document.getElementById("mip-sim-pct-txt").textContent = `${mip.simPct > 0 ? "+" : ""}${mip.simPct}%`;
+  document.getElementById("mip-sim-pct").value = mip.simPct;
+  const base = s.fd[mip.simDem][j], dfd = base * pct;
+  const dx = L.map((fila) => fila[j] * dfd), dva = dx.map((v, i) => v * s.v[i]), drem = dx.map((v, i) => v * s.r[i]), dimp = dx.map((v, i) => v * s.m[i]);
+  const suma = (a) => a.reduce((t, v) => t + v, 0), xTot = suma(s.x), vaTot = suma(s.x.map((x, i) => x * s.v[i])), remTot = suma(s.x.map((x, i) => x * s.r[i]));
+  const bil = (v) => `${v < 0 ? "−" : v > 0 ? "+" : ""}$${numero(Math.abs(v) / 1e3, 2)} billones`;
+  const tarj = (nombre, v, nota) => `<article class="tarjeta"><div class="indicador">${nombre}</div><div class="valor num">${v}</div><div class="tono">${nota}</div></article>`;
+  document.getElementById("mip-sim-kpis").innerHTML = [
+    tarj("Cambio inicial de la demanda", bil(dfd), `${MIP_DEMANDAS.find((x) => x[0] === mip.simDem)[1].toLowerCase()} de ${mipNombre(mip.simSector).toLowerCase()} (${mip.simAnio}: $${numero(base / 1e3, 2)} billones)`),
+    tarj("Producción total", bil(suma(dx)), `${numero((suma(dx) / xTot) * 100, 2)}% de la producción del país; multiplicador ${numero(dfd ? suma(dx) / dfd : 0, 2)}`),
+    tarj("Valor agregado (PIB)", bil(suma(dva)), `${numero((suma(dva) / vaTot) * 100, 2)}% del valor agregado total`),
+    tarj("Remuneraciones", bil(suma(drem)), `${numero((suma(drem) / remTot) * 100, 2)}% del total de remuneraciones`),
+    tarj("Importaciones de insumos", bil(suma(dimp)), "Se filtran al exterior"),
+  ].join("");
+  const o = dva.map((v, i) => ({ i, v })).sort((a, b) => Math.abs(b.v) - Math.abs(a.v)).slice(0, 14), ro = [...o].reverse();
+  mipGrafico("mip-sim-sectores").setOption({
+    animation: false, grid: { left: 250, right: 70, top: 26, bottom: 24 }, title: { text: "Sectores más afectados (cambio en el valor agregado, billones de pesos)", textStyle: { color: css("--muted"), fontSize: 12, fontWeight: 500 }, left: 0 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, confine: true, backgroundColor: css("--card-2"), borderColor: css("--border-fuerte"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (ps) => { const x = ro[ps[0].dataIndex]; return `<b>${esc(mipNombre(x.i + 1))}</b><br>Producción ${bil(dx[x.i])}<br>Valor agregado ${bil(x.v)}`; } },
+    xAxis: { type: "value", splitLine: { lineStyle: { color: css("--border") } }, axisLabel: { color: css("--muted"), formatter: (v) => numero(v / 1e3, 1) } },
+    yAxis: { type: "category", data: ro.map((x) => mipNombre(x.i + 1)), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: css("--muted"), width: 240, overflow: "truncate" } },
+    series: [{ type: "bar", barWidth: "66%", label: { show: true, position: "right", color: css("--muted"), formatter: (p) => numero(p.value / 1e3, 2) }, data: ro.map((x) => ({ value: x.v, itemStyle: { color: x.i === j ? css("--accent") : x.v >= 0 ? "#5fd38d" : "#e5645f" } })) }],
+  }, true);
+}
+
+async function activarMip(idRender, query) {
+  try { if (!mip.datos) mip.datos = await pedirJSON("mip.json", estado.meta.generado); }
+  catch (e) { const c = document.getElementById("mip-bloque"); if (c) c.textContent = "No se pudieron cargar los datos de insumo-producto."; return; }
+  if (idRender !== estado.renderId || !document.getElementById("mip-dispersion")) return;
+  mip.g = {};
+  const d = mip.datos, rango = document.getElementById("mip-anio");
+  rango.min = d.anios[0]; rango.max = d.anios[d.anios.length - 1]; rango.step = 1;
+  if (mip.k === null) mip.k = d.anios.length - 1;
+  const sel = document.getElementById("mip-sim-sector");
+  sel.innerHTML = d.sectores.map((s) => `<option value="${s.c}">${s.c}. ${esc(s.n)}</option>`).join(""); sel.value = String(mip.simSector);
+  document.getElementById("mip-sim-anio").value = String(mip.simAnio); document.getElementById("mip-sim-dem").value = mip.simDem;
+  rango.addEventListener("input", () => { mip.k = d.anios.indexOf(Number(rango.value)); mipPintar(); });
+  document.getElementById("mip-sim-pct").addEventListener("input", (ev) => { mip.simPct = Number(ev.target.value); mipSimular(); });
+  document.getElementById("mip-sim-anio").addEventListener("change", (ev) => { mip.simAnio = Number(ev.target.value); mipSimular(); });
+  document.getElementById("mip-sim-dem").addEventListener("change", (ev) => { mip.simDem = ev.target.value; mipSimular(); });
+  sel.addEventListener("change", (ev) => { mip.simSector = Number(ev.target.value); mipSimular(); });
+  document.getElementById("contenido").addEventListener("click", (ev) => {
+    if (!document.getElementById("mip-dispersion")) return;
+    const nv = ev.target.closest("#mip-nivel [data-nivel]"), me = ev.target.closest("#mip-metrica [data-metrica]"), fo = ev.target.closest("#mip-foco [data-foco]"), se = ev.target.closest("#mip-sector [data-sector]");
+    if (nv) mip.nivel = nv.dataset.nivel; else if (me) mip.metrica = me.dataset.metrica; else if (fo) mip.foco = fo.dataset.foco; else if (se) mip.sector = Number(se.dataset.sector); else return;
+    mipPintar();
+  });
+  mipPintar();
+}
+
 // ---------- Render ----------
 function rutaActual() {
   const [camino, query] = location.hash.replace(/^#\/?/, "").split("?");
@@ -2527,6 +2756,7 @@ async function render() {
     if (ruta.tema === "presupuesto") activarPresupuesto(id, ruta.query);
     if (ruta.tema === "deuda") activarDeuda(id, ruta.query);
     if (ruta.tema === "deficit") activarDeficit(id, ruta.query);
+    if (ruta.tema === "mip") activarMip(id, ruta.query);
     Promise.all([activarCompuestos(id), activarRevisiones(id)]).then(() => {
       if (ruta.grafico && id === estado.renderId) document.getElementById(`g-${ruta.grafico}`)?.scrollIntoView({ block: "start" });
     });
