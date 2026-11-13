@@ -3608,6 +3608,7 @@ fecha,serie,valor
 2026-11-10,cobre_precio,6.3334
 2026-11-11,cobre_precio,6.383
 2026-11-12,cobre_precio,6.255
+2026-11-13,cobre_precio,6.3007
 1960-01-01,cobre_precio_promedio,0.325
 1960-02-01,cobre_precio_promedio,0.33
 1960-03-01,cobre_precio_promedio,0.317
@@ -9011,6 +9012,7 @@ fecha,serie,valor
 2026-11-10,dolar_observado,969.8
 2026-11-11,dolar_observado,977.05
 2026-11-12,dolar_observado,984.49
+2026-11-13,dolar_observado,992.48
 2024-01-01,eee_pib_actual,2.4
 2024-02-01,eee_pib_actual,2.2
 2024-03-01,eee_pib_actual,2.2
@@ -14006,6 +14008,7 @@ fecha,serie,valor
 2026-11-10,eeuu_fed_limite_inferior,3.75
 2026-11-11,eeuu_fed_limite_inferior,3.75
 2026-11-12,eeuu_fed_limite_inferior,3.75
+2026-11-13,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18340,6 +18343,7 @@ fecha,serie,valor
 2026-11-10,eeuu_fed_limite_superior,4.0
 2026-11-11,eeuu_fed_limite_superior,4.0
 2026-11-12,eeuu_fed_limite_superior,4.0
+2026-11-13,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -19201,10 +19205,11 @@ fecha,serie,valor
 2026-03-01,eeuu_ipp_demanda_final_indice,154.675
 2026-04-01,eeuu_ipp_demanda_final_indice,156.443
 2026-05-01,eeuu_ipp_demanda_final_indice,157.219
-2026-06-01,eeuu_ipp_demanda_final_indice,157.158
-2026-07-01,eeuu_ipp_demanda_final_indice,157.297
-2026-08-01,eeuu_ipp_demanda_final_indice,157.855
-2026-09-01,eeuu_ipp_demanda_final_indice,159.613
+2026-06-01,eeuu_ipp_demanda_final_indice,157.149
+2026-07-01,eeuu_ipp_demanda_final_indice,157.205
+2026-08-01,eeuu_ipp_demanda_final_indice,157.673
+2026-09-01,eeuu_ipp_demanda_final_indice,159.535
+2026-10-01,eeuu_ipp_demanda_final_indice,160.248
 2010-01-01,eeuu_pce_indice,90.136
 2010-02-01,eeuu_pce_indice,90.134
 2010-03-01,eeuu_pce_indice,90.261
@@ -37239,7 +37244,7 @@ fecha,serie,valor
 2026-11-10,sp500,7518.0400390625
 2026-11-11,sp500,7627.25
 2026-11-12,sp500,7591.16015625
-2026-11-13,sp500,7557.22998046875
+2026-11-13,sp500,7553.35009765625
 2010-01-01,tipo_cambio,497.8599853515625
 2010-01-04,tipo_cambio,494.760009765625
 2010-01-05,tipo_cambio,497.1700134277344
@@ -45861,6 +45866,7 @@ fecha,serie,valor
 2026-11-10,tpm,4.5
 2026-11-11,tpm,4.5
 2026-11-12,tpm,4.5
+2026-11-13,tpm,4.5
 2010-01-04,vix,20.040000915527344
 2010-01-05,vix,19.350000381469727
 2010-01-06,vix,19.15999984741211
@@ -50109,4 +50115,4 @@ fecha,serie,valor
 2026-11-10,vix,20.110000610351562
 2026-11-11,vix,17.469999313354492
 2026-11-12,vix,18.690000534057617
-2026-11-13,vix,18.940000534057617
+2026-11-13,vix,18.979999542236328

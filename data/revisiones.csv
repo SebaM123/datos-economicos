@@ -1,4 +1,8 @@
 serie,fecha,valor_anterior,valor_nuevo,detectado_el
+eeuu_ipp_demanda_final_indice,2026-06-01,157.158,157.149,2026-11-13
+eeuu_ipp_demanda_final_indice,2026-07-01,157.297,157.205,2026-11-13
+eeuu_ipp_demanda_final_indice,2026-08-01,157.855,157.673,2026-11-13
+eeuu_ipp_demanda_final_indice,2026-09-01,159.613,159.535,2026-11-13
 eeuu_inflacion,2026-07-01,3.3,3.4,2026-11-09
 eeuu_empleo_no_agricola_nivel,2026-08-01,159015.0,159068.0,2026-11-06
 eeuu_empleo_no_agricola_nivel,2026-09-01,159044.0,159128.0,2026-11-06
