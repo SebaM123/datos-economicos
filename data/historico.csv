@@ -14027,6 +14027,7 @@ fecha,serie,valor
 2026-11-18,eeuu_fed_limite_inferior,3.75
 2026-11-19,eeuu_fed_limite_inferior,3.75
 2026-11-20,eeuu_fed_limite_inferior,3.75
+2026-11-21,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18369,6 +18370,7 @@ fecha,serie,valor
 2026-11-18,eeuu_fed_limite_superior,4.0
 2026-11-19,eeuu_fed_limite_superior,4.0
 2026-11-20,eeuu_fed_limite_superior,4.0
+2026-11-21,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
@@ -29126,7 +29128,7 @@ fecha,serie,valor
 2026-11-18,ipsa_etf,4750.0
 2026-11-19,ipsa_etf,4754.2001953125
 2026-11-20,ipsa_etf,4755.39990234375
-2026-11-21,ipsa_etf,4755.39990234375
+2026-11-21,ipsa_etf,4754.2001953125
 2010-01-04,ipsa_indice_real,3620.699951171875
 2010-01-05,ipsa_indice_real,3624.10009765625
 2010-01-06,ipsa_indice_real,3639.9599609375
@@ -41724,7 +41726,7 @@ fecha,serie,valor
 2026-11-18,tipo_cambio,1007.3599853515625
 2026-11-19,tipo_cambio,1014.97998046875
 2026-11-20,tipo_cambio,1022.0800170898438
-2026-11-21,tipo_cambio,1014.9099731445312
+2026-11-21,tipo_cambio,1022.0800170898438
 2010-01-04,tpm,0.5
 2010-01-05,tpm,0.5
 2010-01-06,tpm,0.5
