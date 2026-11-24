@@ -14034,6 +14034,7 @@ fecha,serie,valor
 2026-11-21,eeuu_fed_limite_inferior,3.75
 2026-11-22,eeuu_fed_limite_inferior,3.75
 2026-11-23,eeuu_fed_limite_inferior,3.75
+2026-11-24,eeuu_fed_limite_inferior,3.75
 2015-01-01,eeuu_fed_limite_superior,0.25
 2015-01-02,eeuu_fed_limite_superior,0.25
 2015-01-03,eeuu_fed_limite_superior,0.25
@@ -18379,6 +18380,7 @@ fecha,serie,valor
 2026-11-21,eeuu_fed_limite_superior,4.0
 2026-11-22,eeuu_fed_limite_superior,4.0
 2026-11-23,eeuu_fed_limite_superior,4.0
+2026-11-24,eeuu_fed_limite_superior,4.0
 1963-01-01,eeuu_gini,36.7
 1964-01-01,eeuu_gini,37.4
 1965-01-01,eeuu_gini,36.8
