@@ -1,4 +1,9 @@
 serie,fecha,valor_anterior,valor_nuevo,detectado_el
+eeuu_pce_indice,2026-07-01,131.187,131.185,2026-11-25
+eeuu_pce_indice,2026-08-01,131.611,131.625,2026-11-25
+eeuu_pce_indice,2026-09-01,132.257,132.283,2026-11-25
+eeuu_pib_real_anualizado,2026-07-01,3.4,4.3,2026-11-25
+eeuu_pib_total,2026-07-01,33010.036,33056.203,2026-11-25
 exportaciones_agropecuario,2026-01-01,1814.1950347,1718.7284938,2026-11-18
 exportaciones_agropecuario,2026-02-01,658.62052158,655.96981668,2026-11-18
 exportaciones_agropecuario,2026-03-01,658.03028153,682.04138323,2026-11-18
