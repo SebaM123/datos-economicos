@@ -3,11 +3,12 @@ name: Actualizar datos
 on:
   schedule:
     - cron: "0 13 * * *" # diaria completa: todos los días 10:00 America/Santiago (13:00 UTC)
-    # Reintentos en días hábiles, cada 2 h (~08:30-18:30 hora de Chile, según horario de verano).
-    # El job "decidir" los deja correr SOLO si hay una publicación del INE/Banco Central de hoy o de
+    # Reintentos en días hábiles, cada 30 min (08:07-19:37 hora de Chile en verano, 07:07-18:37 en invierno).
+    # El job "decidir" los deja correr SOLO si hay una publicación del INE/Banco Central (o de EE.UU.) de hoy o de
     # los últimos 2 días cuyo dato aún no llegó a historico.csv; si no, terminan sin bajar nada.
     # Este cron debe ser idéntico a CRON_REINTENTO en app/revisar_publicaciones_pendientes.py.
-    - cron: "30 12,14,16,18,20,22 * * 1-5"
+    # GitHub se salta crons a veces: el «vigía» de actualizar_mercado.yml (cada 15 min) dispara este mismo workflow si hay algo pendiente.
+    - cron: "7,37 11-22 * * 1-5"
   workflow_dispatch: {}
 
 permissions:

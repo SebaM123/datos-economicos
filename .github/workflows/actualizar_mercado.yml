@@ -2,14 +2,57 @@ name: Actualizar mercado (intradía)
 
 on:
   schedule:
-    - cron: "*/15 13-21 * * 1-5" # cada 15 min, 10:00-18:00 America/Santiago, lun-vie
+    - cron: "*/15 13-21 * * 1-5" # cada 15 min, 10:00-18:00 America/Santiago, lun-vie: mercado y vigía
+    - cron: "*/15 10-12,22 * * 1-5" # solo el vigía, en la mañana y al cierre (el INE publica a las 08:00 de Chile)
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 jobs:
+  # Vigía: GitHub a veces se salta las corridas programadas de «Actualizar datos». Este workflow corre cada 15 minutos, así que revisa
+  # si hay una publicación (INE, Banco Central, BLS/BEA) pendiente de carga y, si la hay y no hubo una actualización en los últimos 30 min,
+  # dispara «Actualizar datos». Apenas el dato llega a historico.csv, deja de disparar.
+  vigia:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar pandas
+        run: pip install pandas
+
+      - name: Ver si hay publicaciones pendientes de carga
+        id: portero
+        env:
+          EVENTO: vigia
+        run: python revisar_publicaciones_pendientes.py
+        working-directory: app
+
+      - name: Disparar la actualización si corresponde
+        if: steps.portero.outputs.ejecutar == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ultimo=$(gh run list --workflow actualizar_datos.yml --limit 1 --json createdAt,status --jq '.[0] | "\(.status) \(.createdAt)"' || true)
+          estado=${ultimo%% *}
+          creado=${ultimo#* }
+          if [ -n "$creado" ] && [ "$estado" != "completed" ]; then echo "Ya hay una actualización en curso ($estado): no se dispara otra."; exit 0; fi
+          if [ -n "$creado" ]; then
+            edad=$(( $(date +%s) - $(date -d "$creado" +%s) ))
+            if [ "$edad" -lt 1800 ]; then echo "La última actualización fue hace ${edad} s (< 30 min): no se dispara otra."; exit 0; fi
+          fi
+          echo "Hay publicaciones pendientes de carga: se dispara «Actualizar datos»."
+          gh workflow run actualizar_datos.yml
+
   actualizar:
+    if: github.event.schedule != '*/15 10-12,22 * * 1-5'  # fuera del horario de mercado solo corre el vigía
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
